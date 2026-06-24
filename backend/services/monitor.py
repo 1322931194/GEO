@@ -72,6 +72,12 @@ PLATFORMS = {
         "url": "https://api.moonshot.cn/v1/chat/completions",
         "model": "moonshot-v1-8k",
     },
+    "doubao": {
+        "label": "豆包",
+        "api_key_env": "DOUBAO_API_KEY",
+        "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+        "model": "doubao-pro-4k",
+    },
 }
 
 
@@ -162,6 +168,7 @@ _DISPATCH = {
     "deepseek": _call_openai,   # 兼容 OpenAI 格式
     "qwen": _call_openai,       # 通义千问兼容 OpenAI 格式
     "kimi": _call_openai,       # Kimi 兼容 OpenAI 格式
+    "doubao": _call_openai,     # 豆包兼容 OpenAI 格式
 }
 
 
