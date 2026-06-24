@@ -639,7 +639,6 @@ function renderReport(rep){
   document.getElementById("repPlatforms").innerHTML=
     Object.entries(rep.platform_breakdown||{}).map(([nm,rt])=>{
       const color=rt>=45?'#059669':rt>=30?'#d97706':'#dc2626';
-      const status=rt>=45?'良好':'medium':rt>=30?'待提升':'偏低';
       return`<div class="pf">
         <div class="nm">${nm}
           <span class="badge" style="background:${rt>=45?'#d1fae5':rt>=30?'#fef3c7':'#fee2e2'};color:${color}">${rt>=45?'✓ 良好':rt>=30?'待提升':'偏低'}</span>
@@ -798,6 +797,8 @@ async function loadProgress(){
       </div></div>`;
   }catch(e){sec.innerHTML=""}
 }
+
+async function reMonitor(){toast("🔄 开始重新监测…");goMonitor()}
 
 function toggleExtra(){
   const f=document.getElementById("extraFields");
