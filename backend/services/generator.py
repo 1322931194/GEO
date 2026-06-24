@@ -77,23 +77,36 @@ async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
-    # json_mode 时在 prompt 里强制要求纯 JSON，兼容所有模型
     if json_mode:
         prompt = prompt + "\n\n重要：只返回纯 JSON，不要任何额外文字、不要 markdown 代码块。"
     messages.append({"role": "user", "content": prompt})
     body = {"model": cfg["model"], "messages": messages, "temperature": 0.7}
-    # 只有支持的模型才加 response_format
     if json_mode and cfg.get("supports_json_mode"):
         body["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient() as client:
-        r = await client.post(
-            cfg["url"],
-            headers={"Authorization": f"Bearer {cfg['key']}"},
-            json=body,
-            timeout=90,
-        )
-        r.raise_for_status()
-        return r.json()["choices"][0]["message"]["content"]
+        try:
+            r = await client.post(
+                cfg["url"],
+                headers={"Authorization": f"Bearer {cfg['key']}"},
+                json=body,
+                timeout=120,  # 加长超时，问题生成需要更多时间
+            )
+            # 详细的错误提示
+            if r.status_code == 401:
+                raise RuntimeError("AI 密钥无效或已过期，请在 Render Environment 中检查 DEEPSEEK_API_KEY 或 OPENAI_API_KEY")
+            if r.status_code == 402:
+                raise RuntimeError("AI 账户余额不足，请充值后重试")
+            if r.status_code == 429:
+                raise RuntimeError("AI 请求频率过高，请稍等 1 分钟后重试")
+            if r.status_code >= 500:
+                raise RuntimeError(f"AI 服务暂时不可用（{r.status_code}），请稍后重试")
+            r.raise_for_status()
+            data = r.json()
+            return data["choices"][0]["message"]["content"]
+        except httpx.TimeoutException:
+            raise RuntimeError("AI 响应超时（超过120秒），请稍后重试。问题较多时正常，可缩短问题数量后重试")
+        except httpx.ConnectError:
+            raise RuntimeError("无法连接到 AI 服务，请检查网络或稍后重试")
 
 
 # 出海场景类目（英文场景）
@@ -174,7 +187,12 @@ async def generate_questions(
     """
     categories = DOMESTIC_CATEGORIES if mode == "domestic" else OUTBOUND_CATEGORIES
 
-    kw_data = await extract_brand_keywords(brand, industry, product, brand_facts)
+    # 关键词提取失败时用默认值继续，不中断整个问题生成
+    try:
+        kw_data = await extract_brand_keywords(brand, industry, product, brand_facts)
+    except Exception as e:
+        logger.warning("品牌关键词提取失败（将用默认值继续）: %s", e)
+        kw_data = {}
     keywords = kw_data.get("keywords", {})
     summary = kw_data.get("summary", f"{industry}品牌")
 
