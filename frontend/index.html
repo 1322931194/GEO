@@ -254,34 +254,32 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 <div style="min-height:100vh;background:#f8faff">
 
   <!-- 顶栏 -->
-  <div style="background:#fff;border-bottom:1px solid #e7e8ef;padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:18px;color:#4f46e5">
-      <span style="width:30px;height:30px;border-radius:8px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:grid;place-items:center;font-size:15px;color:#fff">◎</span>
+  <div style="background:#fff;border-bottom:1px solid #e7e8ef;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:#4f46e5">
+      <span style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0">◎</span>
       GEO 雷达
     </div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <span style="font-size:13px;color:#5a5f73">客服：<b style="color:#4f46e5">jenly222</b></span>
-      <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-        style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:14px;font-weight:600;cursor:pointer">
-        免费体检 →
-      </button>
-    </div>
+    <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
+      style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+      免费体检 →
+    </button>
   </div>
 
-  <!-- 主体左右分栏 -->
-  <div style="max-width:1100px;margin:0 auto;padding:52px 24px 60px">
-    <div style="display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start" id="landingGrid">
+  <!-- 手机端：单列布局 / 电脑端：左右分栏 -->
+  <div style="max-width:1100px;margin:0 auto;padding:40px 20px 60px">
+    <div id="landingGrid" style="display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start">
 
-      <!-- 左侧内容 -->
+      <!-- 左侧/手机端主内容 -->
       <div>
-        <!-- 顶部标签 -->
-        <div style="display:inline-flex;align-items:center;gap:8px;background:#fff0f0;border:1px solid #fecaca;border-radius:20px;padding:6px 14px;margin-bottom:24px">
-          <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1.5s infinite"></span>
-          <span style="font-size:13px;color:#dc2626;font-weight:500">每天 <b>2.4亿+</b> 次 AI 品牌推荐查询正在发生</span>
+
+        <!-- 顶部标签：横排，固定一行 -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:20px;overflow:hidden">
+          <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1.5s infinite;flex-shrink:0"></span>
+          <span style="font-size:12px;color:#dc2626;font-weight:600;white-space:nowrap">每天 <b>2.4亿+</b> 次 AI 品牌推荐查询正在发生</span>
         </div>
 
         <!-- 核心标题 -->
-        <h1 style="font-size:clamp(32px,3.5vw,54px);font-weight:900;line-height:1.15;color:#0f172a;margin-bottom:16px;letter-spacing:-.5px">
+        <h1 style="font-size:clamp(28px,7vw,54px);font-weight:900;line-height:1.15;color:#0f172a;margin-bottom:14px;letter-spacing:-.5px">
           你的品牌，<br>
           <span style="background:linear-gradient(135deg,#4f46e5,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
             AI 搜得到吗？
@@ -289,105 +287,106 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
         </h1>
 
         <!-- 副标题 -->
-        <p style="font-size:20px;color:#334155;margin-bottom:12px;line-height:1.6">
+        <p style="font-size:clamp(16px,4.5vw,20px);color:#334155;margin-bottom:10px;line-height:1.6;font-weight:400">
           免费查一查，AI 到底在推你，<br>还是推你的<b style="color:#dc2626">对手</b>。
         </p>
-        <p style="font-size:15px;color:#64748b;margin-bottom:32px;line-height:1.7;max-width:480px">
-          58% 的买家已改用 AI 找供应商。你在 ChatGPT、DeepSeek 的回答里出现了多少次？30 分钟出完整报告。
+        <p style="font-size:14px;color:#64748b;margin-bottom:28px;line-height:1.7">
+          58% 的买家已改用 AI 找供应商。30 分钟出完整报告。
         </p>
 
-        <!-- CTA -->
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:44px;flex-wrap:wrap">
+        <!-- CTA 按钮 -->
+        <div style="margin-bottom:36px">
           <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-            style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:10px;padding:15px 32px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(79,70,229,.3)">
+            style="display:block;width:100%;max-width:360px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(79,70,229,.3);text-align:center">
             立即免费体检 →
           </button>
-          <span style="font-size:13px;color:#94a3b8">¥9.9 解锁完整报告</span>
+          <div style="margin-top:10px;font-size:12px;color:#94a3b8">无需信用卡 · ¥9.9 解锁完整报告 · 客服微信 jenly222</div>
         </div>
 
-        <!-- 数据墙 -->
-        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:32px">
-          <div style="background:#fff;border:1px solid #e7e8ef;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
-            <div style="font-size:38px;font-weight:900;color:#f59e0b;line-height:1">58%</div>
-            <div style="font-size:13px;color:#0f172a;font-weight:600;margin:6px 0 4px">买家已改用 AI 找供应商</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.6">你的谷歌广告没问题，<br>问题是客户压根不去谷歌了</div>
-            <div style="font-size:11px;color:#f59e0b;margin-top:6px;font-weight:500">Gartner 2025</div>
-          </div>
-          <div style="background:#fff;border:1px solid #e7e8ef;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
-            <div style="font-size:38px;font-weight:900;color:#ef4444;line-height:1">25%</div>
-            <div style="font-size:13px;color:#0f172a;font-weight:600;margin:6px 0 4px">传统搜索流量正在消失</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.6">战场换了，你的投放<br>策略还没跟上</div>
-            <div style="font-size:11px;color:#ef4444;margin-top:6px;font-weight:500">Gartner 预测 2026</div>
-          </div>
-          <div style="background:#fff;border:1px solid #e7e8ef;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
-            <div style="font-size:38px;font-weight:900;color:#10b981;line-height:1">0%</div>
-            <div style="font-size:13px;color:#0f172a;font-weight:600;margin:6px 0 4px">大多数品牌的 AI 推荐率</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.6">填入品牌名立刻查到，<br>大多数结果触目惊心</div>
-            <div style="font-size:11px;color:#10b981;margin-top:6px;font-weight:500">GEO雷达实测数据</div>
-          </div>
-          <div style="background:#fff;border:1px solid #e7e8ef;border-radius:12px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
-            <div style="font-size:38px;font-weight:900;color:#4f46e5;line-height:1">8大</div>
-            <div style="font-size:13px;color:#0f172a;font-weight:600;margin:6px 0 4px">AI 平台同步监测</div>
-            <div style="font-size:12px;color:#64748b;line-height:1.6">ChatGPT · DeepSeek · 豆包<br>通义千问 · Kimi · 文心</div>
-            <div style="font-size:11px;color:#4f46e5;margin-top:6px;font-weight:500">国内外全覆盖</div>
-          </div>
-        </div>
-
-        <!-- AI 场景模拟 -->
-        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:14px;padding:20px;box-shadow:0 1px 4px rgba(0,0,0,.04)">
-          <div style="font-size:12px;color:#94a3b8;margin-bottom:14px;display:flex;align-items:center;gap:6px">
-            <span style="width:7px;height:7px;border-radius:50%;background:#10b981"></span>
-            真实场景 · 你的客户正在发生的事
-          </div>
-          <div style="display:flex;gap:10px;margin-bottom:12px">
-            <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;flex-shrink:0;font-size:13px;color:#fff">👤</div>
-            <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:0 10px 10px 10px;padding:10px 14px;font-size:13px;color:#1e293b;max-width:420px">
-              推荐几个出海品牌，要<b style="color:#4f46e5">质量好、有认证</b>的
+        <!-- 数据墙：横向滑动（手机）/ 两列网格（电脑） -->
+        <div style="margin-bottom:28px">
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px" id="dataGrid">
+            <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
+              <div style="font-size:34px;font-weight:900;color:#f59e0b;line-height:1">58%</div>
+              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">买家改用<br>AI 找供应商</div>
+              <div style="font-size:11px;color:#92400e;margin-top:4px;font-weight:500">Gartner 2025</div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #fecaca;border-radius:12px;padding:16px">
+              <div style="font-size:34px;font-weight:900;color:#ef4444;line-height:1">25%</div>
+              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">搜索流量<br>正在消失</div>
+              <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-weight:500">Gartner 2026</div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;padding:16px">
+              <div style="font-size:34px;font-weight:900;color:#10b981;line-height:1">0%</div>
+              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">大多数品牌<br>AI 推荐率</div>
+              <div style="font-size:11px;color:#065f46;margin-top:4px;font-weight:500">GEO雷达实测</div>
+            </div>
+            <div style="background:#fff;border:1.5px solid #c7d2fe;border-radius:12px;padding:16px">
+              <div style="font-size:34px;font-weight:900;color:#4f46e5;line-height:1">8大</div>
+              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">AI 平台<br>同步监测</div>
+              <div style="font-size:11px;color:#3730a3;margin-top:4px;font-weight:500">国内外全覆盖</div>
             </div>
           </div>
-          <div style="display:flex;gap:10px">
-            <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:grid;place-items:center;flex-shrink:0;font-size:13px;color:#fff">🤖</div>
+        </div>
+
+        <!-- AI 场景模拟：精简版，手机友好 -->
+        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);margin-bottom:8px">
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;display:flex;align-items:center;gap:5px">
+            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
+            真实场景 · 你的客户正在发生的事
+          </div>
+          <!-- 用户问 -->
+          <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">👤</div>
+            <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:0 10px 10px 10px;padding:8px 12px;font-size:13px;color:#1e293b;flex:1">
+              推荐出海品牌，<b style="color:#4f46e5">质量好有认证</b>的
+            </div>
+          </div>
+          <!-- AI 回答 -->
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">🤖</div>
             <div style="flex:1">
-              <div style="font-size:11px;color:#94a3b8;margin-bottom:6px">ChatGPT 回答</div>
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 10px 10px 10px;padding:12px 14px;font-size:13px;color:#1e293b;line-height:1.8">
-                <span style="color:#059669">✓ <b>Anker</b></span> · <span style="color:#059669">✓ <b>RavPower</b></span> · <span style="color:#059669">✓ <b>Baseus</b></span>
-                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:8px 12px;margin-top:8px;display:flex;align-items:center;gap:8px">
-                  <span>🔴</span>
+              <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">ChatGPT</div>
+              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 10px 10px 10px;padding:10px 12px;font-size:13px;color:#1e293b">
+                <span style="color:#059669">✓ Anker · ✓ RavPower · ✓ Baseus</span>
+                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;margin-top:8px;display:flex;align-items:center;gap:6px">
+                  <span style="font-size:12px">🔴</span>
                   <div>
                     <div style="font-size:12px;color:#dc2626;font-weight:600">你的品牌：没有出现</div>
-                    <div style="font-size:11px;color:#ef4444;margin-top:2px">客户直接点击竞品链接购买</div>
+                    <div style="font-size:11px;color:#ef4444">客户直接点击竞品链接</div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-          <div style="margin-top:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px 14px;font-size:13px;color:#c2410c">
-            ⚡ 这样的对话每天发生 <b>数百万次</b>。你的品牌出现了多少次？
+          <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:9px 12px;font-size:12px;color:#c2410c">
+            ⚡ 这样的对话每天 <b>数百万次</b>，你出现了多少次？
           </div>
         </div>
+
       </div>
 
-      <!-- 右侧注册卡片 -->
-      <div id="authFormCard" style="position:sticky;top:76px">
+      <!-- 右侧注册卡片（电脑端显示，手机端在下面单独显示） -->
+      <div id="authFormCard" style="position:sticky;top:68px">
         <div style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:14px;margin-bottom:22px">
+          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:14px;margin-bottom:20px">
             <b style="font-size:15px;display:block;margin-bottom:3px">🎁 免费体检你的品牌</b>
             <span style="font-size:13px;opacity:.9">看完结果再决定是否付费</span>
           </div>
-          <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:20px">
+          <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:18px">
             <button id="tabLogin" onclick="switchTab('login')"
               style="flex:1;padding:9px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:14px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
             <button id="tabReg" onclick="switchTab('reg')"
               style="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer">免费注册</button>
           </div>
-          <div style="margin-bottom:14px">
-            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:6px;font-weight:500">邮箱地址</label>
+          <div style="margin-bottom:13px">
+            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">邮箱地址</label>
             <input id="authEmail" type="email" placeholder="your@brand.com"
               style="width:100%;padding:11px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
               onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
           </div>
-          <div style="margin-bottom:20px">
-            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:6px;font-weight:500">密码（至少6位）</label>
+          <div style="margin-bottom:18px">
+            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">密码（至少6位）</label>
             <input id="authPw" type="password" placeholder="设置登录密码"
               style="width:100%;padding:11px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
               onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
@@ -396,18 +395,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
             免费开始 AI 品牌体检 →
           </button>
           <p id="authErr" style="color:#dc2626;font-size:13px;margin-top:10px;text-align:center;min-height:18px"></p>
-          <div style="border-top:1px solid #f0f0f0;margin-top:14px;padding-top:14px;font-size:12px;color:#94a3b8;line-height:2">
+          <div style="border-top:1px solid #f0f0f0;margin-top:14px;padding-top:12px;font-size:12px;color:#94a3b8;line-height:2">
             ① 填品牌名 + 选国内/出海市场<br>
             ② AI 自动生成专属问题集（免费）<br>
             ③ ¥9.9 解锁完整监测报告
           </div>
-          <div style="text-align:center;margin-top:12px;font-size:12px;color:#94a3b8">
+          <div style="text-align:center;margin-top:10px;font-size:12px;color:#94a3b8">
             客服微信：<b style="color:#4f46e5">jenly222</b>
           </div>
         </div>
+        <!-- 用户证言 -->
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-top:12px">
           <div style="font-size:13px;color:#92400e;line-height:1.6;margin-bottom:6px">
-            💬 <i>"系统告诉我 DeepSeek 里竞品出现了 6 次，我们完全没有。这个数据太直接了。"</i>
+            💬 <i>"DeepSeek 里竞品出现了6次，我们完全没有。这个数据太直接了。"</i>
           </div>
           <div style="font-size:12px;color:#b45309">—— 某出海茶叶品牌主</div>
         </div>
@@ -416,11 +416,23 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
     </div>
   </div>
 </div>
+
 <style>
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 @media(max-width:768px){
-  #landingGrid{grid-template-columns:1fr!important;gap:28px!important}
-  #authFormCard{position:static!important}
+  #landingGrid{
+    grid-template-columns:1fr!important;
+    gap:0!important;
+    padding:0!important;
+  }
+  #authFormCard{
+    position:static!important;
+    margin-top:32px;
+    padding:0 0 40px;
+  }
+  #authFormCard > div:first-child{
+    border-radius:16px!important;
+  }
 }
 </style>
 </div>
