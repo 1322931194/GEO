@@ -18,11 +18,10 @@ import logging
 
 import httpx
 
+import re
+
 logger = logging.getLogger("geo.generator")
 
-# 生成服务支持 DeepSeek 和 OpenAI。
-# 优先用 DeepSeek(更便宜、国内可用);若只配了 OpenAI 则自动用 OpenAI。
-# DeepSeek 的接口格式与 OpenAI 完全兼容,只是服务器地址和模型名不同。
 def _gen_config():
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
     openai_key = os.getenv("OPENAI_API_KEY")
@@ -31,30 +30,68 @@ def _gen_config():
             "key": deepseek_key,
             "url": "https://api.deepseek.com/v1/chat/completions",
             "model": os.getenv("GEN_MODEL", "deepseek-chat"),
+            "supports_json_mode": False,  # DeepSeek 不支持 response_format
         }
     if openai_key:
         return {
             "key": openai_key,
             "url": "https://api.openai.com/v1/chat/completions",
             "model": os.getenv("GEN_MODEL", "gpt-4o"),
+            "supports_json_mode": True,
         }
     return None
+
+
+def _safe_parse_json(raw: str) -> dict:
+    """
+    健壮的 JSON 解析：处理 AI 返回内容带 markdown 代码块、
+    多余文字、或格式不规范的情况。
+    """
+    if not raw:
+        return {}
+    # 去掉 markdown 代码块标记
+    text = raw.strip()
+    text = re.sub(r"^```(?:json)?\s*", "", text)
+    text = re.sub(r"\s*```$", "", text)
+    text = text.strip()
+    # 直接尝试解析
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # 尝试提取第一个 { } 块
+    match = re.search(r"\{[\s\S]*\}", text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    logger.error("JSON 解析失败，原始内容: %s", raw[:300])
+    return {}
 
 
 async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
     cfg = _gen_config()
     if not cfg:
-        raise RuntimeError("生成功能需要 DEEPSEEK_API_KEY 或 OPENAI_API_KEY,请在环境变量中配置。")
+        raise RuntimeError("生成功能需要 DEEPSEEK_API_KEY 或 OPENAI_API_KEY，请在环境变量中配置。")
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
-    messages.append({"role": "user", "content": prompt})
-    body = {"model": cfg["model"], "messages": messages, "temperature": 0.8}
+    # json_mode 时在 prompt 里强制要求纯 JSON，兼容所有模型
     if json_mode:
+        prompt = prompt + "\n\n重要：只返回纯 JSON，不要任何额外文字、不要 markdown 代码块。"
+    messages.append({"role": "user", "content": prompt})
+    body = {"model": cfg["model"], "messages": messages, "temperature": 0.7}
+    # 只有支持的模型才加 response_format
+    if json_mode and cfg.get("supports_json_mode"):
         body["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient() as client:
-        r = await client.post(cfg["url"], headers={"Authorization": f"Bearer {cfg['key']}"},
-                              json=body, timeout=90)
+        r = await client.post(
+            cfg["url"],
+            headers={"Authorization": f"Bearer {cfg['key']}"},
+            json=body,
+            timeout=90,
+        )
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
 
@@ -100,10 +137,10 @@ async def extract_brand_keywords(
 {{"keywords":{{"features":["特征1","特征2"],"scenarios":["场景1","场景2"],"users":["用户群1"],"concerns":["关注点1"]}},"summary":"一句话品牌定位"}}
 """
     raw = await _chat(prompt, system, json_mode=True)
-    try:
-        return json.loads(raw)
-    except Exception:
+    data = _safe_parse_json(raw)
+    if not data or "keywords" not in data:
         return {"keywords": {"features": [product], "scenarios": [], "users": [], "concerns": []}, "summary": f"{industry}品牌"}
+    return data
 
 
 async def generate_questions(
@@ -162,13 +199,77 @@ async def generate_questions(
 {{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
 """
     raw = await _chat(prompt, system, json_mode=True)
-    try:
-        data = json.loads(raw)
-        qs = data.get("questions", [])[:count]
-        # 确保每条都有中文翻译
-        for q in qs:
-            if not q.get("question_cn"):
-                q["question_cn"] = q.get("question", "")
-        return qs
-    except json.JSONDecodeError:
-        logger.error("问题集 JSON 解析失败: %s",
+    data = _safe_parse_json(raw)
+    qs = data.get("questions", [])[:count]
+    # 确保每条都有中文翻译
+    for q in qs:
+        if not q.get("question_cn"):
+            q["question_cn"] = q.get("question", "")
+    if not qs:
+        logger.error("问题集为空，原始返回: %s", raw[:300])
+    return qs
+
+
+async def generate_content(
+    brand: str,
+    gap_question: str,
+    product: str,
+    content_type: str = "website",
+    brand_facts: str = "",
+) -> dict:
+    """
+    针对一个缺口生成可发布内容。
+    content_type:
+      website  - 官网 FAQ / 产品页内容(AI 最爱引用结构化、权威内容)
+      review   - 第三方测评向文章
+      social   - 海外社媒原生帖(Reddit/Quora 风格,真实不像广告)
+      compare  - 对比文(回应竞品压制)
+    返回 {title, body, content_type, publish_tip}
+    """
+    type_guides = {
+        "website": (
+            "写一段适合放在官网 FAQ 或产品页的权威内容。结构清晰、有小标题、"
+            "事实准确、可被 AI 抓取引用。这是 GEO 最有效的内容形态。"
+        ),
+        "review": (
+            "写一篇客观、第三方视角的测评向文章,真实陈述优缺点,"
+            "可信度高,不夸大,适合发在行业媒体。"
+        ),
+        "social": (
+            "写一篇适合发在 Reddit / Quora 的真实用户口吻内容,"
+            "自然、不像硬广,像一个真实用户在分享体验。"
+            "注意:这是给品牌方人工审核后发布的草稿,不做批量自动发布。"
+        ),
+        "compare": (
+            "写一篇公正的对比文,客观比较本品牌与同类产品,"
+            "突出本品牌真实优势,但不贬低、不虚假对比。"
+        ),
+    }
+    guide = type_guides.get(content_type, type_guides["website"])
+
+    system = (
+        "你是出海品牌内容策略专家,精通 GEO。你写的内容既要让海外 AI 模型"
+        "愿意引用,又要真实、合规、不虚假宣传、不冒用他人商标。"
+    )
+    prompt = f"""
+品牌:{brand}
+主营产品:{product}
+要补上的缺口问题(AI 目前回答这个问题时没提到该品牌):
+"{gap_question}"
+
+品牌已知事实(用于保证内容真实,请只基于这些事实,不要编造):
+{brand_facts or "(品牌方未提供额外事实,请只写通用、可验证的内容,不要编造具体数据)"}
+
+内容类型要求:{guide}
+
+请生成内容,用目标市场语言(海外默认英文)。
+只返回 JSON,格式:
+{{"title":"标题","body":"正文(可含小标题)","publish_tip":"一句话发布建议"}}
+"""
+    raw = await _chat(prompt, system, json_mode=True)
+    data = _safe_parse_json(raw)
+    if not data or "body" not in data:
+        # 如果解析失败，把原始内容作为 body 返回，至少商家能看到内容
+        return {"title": "已生成内容", "body": raw, "content_type": content_type, "publish_tip": ""}
+    data["content_type"] = content_type
+    return data
