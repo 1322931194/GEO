@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GEO 雷达 — 出海品牌 AI 能见度平台</title>
+<style>
+  :root{
+    --ink:#16182b; --ink-soft:#5a5f73; --line:#e7e8ef; --bg:#f7f8fb;
+    --brand:#4b46d6; --brand-soft:#eeedfe; --brand-ink:#3c3489;
+    --good:#1d9e75; --good-soft:#e1f5ee; --warn:#ba7517; --warn-soft:#faeeda;
+    --bad:#e24b4a; --bad-soft:#fcebeb; --card:#fff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+  .hidden{display:none!important}
+  button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-size:14px;
+    transition:.15s;font-weight:500}
+  .btn-primary{background:var(--brand);color:#fff;padding:11px 22px}
+  .btn-primary:hover{background:#3f3ac0}
+  .btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line);padding:9px 18px}
+  .btn-ghost:hover{border-color:#c8cad6}
+  input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:11px 13px;
+    border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink)}
+  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand)}
+  label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-weight:500}
+  .field{margin-bottom:16px}
+
+  /* 顶栏 */
+  .topbar{background:#fff;border-bottom:1px solid var(--line);padding:14px 28px;
+    display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:600;font-size:17px}
+  .logo .dot{width:30px;height:30px;border-radius:8px;background:var(--brand);color:#fff;
+    display:grid;place-items:center;font-size:15px}
+  .plan-tag{font-size:12px;background:var(--brand-soft);color:var(--brand-ink);
+    padding:5px 12px;border-radius:20px;font-weight:500}
+
+  /* 登录页 */
+  .auth-wrap{max-width:420px;margin:8vh auto;padding:0 20px}
+  .auth-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:34px}
+  .auth-hero{text-align:center;margin-bottom:26px}
+  .auth-hero h1{font-size:23px;font-weight:600;margin-bottom:8px}
+  .auth-hero p{color:var(--ink-soft);font-size:14px}
+  .tab-row{display:flex;gap:8px;margin-bottom:22px;background:var(--bg);padding:4px;border-radius:10px}
+  .tab-row button{flex:1;padding:9px;background:none;color:var(--ink-soft);border-radius:7px}
+  .tab-row button.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.06)}
+
+  /* 主区 */
+  .shell{max-width:980px;margin:0 auto;padding:28px 20px 80px}
+  .steps{display:flex;gap:0;margin-bottom:28px;background:#fff;border:1px solid var(--line);
+    border-radius:12px;overflow:hidden}
+  .step{flex:1;padding:14px 16px;text-align:center;font-size:13px;color:var(--ink-soft);
+    border-right:1px solid var(--line);position:relative}
+  .step:last-child{border-right:none}
+  .step.on{background:var(--brand-soft);color:var(--brand-ink);font-weight:500}
+  .step.done{color:var(--good)}
+  .step .n{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;
+    background:var(--line);color:var(--ink-soft);font-size:12px;margin-right:6px;vertical-align:-5px}
+  .step.on .n{background:var(--brand);color:#fff}
+  .step.done .n{background:var(--good);color:#fff}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:26px;margin-bottom:18px}
+  .card h2{font-size:18px;font-weight:600;margin-bottom:6px}
+  .card .sub{color:var(--ink-soft);font-size:14px;margin-bottom:20px}
+
+  /* 报告 */
+  .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:22px}
+  .metric{background:var(--bg);border-radius:10px;padding:16px}
+  .metric .lab{font-size:12px;color:var(--ink-soft);margin-bottom:6px}
+  .metric .val{font-size:27px;font-weight:600}
+  .metric .delta{font-size:12px;margin-top:4px}
+  .platforms{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:22px}
+  .pf{border:1px solid var(--line);border-radius:10px;padding:14px}
+  .pf .nm{font-size:13px;font-weight:500;margin-bottom:8px}
+  .bar{height:7px;background:var(--bg);border-radius:4px;overflow:hidden}
+  .bar i{display:block;height:100%}
+  .pf .rt{font-size:12px;color:var(--ink-soft);margin-top:7px}
+
+  .gap{display:flex;align-items:center;justify-content:space-between;gap:12px;
+    padding:14px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+  .gap .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+  .gap .info{min-width:0}
+  .gap .ti{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .gap .meta{font-size:12px;color:var(--ink-soft)}
+  .gap button{flex-shrink:0;font-size:12px;padding:7px 13px;background:var(--brand-soft);
+    color:var(--brand-ink)}
+
+  .note{font-size:12px;color:var(--ink-soft);background:var(--bg);padding:12px 14px;
+    border-radius:8px;margin-top:18px;line-height:1.6}
+  .qitem{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .qitem input{width:auto;margin-top:3px}
+  .cat{font-size:11px;color:var(--brand-ink);background:var(--brand-soft);padding:2px 8px;
+    border-radius:10px;white-space:nowrap}
+  .loading{text-align:center;padding:40px;color:var(--ink-soft)}
+  .spinner{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--brand);
+    border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);
+    color:#fff;padding:12px 22px;border-radius:10px;font-size:14px;z-index:99;opacity:0;
+    transition:.3s;pointer-events:none}
+  .toast.show{opacity:1}
+  .content-out{background:var(--bg);border-radius:10px;padding:18px;margin-top:14px;
+    white-space:pre-wrap;font-size:14px;line-height:1.7}
+  .content-out h3{font-size:15px;margin-bottom:10px}
+
+  /* 提升方案样式 */
+  .diag-bar{display:flex;align-items:center;gap:12px;background:var(--bg);border-radius:10px;
+    padding:16px;margin-bottom:14px}
+  .diag-now{font-size:26px;font-weight:600;color:var(--warn)}
+  .diag-arrow{color:var(--ink-soft);font-size:20px}
+  .diag-max{font-size:26px;font-weight:600;color:var(--good)}
+  .diag-track{flex:1;height:10px;background:#e7e8ef;border-radius:5px;overflow:hidden;position:relative}
+  .diag-track .cur{position:absolute;left:0;top:0;height:100%;background:var(--warn);border-radius:5px}
+  .diag-track .pot{position:absolute;top:0;height:100%;background:var(--good-soft);border-radius:5px}
+  .factor{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;
+    padding:12px 14px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+  .factor .fl{min-width:0}
+  .factor .fn{font-size:13px;font-weight:500;margin-bottom:3px}
+  .factor .fw{font-size:12px;color:var(--ink-soft);line-height:1.5}
+  .factor .fp{flex-shrink:0;font-size:13px;font-weight:600;color:var(--bad);white-space:nowrap}
+  .task{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+  .task-head{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .task-step{width:24px;height:24px;border-radius:50%;background:var(--brand);color:#fff;
+    display:grid;place-items:center;font-size:13px;font-weight:600;flex-shrink:0}
+  .task-title{font-size:14px;font-weight:600;flex:1}
+  .task-pri{font-size:11px;padding:2px 8px;border-radius:10px;white-space:nowrap}
+  .task-pri.high{background:var(--bad-soft);color:var(--bad)}
+  .task-pri.medium{background:var(--warn-soft);color:var(--warn)}
+  .task-lever{font-size:11px;color:var(--brand-ink);background:var(--brand-soft);
+    padding:2px 8px;border-radius:10px}
+  .task-why{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px}
+  .task-lift{font-size:13px;color:var(--good);font-weight:500;margin-bottom:12px}
+  .task-lift::before{content:"📈 ";}
+  .progress-card{background:linear-gradient(135deg,var(--good-soft),var(--brand-soft));
+    border-radius:14px;padding:24px;border:1px solid var(--line)}
+  .progress-big{display:flex;align-items:center;gap:16px;margin:14px 0}
+  .progress-num{text-align:center}
+  .progress-num .v{font-size:30px;font-weight:600}
+  .progress-num .l{font-size:12px;color:var(--ink-soft)}
+  .progress-delta{font-size:22px;font-weight:600;color:var(--good)}
+  @media(max-width:640px){.metrics,.platforms{grid-template-columns:1fr}
+    .steps{flex-wrap:wrap}.step{flex:1 1 50%}}
+</style>
+</head>
+<body>
+
+<!-- ============ 登录/注册 ============ -->
+<div id="authView">
+  <div class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-hero">
+        <div class="logo" style="justify-content:center;margin-bottom:14px">
+          <span class="dot">◎</span> GEO 雷达
+        </div>
+        <h1>看清你的品牌在 AI 里的能见度</h1>
+        <p>ChatGPT、Gemini、Claude、Perplexity 推不推荐你?7 天免费试用</p>
+      </div>
+      <div class="tab-row">
+        <button id="tabLogin" class="on" onclick="switchTab('login')">登录</button>
+        <button id="tabReg" onclick="switchTab('reg')">注册试用</button>
+      </div>
+      <div class="field"><label>邮箱</label><input id="authEmail" type="email" placeholder="you@brand.com"></div>
+      <div class="field"><label>密码</label><input id="authPw" type="password" placeholder="至少 6 位"></div>
+      <button class="btn-primary" style="width:100%" onclick="doAuth()" id="authBtn">登录</button>
+      <p id="authErr" style="color:var(--bad);font-size:13px;margin-top:12px;text-align:center"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 主应用 ============ -->
+<div id="appView" class="hidden">
+  <div class="topbar">
+    <div class="logo"><span class="dot">◎</span> GEO 雷达</div>
+    <div style="display:flex;align-items:center;gap:14px">
+      <span class="plan-tag" id="planTag">试用版</span>
+      <button class="btn-ghost" style="padding:7px 14px" onclick="logout()">退出</button>
+    </div>
+  </div>
+
+  <div class="shell">
+    <div class="steps">
+      <div class="step on" id="s1"><span class="n">1</span>填品牌</div>
+      <div class="step" id="s2"><span class="n">2</span>生成问题</div>
+      <div class="step" id="s3"><span class="n">3</span>开始监测</div>
+      <div class="step" id="s4"><span class="n">4</span>看报告·补缺口</div>
+    </div>
+
+    <!-- 第1步:填品牌 -->
+    <div class="card" id="panel1">
+      <h2>第 1 步 · 填品牌</h2>
+      <p class="sub">只需填官网,系统自动抓取资料建库,你不用上传任何文档。</p>
+      <div class="field"><label>品牌名 *</label><input id="bName" placeholder="如 AuraTech"></div>
+      <div class="field"><label>官网链接</label><input id="bSite" placeholder="auratech.com"></div>
+      <div class="field"><label>所属行业 *</label><input id="bIndustry" placeholder="如 户外便携电源"></div>
+      <div class="field"><label>主营产品</label><input id="bProduct" placeholder="如 便携充电宝、户外电源"></div>
+      <div class="field"><label>主要竞品(逗号分隔)</label><input id="bComp" placeholder="如 RivalX, PowerCo"></div>
+      <div class="field"><label>目标市场</label>
+        <select id="bMarket"><option>海外</option><option>北美</option><option>欧洲</option><option>东南亚</option></select></div>
+      <button class="btn-primary" onclick="createBrand()" id="createBtn">建库并下一步 →</button>
+    </div>
+
+    <!-- 第2步:生成问题 -->
+    <div class="card hidden" id="panel2">
+      <h2>第 2 步 · 生成问题宇宙</h2>
+      <p class="sub">系统已生成你的客户在 AI 里会问的问题,勾选你关心的即可。</p>
+      <div id="qList"></div>
+      <button class="btn-primary" style="margin-top:18px" onclick="goMonitor()">用选中的问题开始监测 →</button>
+    </div>
+
+    <!-- 第3步:监测中 -->
+    <div class="card hidden" id="panel3">
+      <div class="loading">
+        <div class="spinner"></div>
+        <p id="monMsg">正在向各大 AI 提问,采集品牌提及……</p>
+        <p style="font-size:13px;margin-top:8px">这一步在后台跑,你可以喝杯咖啡</p>
+      </div>
+    </div>
+
+    <!-- 第4步:报告 -->
+    <div class="card hidden" id="panel4">
+      <h2>第 4 步 · 你的 AI 能见度报告</h2>
+      <p class="sub" id="repDate"></p>
+      <div class="metrics" id="repMetrics"></div>
+      <p style="font-weight:500;font-size:14px;margin-bottom:10px">各 AI 平台表现</p>
+      <div class="platforms" id="repPlatforms"></div>
+      <p style="font-weight:500;font-size:14px;margin-bottom:10px">发现的缺口 · 点一下就能补</p>
+      <div id="repGaps"></div>
+      <div id="contentArea"></div>
+      <div class="note" id="repNote"></div>
+
+      <!-- ===== 新增:提升方案(评分拆解 + GEO 任务清单)===== -->
+      <div id="improveSection" style="margin-top:28px">
+        <div style="border-top:1px solid var(--line);padding-top:24px">
+          <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">🚀 你的提升方案</h2>
+          <p class="sub">不止告诉你现状,更告诉你做哪几件事能被 AI 推荐。</p>
+          <div id="diagnosisBox"></div>
+          <p style="font-weight:500;font-size:14px;margin:22px 0 10px">GEO 任务清单 · 按优先级排好,照着做</p>
+          <div id="taskList"></div>
+          <div id="taskContentArea"></div>
+        </div>
+      </div>
+
+      <!-- ===== 新增:提升对比(复测见效)===== -->
+      <div id="progressSection" style="margin-top:28px"></div>
+
+      <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-primary" onclick="reMonitor()">🔁 我做完了,重新复测看提升</button>
+        <button class="btn-ghost" onclick="resetFlow()">+ 监测新品牌</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API = location.origin.includes("file") ? "http://localhost:8000" : "";
+let token = localStorage.getItem("geo_token") || null;
+let authMode = "login";
+let currentBrandId = null;
+let currentReport = null;
+
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;
+  t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2600)}
+
+function switchTab(m){authMode=m;
+  document.getElementById("tabLogin").classList.toggle("on",m==="login");
+  document.getElementById("tabReg").classList.toggle("on",m==="reg");
+  document.getElementById("authBtn").textContent=m==="login"?"登录":"注册并开始试用"}
+
+async function api(path,opts={}){
+  opts.headers={...(opts.headers||{}),"Content-Type":"application/json"};
+  if(token)opts.headers["Authorization"]="Bearer "+token;
+  const r=await fetch(API+path,opts);
+  if(!r.ok){const e=await r.json().catch(()=>({detail:"请求失败"}));throw new Error(e.detail)}
+  return r.json();
+}
+
+async function doAuth(){
+  const email=document.getElementById("authEmail").value.trim();
+  const password=document.getElementById("authPw").value;
+  const err=document.getElementById("authErr");err.textContent="";
+  if(!email||password.length<6){err.textContent="请填写邮箱和至少6位密码";return}
+  try{
+    const data=await api("/api/"+(authMode==="login"?"login":"register"),
+      {method:"POST",body:JSON.stringify({email,password})});
+    token=data.token;localStorage.setItem("geo_token",token);
+    enterApp(data.plan_info);
+  }catch(e){err.textContent=e.message}
+}
+
+function enterApp(planInfo){
+  document.getElementById("authView").classList.add("hidden");
+  document.getElementById("appView").classList.remove("hidden");
+  if(planInfo)document.getElementById("planTag").textContent=planInfo.name+"版";
+}
+function logout(){localStorage.removeItem("geo_token");token=null;location.reload()}
+
+function setStep(n){
+  for(let i=1;i<=4;i++){
+    const s=document.getElementById("s"+i),p=document.getElementById("panel"+i);
+    s.classList.toggle("on",i===n);s.classList.toggle("done",i<n);
+    p.classList.toggle("hidden",i!==n);
+  }
+}
+
+async function createBrand(){
+  const name=document.getElementById("bName").value.trim();
+  const industry=document.getElementById("bIndustry").value.trim();
+  if(!name||!industry){toast("请至少填写品牌名和行业");return}
+  const btn=document.getElementById("createBtn");btn.textContent="正在抓取官网建库…";btn.disabled=true;
+  try{
+    const b=await api("/api/brands",{method:"POST",body:JSON.stringify({
+      name,industry,
+      website:document.getElementById("bSite").value.trim(),
+      product:document.getElementById("bProduct").value.trim(),
+      competitors:document.getElementById("bComp").value.trim(),
+      target_market:document.getElementById("bMarket").value,
+    })});
+    currentBrandId=b.id;
+    toast(b.facts_captured?"已自动抓取官网资料建库":"品牌已创建");
+    setStep(2);loadQuestions();
+  }catch(e){toast(e.message)}
+  finally{btn.textContent="建库并下一步 →";btn.disabled=false}
+}
+
+async function loadQuestions(){
+  const list=document.getElementById("qList");
+  list.innerHTML='<div class="loading"><div class="spinner"></div><p>AI 正在生成你的专属问题集…</p></div>';
+  try{
+    const data=await api("/api/brands/"+currentBrandId+"/questions",{method:"POST"});
+    list.innerHTML="";
+    (data.questions||[]).forEach((q,i)=>{
+      const row=document.createElement("div");row.className="qitem";
+      row.innerHTML=`<input type="checkbox" checked data-i="${i}">
+        <span style="flex:1">${q.question}</span>
+        <span class="cat">${(q.category||"").split("(")[0]}</span>`;
+      list.appendChild(row);
+    });
+    if(!data.questions||!data.questions.length)
+      list.innerHTML='<p style="color:var(--ink-soft)">问题生成失败,请检查后端 AI 密钥配置。</p>';
+  }catch(e){list.innerHTML=`<p style="color:var(--bad)">${e.message}</p>`}
+}
+
+async function goMonitor(){
+  setStep(3);
+  const msgs=["正在向 ChatGPT 提问…","正在向 Gemini 提问…","正在向 Claude 提问…",
+    "正在向 Perplexity 提问…","正在解析品牌提及与引用来源…","正在汇总报告…"];
+  let mi=0;const mt=setInterval(()=>{document.getElementById("monMsg").textContent=
+    msgs[mi++%msgs.length]},1800);
+  try{
+    const rep=await api("/api/brands/"+currentBrandId+"/monitor",{method:"POST"});
+    currentReport=rep;clearInterval(mt);renderReport(rep);setStep(4);
+  }catch(e){clearInterval(mt);toast(e.message);setStep(2)}
+}
+
+function renderReport(rep){
+  document.getElementById("repDate").textContent=
+    "生成于 "+new Date(rep.generated_at).toLocaleString("zh-CN")+" · 监测 "+
+    Object.keys(rep.platform_breakdown||{}).length+" 大 AI";
+
+  const topComp=Object.entries(rep.competitor_share||{}).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById("repMetrics").innerHTML=`
+    <div class="metric"><div class="lab">AI 推荐你的概率</div>
+      <div class="val" style="color:var(--good)">${rep.mention_rate}%</div>
+      <div class="delta" style="color:var(--ink-soft)">基于 ${rep.answered_queries} 次真实查询</div></div>
+    <div class="metric"><div class="lab">竞品抢走的份额</div>
+      <div class="val" style="color:var(--bad)">${topComp?topComp[1]:0}%</div>
+      <div class="delta" style="color:var(--ink-soft)">${topComp?"主要是 "+topComp[0]:"暂无竞品压制"}</div></div>
+    <div class="metric"><div class="lab">被引用来源数</div>
+      <div class="val">${rep.source_count}</div>
+      <div class="delta" style="color:var(--ink-soft)">AI 引用的外部站点</div></div>`;
+
+  const colors=["#1d9e75","#ba7517","#1d9e75","#e24b4a"];
+  document.getElementById("repPlatforms").innerHTML=
+    Object.entries(rep.platform_breakdown||{}).map(([nm,rt],i)=>`
+      <div class="pf"><div class="nm">${nm}</div>
+        <div class="bar"><i style="width:${rt}%;background:${rt>=45?'#1d9e75':rt>=30?'#ba7517':'#e24b4a'}"></i></div>
+        <div class="rt">${rt}% 提及率</div></div>`).join("");
+
+  const gapColors={high:"#e24b4a",medium:"#ba7517",low:"#1d9e75"};
+  const gapsHtml=(rep.gaps||[]).map((g,i)=>`
+    <div class="gap">
+      <div style="display:flex;align-items:center;gap:11px;min-width:0">
+        <span class="dot" style="background:${gapColors[g.priority]}"></span>
+        <div class="info"><div class="ti">${g.title}</div>
+          <div class="meta">${g.type==='content_gap'?'内容缺口':'竞品缺口'} · ${
+            g.priority==='high'?'高':g.priority==='medium'?'中':'低'}优先级</div></div>
+      </div>
+      ${g.action==='generate_content'?
+        `<button onclick='genContent(${JSON.stringify(g.question)},${i})'>一键生成内容</button>`:
+        `<button onclick='toast("竞品追赶建议:加强该平台的权威内容与第三方引用")'>查看建议</button>`}
+    </div>`).join("");
+  document.getElementById("repGaps").innerHTML=gapsHtml||
+    '<p style="color:var(--good);font-size:14px">太棒了,本次监测未发现明显缺口。</p>';
+
+  document.getElementById("repNote").textContent="数据口径:"+rep.sample_note;
+  document.getElementById("contentArea").innerHTML="";
+  // 报告出来后,自动加载提升方案和提升对比
+  loadImprovePlan();
+  loadProgress();
+}
+
+// ===== 加载提升方案(评分拆解 + 任务清单)=====
+async function loadImprovePlan(){
+  const diagBox=document.getElementById("diagnosisBox");
+  const taskList=document.getElementById("taskList");
+  diagBox.innerHTML='<div class="loading"><div class="spinner"></div><p>正在拆解你的提升空间…</p></div>';
+  taskList.innerHTML="";
+  try{
+    const data=await api("/api/brands/"+currentBrandId+"/improve-plan");
+    const d=data.diagnosis;
+    const curPct=Math.round(d.current_score/d.max_potential*100);
+    diagBox.innerHTML=`
+      <div class="diag-bar">
+        <div style="text-align:center"><div class="diag-now">${d.current_score}%</div>
+          <div style="font-size:11px;color:var(--ink-soft)">现在</div></div>
+        <div class="diag-track">
+          <div class="pot" style="left:0;width:100%"></div>
+          <div class="cur" style="width:${curPct}%"></div>
+        </div>
+        <div style="text-align:center"><div class="diag-max">${d.max_potential}%</div>
+          <div style="font-size:11px;color:var(--ink-soft)">可达到</div></div>
+      </div>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">
+        把下面这 ${d.factors.length} 块短板补上,你的 AI 推荐概率最多能从
+        <b style="color:var(--warn)">${d.current_score}%</b> 提升到
+        <b style="color:var(--good)">${d.max_potential}%</b>:</p>
+      ${d.factors.map(f=>`
+        <div class="factor">
+          <div class="fl"><div class="fn">${f.name}</div><div class="fw">${f.why}</div></div>
+          <div class="fp">-${f.lost_points}分</div>
+        </div>`).join("")}`;
+
+    taskList.innerHTML=(data.tasks||[]).map(t=>`
+      <div class="task">
+        <div class="task-head">
+          <span class="task-step">${t.step}</span>
+          <span class="task-title">${t.title}</span>
+          <span class="task-pri ${t.priority}">${t.priority==='high'?'高优先':'中优先'}</span>
+        </div>
+        <div style="margin-bottom:8px"><span class="task-lever">杠杆:${t.lever}</span></div>
+        <div class="task-why">${t.why}</div>
+        <div class="task-lift">${t.expected_lift}</div>
+        ${t.action_type==='generate_content'?
+          `<button class="btn-primary" style="font-size:13px;padding:9px 16px"
+            onclick='genTaskContent(${JSON.stringify(t.target)},${JSON.stringify(t.content_type)})'>
+            ✍️ 生成这篇内容,复制即可发布</button>`:
+          `<button class="btn-ghost" style="font-size:13px;padding:9px 16px"
+            onclick='toast("操作指引:针对落后平台,优先争取行业媒体和权威站点的真实引用")'>
+            📋 查看操作指引</button>`}
+      </div>`).join("");
+  }catch(e){diagBox.innerHTML=`<p style="color:var(--bad)">${e.message}</p>`}
+}
+
+async function genTaskContent(target,ctype){
+  const area=document.getElementById("taskContentArea");
+  area.innerHTML='<div class="loading"><div class="spinner"></div><p>正在生成符合 GEO 规则的内容…</p></div>';
+  try{
+    const c=await api("/api/content/generate",{method:"POST",body:JSON.stringify({
+      brand_id:currentBrandId,gap_question:target,content_type:ctype})});
+    area.innerHTML=`<div class="content-out">
+      <h3>${c.title||"已生成内容"}</h3>
+      <div>${(c.body||"").replace(/</g,"&lt;")}</div>
+      ${c.publish_tip?`<p style="margin-top:14px;color:var(--brand-ink);font-size:13px">💡 ${c.publish_tip}</p>`:""}
+      <button class="btn-ghost" style="font-size:12px;padding:7px 14px;margin-top:12px"
+        onclick='copyText(this)'>📋 复制内容</button>
+    </div>`;
+    toast("内容已生成,审核后即可发布");
+    area.scrollIntoView({behavior:"smooth",block:"nearest"});
+  }catch(e){area.innerHTML=`<p style="color:var(--bad)">${e.message}</p>`}
+}
+
+function copyText(btn){
+  const text=btn.parentElement.querySelector("div").innerText;
+  navigator.clipboard.writeText(text).then(()=>toast("已复制到剪贴板"));
+}
+
+// ===== 加载提升对比(复测见效)=====
+async function loadProgress(){
+  const sec=document.getElementById("progressSection");
+  try{
+    const p=await api("/api/brands/"+currentBrandId+"/progress");
+    if(!p.has_comparison){
+      sec.innerHTML=`<div style="border-top:1px solid var(--line);padding-top:24px">
+        <h2 style="font-size:18px;font-weight:600;margin-bottom:6px">📊 提升对比</h2>
+        <p class="sub">${p.message}</p></div>`;
+      return;
+    }
+    sec.innerHTML=`<div style="border-top:1px solid var(--line);padding-top:24px">
+      <h2 style="font-size:18px;font-weight:600;margin-bottom:14px">📊 你的提升对比</h2>
+      <div class="progress-card">
+        <div class="progress-big">
+          <div class="progress-num"><div class="v" style="color:var(--warn)">${p.mention_rate_before}%</div>
+            <div class="l">优化前</div></div>
+          <div class="progress-delta">→ +${p.mention_delta} →</div>
+          <div class="progress-num"><div class="v" style="color:var(--good)">${p.mention_rate_after}%</div>
+            <div class="l">优化后</div></div>
+        </div>
+        <p style="font-size:14px;line-height:1.6">${p.summary}</p>
+      </div></div>`;
+  }catch(e){sec.innerHTML=""}
+}
+
+async function reMonitor(){
+  toast("开始复测,重新向各大 AI 提问…");
+  goMonitor();
+}
+
+async function genContent(question,idx){
+  const area=document.getElementById("contentArea");
+  area.innerHTML='<div class="loading"><div class="spinner"></div><p>正在生成可发布的补救内容…</p></div>';
+  try{
+    const c=await api("/api/content/generate",{method:"POST",body:JSON.stringify({
+      brand_id:currentBrandId,gap_question:question,content_type:"website"})});
+    area.innerHTML=`<div class="content-out">
+      <h3>${c.title||"已生成内容"}</h3>
+      <div>${(c.body||"").replace(/</g,"&lt;")}</div>
+      ${c.publish_tip?`<p style="margin-top:14px;color:var(--brand-ink);font-size:13px">💡 ${c.publish_tip}</p>`:""}
+    </div>`;
+    toast("内容已生成,审核后即可发布");
+  }catch(e){area.innerHTML=`<p style="color:var(--bad)">${e.message}</p>`}
+}
+
+function resetFlow(){
+  currentBrandId=null;currentReport=null;
+  ["bName","bSite","bIndustry","bProduct","bComp"].forEach(id=>document.getElementById(id).value="");
+  setStep(1);
+}
+
+// 启动:已有 token 直接进应用
+if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;localStorage.removeItem("geo_token")})}
+</script>
+</body>
+</html>
