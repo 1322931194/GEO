@@ -80,13 +80,16 @@ async def generate_questions(
     count: int = 50,
 ) -> list:
     """
-    生成品牌专属问题集。返回 [{category, question}] 列表。
-    专为出海设计:问题以海外用户真实搜索语境生成(英文场景为主)。
+    生成品牌专属问题集。返回中英双语列表:
+    [{category, category_cn, question, question_cn}]
+    - question: 英文原文,用于向 AI 发起真实监测查询
+    - question_cn: 中文翻译,方便中国商家看懂
     """
     system = (
         "你是资深的出海品牌 GEO(生成式引擎优化)分析师。"
-        "你的任务是模拟海外真实用户在 ChatGPT 等 AI 里会问的、"
-        "可能引出品牌推荐的问题。问题要自然、口语化、贴近真实购买决策,"
+        "你的任务是模拟海外真实用户在 ChatGPT 等 AI 里会问的问题，"
+        "同时为中国商家提供中文翻译方便理解。"
+        "问题要自然、口语化、贴近真实购买决策，"
         "不要出现品牌名本身(我们要测的是 AI 会不会主动提到该品牌)。"
     )
     prompt = f"""
@@ -95,16 +98,18 @@ async def generate_questions(
 主营产品/产品线:{product}
 目标市场:{target_market}
 
-请生成 {count} 个海外用户可能在 AI 助手里提问的问题,这些问题应当
-有机会让 AI 推荐到本行业的品牌。覆盖以下 8 大类目,每类大致均匀分布:
+请生成 {count} 个海外用户可能在 AI 助手里提问的问题，覆盖以下 8 大类目，每类大致均匀分布:
 {chr(10).join('- ' + c for c in QUESTION_CATEGORIES)}
 
 要求:
-- 问题用目标市场的主要语言书写(海外市场默认英文)。
-- 不要在问题里出现 "{brand}" 这个品牌名。
-- 每个问题是一句真实用户会打出来的话。
+- question 字段: 用英文写(海外用户真实会问的原话，用于监测)
+- question_cn 字段: 对应的中文翻译(让中国商家看懂这个问题的意思)
+- category 字段: 用中文写类目名(如: 品类推荐、对比评测、使用场景等)
+- 不要在问题里出现 "{brand}" 这个品牌名
+- 每个问题是一句真实用户会打出来的话
 
-只返回 JSON,格式:{{"questions":[{{"category":"类目名","question":"问题"}}]}}
+只返回 JSON，格式:
+{{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
 """
     raw = await _chat(prompt, system, json_mode=True)
     try:
