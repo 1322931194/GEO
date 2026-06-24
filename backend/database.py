@@ -18,16 +18,33 @@ engine = create_engine(DATABASE_URL, echo=False,
                        if DATABASE_URL.startswith("sqlite") else {})
 
 
-# 三档套餐的配额(对应商业化定价方案)
+# 套餐配额配置
 PLANS = {
-    "starter": {"name": "入门", "price_cny": 199, "brands": 1,
-                "questions": 50, "samples": 1, "platforms": 4, "freq": "weekly"},
-    "pro":     {"name": "专业", "price_cny": 899, "brands": 3,
-                "questions": 150, "samples": 2, "platforms": 4, "freq": "daily"},
-    "business":{"name": "企业", "price_cny": 2999, "brands": 10,
-                "questions": 999, "samples": 3, "platforms": 4, "freq": "daily"},
-    "trial":   {"name": "试用", "price_cny": 0, "brands": 1,
-                "questions": 20, "samples": 1, "platforms": 4, "freq": "once"},
+    "trial": {
+        "name": "免费试用", "price_cny": 0, "brands": 1,
+        "questions": 20, "samples": 1, "platforms": 4, "freq": "once",
+        "monitor_limit": 0,   # 0=不能监测，必须付9.9才能看报告
+    },
+    "starter_trial": {
+        "name": "9.9元体验", "price_cny": 9.9, "brands": 1,
+        "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
+        "monitor_limit": 1,   # 只能跑1次完整监测
+    },
+    "starter": {
+        "name": "基础版", "price_cny": 299, "brands": 2,
+        "questions": 50, "samples": 1, "platforms": 4, "freq": "weekly",
+        "monitor_limit": 4,   # 每月4次
+    },
+    "pro": {
+        "name": "专业版", "price_cny": 899, "brands": 5,
+        "questions": 150, "samples": 2, "platforms": 4, "freq": "daily",
+        "monitor_limit": 999,  # 不限
+    },
+    "business": {
+        "name": "企业版", "price_cny": 2999, "brands": 10,
+        "questions": 999, "samples": 3, "platforms": 4, "freq": "daily",
+        "monitor_limit": 999,  # 不限
+    },
 }
 
 
@@ -36,6 +53,8 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     password_hash: str
     plan: str = Field(default="trial")
+    monitor_count: int = Field(default=0)   # 累计监测次数（试用版限制用）
+    is_admin: bool = Field(default=False)   # 管理员标记
     created_at: datetime = Field(default_factory=datetime.utcnow)
     trial_ends_at: Optional[datetime] = None
 
