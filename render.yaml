@@ -1,16 +1,13 @@
-# Render 部署配置 — Render 会自动读取这个文件来部署你的产品
+# Render 部署配置
 services:
   - type: web
     name: geo-radar
     runtime: python
     rootDir: backend
-    runtimeVersion: "3.12.8"
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     plan: free
     envVars:
-      - key: PYTHON_VERSION
-        value: "3.12.8"
       - key: OPENAI_API_KEY
         sync: false
       - key: DEEPSEEK_API_KEY
