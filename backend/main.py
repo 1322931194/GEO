@@ -85,6 +85,7 @@ class BrandReq(BaseModel):
     industry: str = ""
     product: str = ""
     target_market: str = "海外"
+    mode: str = "outbound"   # outbound=出海模式  domestic=国内模式
     competitors: str = ""
 
 class GenContentReq(BaseModel):
@@ -146,7 +147,9 @@ async def create_brand(req: BrandReq, user: User = Depends(current_user),
     brand = Brand(
         user_id=user.id, name=req.name, website=req.website,
         industry=req.industry, product=req.product,
-        target_market=req.target_market, competitors=req.competitors,
+        target_market=req.target_market,
+        mode=req.mode,
+        competitors=req.competitors,
         brand_facts=facts,
     )
     session.add(brand)
@@ -182,7 +185,8 @@ async def gen_questions(brand_id: int, user: User = Depends(current_user),
     qs = await generate_questions(
         brand.name, brand.industry, brand.product,
         brand.target_market, count=min(50, limit),
-        brand_facts=brand.brand_facts,   # 传入官网知识库，让问题更精准
+        brand_facts=brand.brand_facts,
+        mode=brand.mode,
     )
     brand.questions_json = json.dumps(qs, ensure_ascii=False)
     session.add(brand)
@@ -202,6 +206,7 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     report = await run_monitoring(
         brand.name, questions, competitors,
         samples_per_question=plan_of(user)["samples"],
+        mode=getattr(brand, "mode", "outbound"),
     )
 
     rec = Report(
@@ -231,6 +236,48 @@ def reports(brand_id: int, user: User = Depends(current_user),
              "competitor_share": json.loads(r.competitor_share_json),
              "source_count": r.source_count,
              "sample_note": r.sample_note} for r in recs]
+
+
+@app.get("/api/brands/{brand_id}/history")
+def history_chart(brand_id: int, user: User = Depends(current_user),
+                  session: Session = Depends(get_session)):
+    """
+    折线图数据：返回近30天所有监测的提及率变化，用于前端画"历史战报"折线图。
+    这是让商家看到"付了钱之后在上涨"的核心数据，也是续费的最强理由。
+    """
+    _owned_brand(brand_id, user, session)
+    recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.asc())
+    ).all()
+
+    points = []
+    for r in recs:
+        pb = json.loads(r.platform_breakdown_json or "{}")
+        points.append({
+            "date": r.generated_at.strftime("%m/%d"),
+            "mention_rate": r.mention_rate,
+            "source_count": r.source_count,
+            "platforms": pb,
+        })
+
+    # 计算趋势：首次 vs 最新
+    trend = None
+    if len(points) >= 2:
+        first = points[0]["mention_rate"]
+        last = points[-1]["mention_rate"]
+        delta = round(last - first, 1)
+        trend = {
+            "delta": delta,
+            "direction": "up" if delta > 0 else "down" if delta < 0 else "flat",
+            "summary": f"相比首次监测，AI 推荐率{'上升' if delta>0 else '下降' if delta<0 else '持平'}了 {abs(delta)} 个百分点"
+        }
+
+    return {
+        "points": points,
+        "trend": trend,
+        "total_monitors": len(points),
+    }
 
 
 @app.get("/api/brands/{brand_id}/improve-plan")
