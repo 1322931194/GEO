@@ -280,10 +280,10 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   <div id="mainFlow">
   <div class="shell">
     <div class="steps">
-      <div class="step on" id="s1"><span class="n">1</span>填品牌</div>
-      <div class="step" id="s2"><span class="n">2</span>生成问题</div>
-      <div class="step" id="s3"><span class="n">3</span>开始监测</div>
-      <div class="step" id="s4"><span class="n">4</span>看报告·补缺口</div>
+      <div class="step on" id="s1" onclick="jumpStep(1)" style="cursor:pointer"><span class="n">1</span>填品牌</div>
+      <div class="step" id="s2" onclick="jumpStep(2)" style="cursor:pointer"><span class="n">2</span>生成问题</div>
+      <div class="step" id="s3" onclick="jumpStep(3)" style="cursor:pointer"><span class="n">3</span>开始监测</div>
+      <div class="step" id="s4" onclick="jumpStep(4)" style="cursor:pointer"><span class="n">4</span>看报告·补缺口</div>
     </div>
 
     <!-- 第1步 -->
@@ -331,9 +331,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
     <div class="card hidden" id="panel2">
       <div class="card-header">
         <div><h2>第 2 步 · 生成问题宇宙</h2>
-        <p class="sub" style="margin-bottom:0">AI 已生成你的客户在 ChatGPT 等平台里会问的问题，勾选你关心的即可</p></div>
+        <p class="sub" style="margin-bottom:0">基于你的品牌特征，AI 生成海外用户真实会问的问题（中英双语）</p></div>
         <button class="btn-ghost" style="font-size:13px" onclick="loadQuestions()">🔄 重新生成</button>
       </div>
+
+      <!-- 品牌关键词确认卡 -->
+      <div id="keywordsCard" class="hidden" style="background:#f8faff;border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-weight:600;font-size:14px;color:var(--brand-ink)">🔍 品牌特征识别结果</div>
+          <span style="font-size:12px;color:var(--ink-soft)">问题将基于以下特征生成，如有偏差请修改品牌信息后重新生成</span>
+        </div>
+        <div id="keywordsContent"></div>
+      </div>
+
       <div id="qList"></div>
       <div style="margin-top:20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
         <p style="font-size:13px;color:var(--ink-soft)" id="qCount"></p>
@@ -555,23 +565,47 @@ async function createBrand(){
   finally{btn.textContent="建库并下一步 →";btn.disabled=false}
 }
 
-// ===== 第2步:生成问题 =====
-// 中文翻译映射（常见问题类型）
-const catMap={
-  "品类推荐":"品类推荐","对比评测":"对比评测","使用场景":"使用场景",
-  "信任与口碑":"信任口碑","价格与价值":"价值评估","功能与规格":"功能规格",
-  "替代方案":"替代方案","购买决策":"购买决策",
-  "Category Recommendation":"品类推荐","Comparison Review":"对比评测",
-  "Use Case":"使用场景","Trust and Reputation":"信任口碑",
-  "Price and Value":"价值评估","Features and Specs":"功能规格",
-  "Alternative Solutions":"替代方案","Purchase Decision":"购买决策"
-};
+// ===== 步骤跳转（可点击步骤条）=====
+function jumpStep(n){
+  // 只允许跳到已完成的步骤，或当前步骤的下一步
+  const current=[1,2,3,4].find(i=>document.getElementById('s'+i).classList.contains('on'))||1;
+  if(n<=current||(n===current+1&&currentBrandId)){
+    // 有数据才能跳
+    if(n>=2&&!currentBrandId){toast("请先完成第1步，填写品牌信息");return}
+    setStep(n);
+  }else{
+    toast("请按顺序完成前面的步骤");
+  }
+}
 
+// ===== 第2步：先加载品牌关键词，再生成问题 =====
 async function loadQuestions(){
   const list=document.getElementById("qList");
   const cnt=document.getElementById("qCount");
-  list.innerHTML='<div class="loading"><div class="spinner"></div><p>AI 正在生成你的专属问题集，大约需要 15-30 秒…</p></div>';
+  const kwCard=document.getElementById("keywordsCard");
+  const kwContent=document.getElementById("keywordsContent");
+
+  list.innerHTML='<div class="loading"><div class="spinner"></div><p>正在分析品牌特征，生成专属问题集…</p><p style="font-size:12px;color:var(--ink-soft);margin-top:8px">首次约需 20-40 秒，问题会更精准</p></div>';
+  kwCard.classList.add("hidden");
+
   try{
+    // 先拉品牌关键词，展示给商家看
+    const kwData=await api("/api/brands/"+currentBrandId+"/keywords");
+    const kw=kwData.keywords||{};
+    if(kw.features||kw.scenarios){
+      kwContent.innerHTML=`
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:4px">品牌定位：<b style="color:var(--ink)">${kwData.summary||''}</b></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px">
+          ${kw.features?.length?`<div><div style="font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px">核心特征</div>${kw.features.map(f=>`<span style="display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;font-size:12px;margin:2px">${f}</span>`).join('')}</div>`:''}
+          ${kw.scenarios?.length?`<div><div style="font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px">使用场景</div>${kw.scenarios.map(s=>`<span style="display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;font-size:12px;margin:2px">${s}</span>`).join('')}</div>`:''}
+          ${kw.users?.length?`<div><div style="font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px">目标用户</div>${kw.users.map(u=>`<span style="display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;font-size:12px;margin:2px">${u}</span>`).join('')}</div>`:''}
+          ${kw.concerns?.length?`<div><div style="font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px">用户关注点</div>${kw.concerns.map(c=>`<span style="display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;padding:2px 8px;font-size:12px;margin:2px">${c}</span>`).join('')}</div>`:''}
+        </div>
+        <p style="font-size:12px;color:var(--ink-soft);margin-top:8px">如果以上特征有偏差，请返回第1步补充品牌信息，再重新生成问题。</p>`;
+      kwCard.classList.remove("hidden");
+    }
+
+    // 再生成问题
     const data=await api("/api/brands/"+currentBrandId+"/questions",{method:"POST"});
     list.innerHTML="";
     const qs=data.questions||[];
@@ -587,10 +621,18 @@ async function loadQuestions(){
         <span class="cat">${catCN}</span>`;
       list.appendChild(row);
     });
-    cnt.textContent=`共 ${qs.length} 个问题，覆盖 8 大场景类目`;
+    cnt.textContent=`共 ${qs.length} 个问题，覆盖 8 大场景类目 · 已根据品牌特征定制`;
     if(!qs.length) list.innerHTML='<p style="color:var(--bad);padding:20px">问题生成失败，请检查 AI 密钥配置。</p>';
   }catch(e){list.innerHTML=`<p style="color:var(--bad);padding:20px">❌ ${e.message}</p>`}
 }
+  "品类推荐":"品类推荐","对比评测":"对比评测","使用场景":"使用场景",
+  "信任与口碑":"信任口碑","价格与价值":"价值评估","功能与规格":"功能规格",
+  "替代方案":"替代方案","购买决策":"购买决策",
+  "Category Recommendation":"品类推荐","Comparison Review":"对比评测",
+  "Use Case":"使用场景","Trust and Reputation":"信任口碑",
+  "Price and Value":"价值评估","Features and Specs":"功能规格",
+  "Alternative Solutions":"替代方案","Purchase Decision":"购买决策"
+};
 
 // ===== 第3步:监测 =====
 async function goMonitor(){
