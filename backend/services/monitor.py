@@ -182,17 +182,52 @@ _DISPATCH = {
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
 DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
+def _normalize(text: str) -> str:
+    """标准化文本：转小写、去掉空格和常见标点，方便匹配"""
+    import unicodedata
+    text = text.lower().strip()
+    # 去掉中间的空格和常见标点
+    text = re.sub(r'[\s\-_·•·]', '', text)
+    return text
+
+
 def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
-    """对单条回答做实体解析。返回是否提及品牌、位置、提到了哪些竞品、引用了哪些来源。"""
+    """
+    对单条回答做实体解析。
+    品牌匹配策略：
+    1. 精确小写匹配（最严格）
+    2. 去空格匹配（处理 "G X G" 这种情况）
+    3. 部分匹配（品牌名超过3字时）
+    """
     low = answer.lower()
-    brand_low = brand.lower()
+    # 去掉回答里的空格做标准化匹配
+    low_norm = _normalize(answer)
+    brand_low = brand.lower().strip()
+    brand_norm = _normalize(brand)
 
-    mentioned = brand_low in low
-    position = low.find(brand_low) if mentioned else None
+    # 多种匹配方式，任一命中即为提及
+    mentioned = (
+        brand_low in low or           # 精确匹配（已有）
+        brand_norm in low_norm or     # 标准化匹配（处理空格/标点问题）
+        (len(brand_low) >= 2 and      # 品牌名>=2字时，检查各种变体
+         any(v in low for v in [
+             brand_low.replace(' ', ''),   # 去空格
+             brand_low.replace('-', ''),   # 去横线
+         ]))
+    )
+    position = low.find(brand_low) if brand_low in low else (
+        low_norm.find(brand_norm) if brand_norm in low_norm else None
+    )
 
-    comps_found = [c for c in competitors if c.lower() in low]
+    # 竞品同样用增强匹配
+    comps_found = []
+    for c in competitors:
+        c_low = c.lower().strip()
+        c_norm = _normalize(c)
+        if c_low in low or c_norm in low_norm:
+            comps_found.append(c)
 
-    # 抽取回答里出现的 URL / 来源域名(GEO 的"被引用来源")
+    # 抽取回答里出现的 URL / 来源域名
     urls = re.findall(r"https?://([\w\.-]+)", answer)
     sources = sorted(set(d.lower().lstrip("www.") for d in urls))
 
