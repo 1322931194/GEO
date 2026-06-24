@@ -96,17 +96,32 @@ async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
         return r.json()["choices"][0]["message"]["content"]
 
 
-# 出海场景的 8 大问题类目(对应原图 Step 2 的"覆盖8大问题类目")
-QUESTION_CATEGORIES = [
-    "品类推荐(用户问'最好的XX是什么')",
-    "对比评测(用户问'A 和 B 哪个好')",
-    "使用场景(用户问'适合XX场景的产品')",
-    "信任与口碑(用户问'XX品牌靠谱吗')",
-    "价格与价值(用户问'XX值不值得买')",
-    "功能与规格(用户问'XX有什么功能')",
-    "替代方案(用户问'XX的平替/替代品')",
-    "购买决策(用户问'新手买XX怎么选')",
+# 出海场景类目（英文场景）
+OUTBOUND_CATEGORIES = [
+    "品类推荐（用户问'最好的XX是什么'）",
+    "对比评测（用户问'A和B哪个好'）",
+    "使用场景（用户问'适合XX场景的产品'）",
+    "信任与口碑（用户问'XX品牌靠谱吗'）",
+    "价格与价值（用户问'XX值不值得买'）",
+    "功能与规格（用户问'XX有什么功能'）",
+    "替代方案（用户问'XX的平替/替代品'）",
+    "购买决策（用户问'新手买XX怎么选'）",
 ]
+
+# 国内场景类目（中文场景，适合本地品牌/连锁店）
+DOMESTIC_CATEGORIES = [
+    "品牌推荐（用户问'哪家XX比较好'）",
+    "服务对比（用户问'A和B的区别是什么'）",
+    "价格咨询（用户问'XX大概要多少钱'）",
+    "口碑评价（用户问'XX怎么样/靠谱吗'）",
+    "选购建议（用户问'第一次选XX要注意什么'）",
+    "避坑指南（用户问'买XX有什么坑要注意'）",
+    "场景适配（用户问'我的情况适合选哪种XX'）",
+    "售后服务（用户问'XX的售后/质保怎么样'）",
+]
+
+# 兼容旧代码
+QUESTION_CATEGORIES = OUTBOUND_CATEGORIES
 
 
 async def extract_brand_keywords(
@@ -150,15 +165,15 @@ async def generate_questions(
     target_market: str = "海外",
     count: int = 50,
     brand_facts: str = "",
+    mode: str = "outbound",
 ) -> list:
     """
     生成品牌专属问题集。
-    - 先提取品牌关键词，再基于真实特征生成问题
-    - 返回中英双语: [{category, question, question_cn, keywords_used}]
-    - question: 英文原文，用于向 AI 发起真实监测查询
-    - question_cn: 中文翻译，方便中国商家看懂
+    mode=outbound: 出海模式，英文问题+中文翻译，监测 ChatGPT/Gemini 等
+    mode=domestic: 国内模式，纯中文问题，监测 DeepSeek/通义千问/豆包/Kimi
     """
-    # 先提取品牌特征关键词，让问题更精准
+    categories = DOMESTIC_CATEGORIES if mode == "domestic" else OUTBOUND_CATEGORIES
+
     kw_data = await extract_brand_keywords(brand, industry, product, brand_facts)
     keywords = kw_data.get("keywords", {})
     summary = kw_data.get("summary", f"{industry}品牌")
@@ -168,40 +183,73 @@ async def generate_questions(
     concerns = "、".join(keywords.get("concerns", [])[:4])
     users = "、".join(keywords.get("users", [])[:2])
 
-    system = (
-        "你是资深的出海品牌 GEO（生成式引擎优化）分析师。"
-        "你的任务是基于品牌的真实特征，模拟海外真实用户在 ChatGPT 等 AI 里会问的问题。"
-        "问题必须与品牌的具体特征、使用场景、用户关注点高度相关，"
-        "不能是泛泛的行业问题。同时提供中文翻译供中国商家查看。"
-    )
-    prompt = f"""
-品牌定位: {summary}
-核心产品特征: {features}
-主要使用场景: {scenarios if scenarios else '日常使用'}
-目标用户: {users if users else '普通消费者'}
-用户核心关注点: {concerns if concerns else '质量、性价比'}
-目标市场: {target_market}
+    if mode == "domestic":
+        # 国内模式：纯中文问题，贴近国内用户在 DeepSeek/通义千问里的真实提问
+        system = (
+            "你是资深的国内品牌 AI 能见度分析师。"
+            "你的任务是模拟国内真实用户在 DeepSeek、通义千问、豆包、Kimi 里会问的问题。"
+            "问题必须口语化、贴近中国用户的真实表达习惯，与品牌的具体特征高度相关。"
+            "不要出现品牌名本身。"
+        )
+        prompt = f"""
+品牌定位：{summary}
+核心产品特征：{features}
+主要使用场景：{scenarios if scenarios else '日常使用'}
+目标用户：{users if users else '普通消费者'}
+用户核心关注点：{concerns if concerns else '质量、性价比'}
 
-基于以上品牌特征，生成 {count} 个海外真实用户在 ChatGPT/Gemini 等 AI 里会问的问题。
-这些问题必须：
-1. 与品牌的具体特征和场景高度相关（不要泛泛的行业问题）
-2. 是用户在准备购买或了解时会真实问的（口语化、自然）
-3. 不包含品牌名（测 AI 会不会主动提到该品牌）
+基于以上品牌特征，生成 {count} 个国内用户在 DeepSeek/通义千问等 AI 里会真实提问的问题。
+问题必须：
+1. 用中文写，口语化，像真实用户打出来的话
+2. 与品牌的具体特征和场景高度相关
+3. 不包含品牌名
 4. 覆盖以下 8 大类目，每类均匀分布：
-{chr(10).join('- ' + c for c in QUESTION_CATEGORIES)}
+{chr(10).join('- ' + c for c in categories)}
 
 每个问题返回：
-- category: 中文类目名（品类推荐/对比评测/使用场景/信任口碑/价值评估/功能规格/替代方案/购买决策）
-- question: 英文问题（海外用户真实会问的话，用于 AI 监测）
-- question_cn: 中文翻译（让中国商家看懂这个问题是什么意思）
+- category：中文类目名
+- question：中文问题（用于 AI 监测，国内用户真实会问的话）
+- question_cn：同上（国内模式 question 和 question_cn 一致）
 
-只返回 JSON:
+只返回 JSON：
+{{"questions":[{{"category":"类目名","question":"中文问题","question_cn":"中文问题"}}]}}
+"""
+    else:
+        # 出海模式：英文问题+中文翻译
+        system = (
+            "你是资深的出海品牌 GEO（生成式引擎优化）分析师。"
+            "你的任务是基于品牌的真实特征，模拟海外真实用户在 ChatGPT 等 AI 里会问的问题。"
+            "问题必须与品牌的具体特征、使用场景、用户关注点高度相关。"
+            "不要出现品牌名本身。同时提供中文翻译供中国商家查看。"
+        )
+        prompt = f"""
+品牌定位：{summary}
+核心产品特征：{features}
+主要使用场景：{scenarios if scenarios else '日常使用'}
+目标用户：{users if users else '普通消费者'}
+用户核心关注点：{concerns if concerns else '质量、性价比'}
+目标市场：{target_market}
+
+基于以上品牌特征，生成 {count} 个海外真实用户在 ChatGPT/Gemini 等 AI 里会问的问题。
+问题必须：
+1. 用英文写，口语化，是海外用户真实会打出来的话
+2. 与品牌的具体特征和场景高度相关
+3. 不包含品牌名
+4. 覆盖以下 8 大类目，每类均匀分布：
+{chr(10).join('- ' + c for c in categories)}
+
+每个问题返回：
+- category：中文类目名（品类推荐/对比评测/使用场景等）
+- question：英文问题（用于 AI 监测）
+- question_cn：对应中文翻译（让中国商家看懂）
+
+只返回 JSON：
 {{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
 """
+
     raw = await _chat(prompt, system, json_mode=True)
     data = _safe_parse_json(raw)
     qs = data.get("questions", [])[:count]
-    # 确保每条都有中文翻译
     for q in qs:
         if not q.get("question_cn"):
             q["question_cn"] = q.get("question", "")
