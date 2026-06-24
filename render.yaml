@@ -12,5 +12,9 @@ services:
         sync: false
       - key: DEEPSEEK_API_KEY
         sync: false
+      - key: QWEN_API_KEY
+        sync: false
+      - key: KIMI_API_KEY
+        sync: false
       - key: JWT_SECRET
         generateValue: true

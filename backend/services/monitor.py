@@ -59,6 +59,19 @@ PLATFORMS = {
         "url": "https://api.deepseek.com/v1/chat/completions",
         "model": "deepseek-chat",
     },
+    # 国内 AI 平台 —— 接口均兼容 OpenAI 格式，有密钥即自动启用
+    "qwen": {
+        "label": "通义千问",
+        "api_key_env": "QWEN_API_KEY",
+        "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "model": "qwen-plus",
+    },
+    "kimi": {
+        "label": "Kimi",
+        "api_key_env": "KIMI_API_KEY",
+        "url": "https://api.moonshot.cn/v1/chat/completions",
+        "model": "moonshot-v1-8k",
+    },
 }
 
 
@@ -146,7 +159,9 @@ _DISPATCH = {
     "gemini": _call_gemini,
     "claude": _call_claude,
     "perplexity": _call_perplexity,
-    "deepseek": _call_openai,  # DeepSeek 接口与 OpenAI 完全兼容,复用同一调用方式
+    "deepseek": _call_openai,   # 兼容 OpenAI 格式
+    "qwen": _call_openai,       # 通义千问兼容 OpenAI 格式
+    "kimi": _call_openai,       # Kimi 兼容 OpenAI 格式
 }
 
 
