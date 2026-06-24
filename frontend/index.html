@@ -577,9 +577,11 @@ async function loadQuestions(){
     qs.forEach((q,i)=>{
       const row=document.createElement("div");row.className="qitem";
       const catCN=catMap[q.category]||q.category||"其他";
+      const cnText=q.question_cn?`<div class="q-cn">📌 ${q.question_cn}</div>`:"";
       row.innerHTML=`<input type="checkbox" checked data-i="${i}">
         <div style="flex:1;min-width:0">
           <div class="q-en">${q.question}</div>
+          ${cnText}
         </div>
         <span class="cat">${catCN}</span>`;
       list.appendChild(row);
@@ -654,7 +656,7 @@ function renderReport(rep){
       <span class="dot" style="background:${gapColors[g.priority]}"></span>
       <div class="info">
         <div class="ti">${g.title}</div>
-        ${g.question?`<div class="ti-cn" style="font-size:11px;color:#888">${g.question}</div>`:''}
+        ${g.question?`<div class="ti-cn" style="font-size:11px;color:#888;margin-bottom:2px">🔍 ${g.question}</div>`:''}
         <div class="meta">${g.type==='content_gap'?'内容缺口':'竞品缺口'} · ${g.priority==='high'?'🔴 高优先级':g.priority==='medium'?'🟡 中优先级':'🟢 低优先级'}</div>
       </div>
       ${g.action==='generate_content'?
