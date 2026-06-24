@@ -72,115 +72,103 @@ QUESTION_CATEGORIES = [
 ]
 
 
+async def extract_brand_keywords(
+    brand: str,
+    industry: str,
+    product: str,
+    brand_facts: str = "",
+) -> dict:
+    """
+    第一步：从品牌信息里提取核心关键词和特征。
+    返回给前端让商家确认，再用于生成精准问题。
+    """
+    system = "你是品牌分析专家，擅长提炼品牌的核心卖点和用户关心的维度。"
+    facts_section = f"\n官网信息摘要:\n{brand_facts[:1000]}" if brand_facts else ""
+    prompt = f"""
+品牌名: {brand}
+行业: {industry}
+主营产品: {product}{facts_section}
+
+请分析这个品牌，提取以下信息：
+1. 核心产品特征（3-5个，用户最关心的）
+2. 主要使用场景（3-4个）
+3. 目标用户群体（2-3类）
+4. 可能的竞品类型（不需要具体品牌名）
+5. 用户购买前最常问的问题类型（3-5个方向）
+
+只返回 JSON:
+{{"keywords":{{"features":["特征1","特征2"],"scenarios":["场景1","场景2"],"users":["用户群1"],"concerns":["关注点1"]}},"summary":"一句话品牌定位"}}
+"""
+    raw = await _chat(prompt, system, json_mode=True)
+    try:
+        return json.loads(raw)
+    except Exception:
+        return {"keywords": {"features": [product], "scenarios": [], "users": [], "concerns": []}, "summary": f"{industry}品牌"}
+
+
 async def generate_questions(
     brand: str,
     industry: str,
     product: str,
     target_market: str = "海外",
     count: int = 50,
+    brand_facts: str = "",
 ) -> list:
     """
-    生成品牌专属问题集。返回中英双语列表:
-    [{category, category_cn, question, question_cn}]
-    - question: 英文原文,用于向 AI 发起真实监测查询
-    - question_cn: 中文翻译,方便中国商家看懂
+    生成品牌专属问题集。
+    - 先提取品牌关键词，再基于真实特征生成问题
+    - 返回中英双语: [{category, question, question_cn, keywords_used}]
+    - question: 英文原文，用于向 AI 发起真实监测查询
+    - question_cn: 中文翻译，方便中国商家看懂
     """
+    # 先提取品牌特征关键词，让问题更精准
+    kw_data = await extract_brand_keywords(brand, industry, product, brand_facts)
+    keywords = kw_data.get("keywords", {})
+    summary = kw_data.get("summary", f"{industry}品牌")
+
+    features = "、".join(keywords.get("features", [product])[:4])
+    scenarios = "、".join(keywords.get("scenarios", [])[:3])
+    concerns = "、".join(keywords.get("concerns", [])[:4])
+    users = "、".join(keywords.get("users", [])[:2])
+
     system = (
-        "你是资深的出海品牌 GEO(生成式引擎优化)分析师。"
-        "你的任务是模拟海外真实用户在 ChatGPT 等 AI 里会问的问题，"
-        "同时为中国商家提供中文翻译方便理解。"
-        "问题要自然、口语化、贴近真实购买决策，"
-        "不要出现品牌名本身(我们要测的是 AI 会不会主动提到该品牌)。"
+        "你是资深的出海品牌 GEO（生成式引擎优化）分析师。"
+        "你的任务是基于品牌的真实特征，模拟海外真实用户在 ChatGPT 等 AI 里会问的问题。"
+        "问题必须与品牌的具体特征、使用场景、用户关注点高度相关，"
+        "不能是泛泛的行业问题。同时提供中文翻译供中国商家查看。"
     )
     prompt = f"""
-品牌:{brand}
-所属行业:{industry}
-主营产品/产品线:{product}
-目标市场:{target_market}
+品牌定位: {summary}
+核心产品特征: {features}
+主要使用场景: {scenarios if scenarios else '日常使用'}
+目标用户: {users if users else '普通消费者'}
+用户核心关注点: {concerns if concerns else '质量、性价比'}
+目标市场: {target_market}
 
-请生成 {count} 个海外用户可能在 AI 助手里提问的问题，覆盖以下 8 大类目，每类大致均匀分布:
+基于以上品牌特征，生成 {count} 个海外真实用户在 ChatGPT/Gemini 等 AI 里会问的问题。
+这些问题必须：
+1. 与品牌的具体特征和场景高度相关（不要泛泛的行业问题）
+2. 是用户在准备购买或了解时会真实问的（口语化、自然）
+3. 不包含品牌名（测 AI 会不会主动提到该品牌）
+4. 覆盖以下 8 大类目，每类均匀分布：
 {chr(10).join('- ' + c for c in QUESTION_CATEGORIES)}
 
-要求:
-- question 字段: 用英文写(海外用户真实会问的原话，用于监测)
-- question_cn 字段: 对应的中文翻译(让中国商家看懂这个问题的意思)
-- category 字段: 用中文写类目名(如: 品类推荐、对比评测、使用场景等)
-- 不要在问题里出现 "{brand}" 这个品牌名
-- 每个问题是一句真实用户会打出来的话
+每个问题返回：
+- category: 中文类目名（品类推荐/对比评测/使用场景/信任口碑/价值评估/功能规格/替代方案/购买决策）
+- question: 英文问题（海外用户真实会问的话，用于 AI 监测）
+- question_cn: 中文翻译（让中国商家看懂这个问题是什么意思）
 
-只返回 JSON，格式:
+只返回 JSON:
 {{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
 """
     raw = await _chat(prompt, system, json_mode=True)
     try:
         data = json.loads(raw)
-        return data.get("questions", [])[:count]
+        qs = data.get("questions", [])[:count]
+        # 确保每条都有中文翻译
+        for q in qs:
+            if not q.get("question_cn"):
+                q["question_cn"] = q.get("question", "")
+        return qs
     except json.JSONDecodeError:
-        logger.error("问题集 JSON 解析失败: %s", raw[:200])
-        return []
-
-
-async def generate_content(
-    brand: str,
-    gap_question: str,
-    product: str,
-    content_type: str = "website",
-    brand_facts: str = "",
-) -> dict:
-    """
-    针对一个缺口生成可发布内容。
-    content_type:
-      website  - 官网 FAQ / 产品页内容(AI 最爱引用结构化、权威内容)
-      review   - 第三方测评向文章
-      social   - 海外社媒原生帖(Reddit/Quora 风格,真实不像广告)
-      compare  - 对比文(回应竞品压制)
-    返回 {title, body, content_type, publish_tip}
-    """
-    type_guides = {
-        "website": (
-            "写一段适合放在官网 FAQ 或产品页的权威内容。结构清晰、有小标题、"
-            "事实准确、可被 AI 抓取引用。这是 GEO 最有效的内容形态。"
-        ),
-        "review": (
-            "写一篇客观、第三方视角的测评向文章,真实陈述优缺点,"
-            "可信度高,不夸大,适合发在行业媒体。"
-        ),
-        "social": (
-            "写一篇适合发在 Reddit / Quora 的真实用户口吻内容,"
-            "自然、不像硬广,像一个真实用户在分享体验。"
-            "注意:这是给品牌方人工审核后发布的草稿,不做批量自动发布。"
-        ),
-        "compare": (
-            "写一篇公正的对比文,客观比较本品牌与同类产品,"
-            "突出本品牌真实优势,但不贬低、不虚假对比。"
-        ),
-    }
-    guide = type_guides.get(content_type, type_guides["website"])
-
-    system = (
-        "你是出海品牌内容策略专家,精通 GEO。你写的内容既要让海外 AI 模型"
-        "愿意引用,又要真实、合规、不虚假宣传、不冒用他人商标。"
-    )
-    prompt = f"""
-品牌:{brand}
-主营产品:{product}
-要补上的缺口问题(AI 目前回答这个问题时没提到该品牌):
-"{gap_question}"
-
-品牌已知事实(用于保证内容真实,请只基于这些事实,不要编造):
-{brand_facts or "(品牌方未提供额外事实,请只写通用、可验证的内容,不要编造具体数据)"}
-
-内容类型要求:{guide}
-
-请生成内容,用目标市场语言(海外默认英文)。
-只返回 JSON,格式:
-{{"title":"标题","body":"正文(可含小标题)","publish_tip":"一句话发布建议"}}
-"""
-    raw = await _chat(prompt, system, json_mode=True)
-    try:
-        data = json.loads(raw)
-        data["content_type"] = content_type
-        return data
-    except json.JSONDecodeError:
-        return {"title": "生成失败", "body": raw, "content_type": content_type,
-                "publish_tip": ""}
+        logger.error("问题集 JSON 解析失败: %s",
