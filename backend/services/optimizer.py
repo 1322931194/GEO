@@ -53,8 +53,9 @@ def diagnose_score(report: dict) -> dict:
             "name": "内容覆盖不足",
             "status": "weak",
             "lost_points": lost,
-            "why": f"有 {len(content_gaps)} 个高价值问题,AI 回答时完全没提到你。"
-                   f"这些问题缺少你的结构化内容供 AI 抓取引用。",
+            "why": f"有 {len(content_gaps)} 个高价值问题，AI 回答时完全没有提到你的品牌。",
+            "ai_logic": "AI 推荐原理：大语言模型在实时检索时，会优先抓取结构清晰、直接回答问题的网页内容。你的官网缺少针对这些问题的专题页面，AI 找不到可以引用的内容，自然不会提到你。",
+            "publish_guide": "✅ 解决方法：为每个缺口问题，在官网发布一篇专题内容（FAQ页、产品页或博客），标题直接用该问题，正文结构化回答。发布后 2-4 周，AI 的实时检索就能抓到你的内容。",
             "lever": "website",
         })
 
@@ -65,9 +66,9 @@ def diagnose_score(report: dict) -> dict:
             "name": "站外信源薄弱",
             "status": "weak" if source_count < 5 else "medium",
             "lost_points": lost,
-            "why": f"AI 只引用了 {source_count} 个提到你的外部站点。"
-                   f"Reddit、Quora、行业媒体等高权重站点缺少你的真实声量,"
-                   f"导致模型'记不住'你。",
+            "why": f"AI 回答中只引用了 {source_count} 个提到你品牌的外部站点，数量偏少。",
+            "ai_logic": "AI 推荐原理：AI 模型的训练数据来自互联网，Reddit、Quora、行业媒体等高权重平台的内容被大量纳入训练集。如果这些平台几乎没有你的品牌讨论，模型就没有足够的数据'记住'你，也不会主动推荐你。",
+            "publish_guide": "✅ 解决方法：在 Reddit 相关版块（如 r/tea、r/wellness）发布真实的品牌体验帖；在 Quora 回答相关问题；联系行业媒体发布测评文章。这些内容长期积累后会进入 AI 的训练数据。",
             "lever": "offsite",
         })
 
@@ -77,11 +78,12 @@ def diagnose_score(report: dict) -> dict:
         if weak_platforms:
             lost = min(20, len(weak_platforms) * 6)
             factors.append({
-                "name": "部分平台落后",
+                "name": "部分平台表现落后",
                 "status": "medium",
                 "lost_points": lost,
-                "why": f"在 {', '.join(weak_platforms)} 上的提及率明显偏低,"
-                       f"说明这些平台依赖的信源里你的存在感不足。",
+                "why": f"在 {', '.join(weak_platforms)} 上你的品牌提及率明显低于其他平台。",
+                "ai_logic": f"AI 推荐原理：不同 AI 平台依赖的信源不同。{'DeepSeek、通义千问' if any('Deep' in p or '通义' in p for p in weak_platforms) else '这些平台'}更多依赖中文互联网内容；ChatGPT 更依赖英文权威站点。在哪个平台落后，就说明那个平台的语料库里你的存在感不足。",
+                "publish_guide": "✅ 解决方法：针对落后的平台，在其对应语言的主流平台发布内容。国内 AI 落后则加强知乎、微博、小红书的中文内容；海外 AI 落后则加强 Reddit、Medium 的英文内容。",
                 "lever": "platform",
             })
 
@@ -94,9 +96,9 @@ def diagnose_score(report: dict) -> dict:
                 "name": f"被竞品 {top_comp[0]} 压制",
                 "status": "medium",
                 "lost_points": lost,
-                "why": f"竞品 {top_comp[0]} 的提及率({top_comp[1]}%)高于你"
-                       f"({mention_rate}%),说明在用户关心的场景里,"
-                       f"AI 更容易联想到它而不是你。",
+                "why": f"竞品 {top_comp[0]} 的 AI 提及率（{top_comp[1]}%）高于你（{mention_rate}%）。",
+                "ai_logic": f"AI 推荐原理：AI 模型通过语义关联来决定推荐谁。全网越多内容把你的品牌与用户关心的场景（如'出行''健康''性价比'）绑定在一起，AI 在回答这类问题时就越容易联想到你。{top_comp[0]} 目前在这方面的语义关联比你强。",
+                "publish_guide": f"✅ 解决方法：发布把你品牌与核心使用场景深度绑定的内容，比如对比测评（你 vs {top_comp[0]}）、场景化使用指南。反复在内容中将你的品牌与用户关心的场景词放在一起，逐步建立语义关联。",
                 "lever": "semantic",
             })
 
