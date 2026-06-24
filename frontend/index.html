@@ -432,37 +432,52 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
       <p class="sub">国内出海双引擎，7 天免费试用，随时取消</p>
       <div class="plans">
         <div class="plan">
-          <div class="plan-name">入门版</div>
-          <div class="plan-price">¥199<span>/月</span></div>
-          <div class="plan-desc">单品牌监测，快速了解 AI 能见度现状</div>
+          <div class="plan-name">¥9.9 体验版</div>
+          <div class="plan-price">¥9.9<span>/次</span></div>
+          <div class="plan-desc">首次体验，看清你的品牌 AI 能见度现状</div>
           <ul class="plan-features">
-            <li>1 个品牌</li><li>50 个问题场景</li><li>国内/出海双引擎</li>
-            <li>每周自动更新</li><li>基础能见度报告</li><li>行动工单生成</li>
+            <li>1 次完整监测</li>
+            <li>1 个品牌</li>
+            <li>30 个问题场景</li>
+            <li>国内/出海双引擎</li>
+            <li>完整能见度报告</li>
+            <li>缺口诊断+提升方案</li>
           </ul>
-          <button class="btn-ghost" style="width:100%;padding:11px" onclick="toast('请联系客服开通')">选择入门版</button>
+          <button class="btn-ghost" style="width:100%;padding:11px"
+            onclick="toast('联系客服开通：微信 jenly222')">联系客服开通</button>
         </div>
         <div class="plan popular">
           <div class="plan-badge">🔥 最受欢迎</div>
-          <div class="plan-name">专业版</div>
-          <div class="plan-price">¥899<span>/月</span></div>
-          <div class="plan-desc">多品牌监测，深度竞品分析与内容优化</div>
+          <div class="plan-name">基础版</div>
+          <div class="plan-price">¥299<span>/月</span></div>
+          <div class="plan-desc">持续监测，看到真实提升曲线</div>
           <ul class="plan-features">
-            <li>3 个品牌</li><li>150 个问题场景</li><li>国内/出海双引擎</li>
-            <li>每日自动更新</li><li>历史折线战报</li><li>竞品对比分析</li>
-            <li>一键生成全套内容</li><li>中文客服支持</li>
+            <li>2 个品牌</li>
+            <li>50 个问题场景</li>
+            <li>国内/出海双引擎</li>
+            <li>每月 4 次监测</li>
+            <li>历史折线战报</li>
+            <li>一键生成内容+行动工单</li>
+            <li>中文客服支持</li>
           </ul>
-          <button class="btn-primary" style="width:100%;padding:11px" onclick="toast('请联系客服：微信 geo-radar')">升级专业版</button>
+          <button class="btn-primary" style="width:100%;padding:11px"
+            onclick="toast('联系客服开通：微信 jenly222')">立即升级</button>
         </div>
         <div class="plan">
-          <div class="plan-name">企业版</div>
-          <div class="plan-price">¥2999<span>/月</span></div>
-          <div class="plan-desc">多品牌代运营，API 接入与专属顾问</div>
+          <div class="plan-name">专业版</div>
+          <div class="plan-price">¥899<span>/月</span></div>
+          <div class="plan-desc">多品牌监测，适合代运营机构</div>
           <ul class="plan-features">
-            <li>10 个品牌</li><li>不限问题场景</li><li>国内/出海双引擎</li>
-            <li>实时监测</li><li>API 接口</li><li>专属 GEO 顾问</li>
-            <li>白标报告导出</li>
+            <li>5 个品牌</li>
+            <li>150 个问题场景</li>
+            <li>国内/出海双引擎</li>
+            <li>不限监测次数</li>
+            <li>竞品深度对比</li>
+            <li>API 接口</li>
+            <li>专属顾问服务</li>
           </ul>
-          <button class="btn-ghost" style="width:100%;padding:11px" onclick="toast('请联系洽谈：微信 geo-radar')">联系我们</button>
+          <button class="btn-ghost" style="width:100%;padding:11px"
+            onclick="toast('联系客服洽谈：微信 jenly222')">联系我们</button>
         </div>
       </div>
       <div style="text-align:center;margin-top:28px">
@@ -655,7 +670,54 @@ async function goMonitor(){
     renderReport(rep);
     setStep(4);
     loadHistoryChart();
-  }catch(e){clearInterval(mt);toast("❌ 监测失败："+e.message);setStep(2)}
+  }catch(e){
+    clearInterval(mt);
+    if(e.message==="UPGRADE_REQUIRED"){
+      // 显示付费墙
+      document.getElementById("monMsg").textContent="";
+      document.getElementById("monPlatforms").innerHTML="";
+      document.querySelector("#panel3 .loading").innerHTML=`
+        <div style="max-width:420px;margin:0 auto;text-align:center">
+          <div style="font-size:48px;margin-bottom:16px">🔒</div>
+          <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">查看完整 AI 能见度报告</h3>
+          <p style="color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7">
+            你的问题集已生成完毕。<br>
+            支付 <b style="color:var(--brand);font-size:18px">¥9.9</b> 解锁本次完整监测报告，<br>
+            包含 AI 推荐率、竞品分析、缺口诊断、提升方案。
+          </p>
+          <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px;text-align:left">
+            <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥9.9 体验版包含：</div>
+            <div style="font-size:13px;color:var(--ink-soft);line-height:2">
+              ✅ 1次完整 AI 能见度监测<br>
+              ✅ ChatGPT + DeepSeek 双平台数据<br>
+              ✅ 品牌提及率 + 竞品对比<br>
+              ✅ 内容缺口诊断 + 提升方案<br>
+              ✅ 一键生成补救内容
+            </div>
+          </div>
+          <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:16px">
+            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥9.9，发送截图给客服开通：</div>
+            <div style="font-size:16px;font-weight:700;color:var(--brand)">微信客服：jenly222</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发送截图后 5 分钟内开通，7×24 小时服务</div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <button class="btn-primary" style="font-size:14px;padding:11px 24px"
+              onclick="window.open('weixin://','_blank');toast('请打开微信搜索：jenly222')">
+              💬 联系客服开通
+            </button>
+            <button class="btn-ghost" style="font-size:14px;padding:11px 24px" onclick="setStep(2)">
+              ← 返回修改问题
+            </button>
+          </div>
+          <p style="font-size:12px;color:var(--ink-soft);margin-top:16px">
+            已付款？<a href="javascript:void(0)" onclick="checkUpgrade()" style="color:var(--brand)">点这里刷新权限</a>
+          </p>
+        </div>`;
+    } else {
+      toast("❌ 监测失败："+e.message);
+      setStep(2);
+    }
+  }
 }
 
 // ===== 第4步：渲染报告 =====
@@ -755,16 +817,16 @@ async function loadHistoryChart(){
 // 行动工单数据：根据模式给出精准发布平台
 const ACTION_ORDERS = {
   outbound: [
-    {platform:"🌐 官网 FAQ/产品页",tip:"结构化内容，AI 实时检索首选信源",kw:""},
-    {platform:"📝 Reddit",tip:"找对应话题板块，如 r/camping、r/ecommerce，真实用户口吻",kw:""},
-    {platform:"❓ Quora",tip:"搜索相关问题并回答，建立权威信源",kw:""},
-    {platform:"📰 Medium/行业博客",tip:"发布深度测评或使用指南，争取媒体引用",kw:""},
+    {platform:"🌐 官网 FAQ/产品页",tip:"结构化内容，AI 实时检索首选信源",url:"",kw:""},
+    {platform:"📝 Reddit",tip:"找对应话题板块发帖，真实用户口吻",url:"https://www.reddit.com",kw:""},
+    {platform:"❓ Quora",tip:"搜索相关问题并回答，建立权威信源",url:"https://www.quora.com",kw:""},
+    {platform:"📰 Medium",tip:"发布深度测评或使用指南",url:"https://medium.com/new-story",kw:""},
   ],
   domestic: [
-    {platform:"🔵 知乎",tip:"回答相关问题或发布专栏文章，权重高，AI 常引用",kw:""},
-    {platform:"📱 小红书",tip:"真实体验分享笔记，带自然长尾关键词",kw:""},
-    {platform:"📰 百家号/企鹅号",tip:"分发至百度生态，文心一言/百度 AI 优先抓取",kw:""},
-    {platform:"💬 微信公众号",tip:"品牌官方内容，配合 SEO 关键词，提升整体权重",kw:""},
+    {platform:"🔵 知乎",tip:"回答相关问题或发布专栏文章，权重高，AI 常引用",url:"https://www.zhihu.com/question",kw:""},
+    {platform:"📱 小红书",tip:"真实体验分享笔记，带自然长尾关键词",url:"https://www.xiaohongshu.com",kw:""},
+    {platform:"📰 百家号",tip:"分发至百度生态，文心一言/百度 AI 优先抓取",url:"https://baijiahao.baidu.com",kw:""},
+    {platform:"💬 微信公众号",tip:"品牌官方内容，配合 SEO 关键词",url:"https://mp.weixin.qq.com",kw:""},
   ]
 };
 
@@ -785,7 +847,7 @@ async function genContent(question, idx){
           <div class="ao-item">
             <div class="ai-platform">${o.platform}</div>
             <div class="ai-tip">${o.tip}</div>
-            ${o.kw?`<span class="ai-kw">${o.kw}</span>`:""}
+            ${o.url?`<a href="${o.url}" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;padding:3px 10px;background:var(--brand-soft);color:var(--brand-ink);border-radius:6px;text-decoration:none;border:1px solid #c7d2fe">去发布 →</a>`:""}
           </div>`).join("")}</div>
         <div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border-radius:6px;font-size:12px;color:#065f46">
           ⏱ 发布后 <b>2-4 周</b>回来点「复测看提升」，验证 AI 提及率是否上涨
@@ -854,7 +916,11 @@ async function loadImprovePlan(){
           <div class="action-order" style="margin-bottom:10px">
             <div class="ao-title">📤 生成后按此工单发布</div>
             <div class="ao-grid">${orders.slice(0,2).map(o=>`
-              <div class="ao-item"><div class="ai-platform">${o.platform}</div><div class="ai-tip">${o.tip}</div></div>`).join("")}</div>
+              <div class="ao-item">
+                <div class="ai-platform">${o.platform}</div>
+                <div class="ai-tip">${o.tip}</div>
+                ${o.url?`<a href="${o.url}" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;padding:3px 10px;background:var(--brand-soft);color:var(--brand-ink);border-radius:6px;text-decoration:none;border:1px solid #c7d2fe">去发布 →</a>`:""}
+              </div>`).join("")}</div>
           </div>
           <button class="btn-primary" style="font-size:13px;padding:9px 16px"
             onclick='genTaskContent(${JSON.stringify(t.target)},${JSON.stringify(t.content_type)})'>
@@ -912,6 +978,18 @@ async function loadProgress(){
 }
 
 async function reMonitor(){toast("🔄 开始重新监测…");goMonitor()}
+
+async function checkUpgrade(){
+  try{
+    const d=await api("/api/me");
+    if(d.plan_info && d.plan_info.monitor_limit>0){
+      toast("✅ 权限已开通，开始监测！");
+      goMonitor();
+    } else {
+      toast("暂未检测到权限开通，请联系客服 jenly222");
+    }
+  }catch(e){toast("请重新登录后再试")}
+}
 
 function resetFlow(){
   currentBrandId=null;currentMode=null;
