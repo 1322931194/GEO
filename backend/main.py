@@ -26,7 +26,7 @@ import jwt
 from database import (engine, init_db, get_session, PLANS,
                       User, Brand, Report, GeneratedContent)
 from services.monitor import run_monitoring
-from services.generator import generate_questions, generate_content
+from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports
 
@@ -163,6 +163,17 @@ def list_brands(user: User = Depends(current_user),
              "website": b.website} for b in brands]
 
 
+@app.get("/api/brands/{brand_id}/keywords")
+async def brand_keywords(brand_id: int, user: User = Depends(current_user),
+                         session: Session = Depends(get_session)):
+    """提取品牌关键词，让商家确认品牌特征理解是否正确，再生成问题。"""
+    brand = _owned_brand(brand_id, user, session)
+    result = await extract_brand_keywords(
+        brand.name, brand.industry, brand.product, brand.brand_facts
+    )
+    return result
+
+
 @app.post("/api/brands/{brand_id}/questions")
 async def gen_questions(brand_id: int, user: User = Depends(current_user),
                         session: Session = Depends(get_session)):
@@ -171,6 +182,7 @@ async def gen_questions(brand_id: int, user: User = Depends(current_user),
     qs = await generate_questions(
         brand.name, brand.industry, brand.product,
         brand.target_market, count=min(50, limit),
+        brand_facts=brand.brand_facts,   # 传入官网知识库，让问题更精准
     )
     brand.questions_json = json.dumps(qs, ensure_ascii=False)
     session.add(brand)
