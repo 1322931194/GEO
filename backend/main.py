@@ -201,13 +201,26 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     questions = [q["question"] for q in json.loads(brand.questions_json or "[]")]
     if not questions:
         raise HTTPException(400, "请先生成问题集再开始监测")
-    competitors = [c.strip() for c in brand.competitors.split(",") if c.strip()]
 
+    # 试用版监测次数限制
+    plan = plan_of(user)
+    monitor_limit = plan.get("monitor_limit", 999)
+    user_count = getattr(user, "monitor_count", 0) or 0
+    if monitor_limit == 0:
+        raise HTTPException(403, "UPGRADE_REQUIRED")
+    if 0 < monitor_limit <= user_count:
+        raise HTTPException(403, "UPGRADE_REQUIRED")
+
+    competitors = [c.strip() for c in brand.competitors.split(",") if c.strip()]
     report = await run_monitoring(
         brand.name, questions, competitors,
-        samples_per_question=plan_of(user)["samples"],
+        samples_per_question=plan["samples"],
         mode=getattr(brand, "mode", "outbound"),
     )
+
+    # 更新监测次数
+    user.monitor_count = user_count + 1
+    session.add(user)
 
     rec = Report(
         brand_id=brand.id, mention_rate=report.mention_rate,
@@ -352,9 +365,64 @@ def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
 @app.get("/api/health")
 def health():
     configured = [p for p in ("OPENAI_API_KEY", "GEMINI_API_KEY",
-                              "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY")
+                              "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY",
+                              "DEEPSEEK_API_KEY")
                   if os.getenv(p)]
     return {"status": "ok", "ai_platforms_configured": len(configured)}
+
+
+# ----------------------------- 管理员接口 -----------------------------
+# 用法：在浏览器访问 /admin?key=你设置的ADMIN_KEY
+# 或用 POST /api/admin/upgrade 升级用户套餐
+
+ADMIN_KEY = os.getenv("ADMIN_KEY", "geo-admin-2026")
+
+def _check_admin(key: str):
+    if key != ADMIN_KEY:
+        raise HTTPException(403, "管理员密钥错误")
+
+@app.get("/api/admin/users")
+def admin_list_users(key: str, session: Session = Depends(get_session)):
+    """列出所有用户（管理员用）"""
+    _check_admin(key)
+    users = session.exec(select(User).order_by(User.created_at.desc())).all()
+    return [{"id": u.id, "email": u.email, "plan": u.plan,
+             "monitor_count": getattr(u, "monitor_count", 0),
+             "created_at": u.created_at} for u in users]
+
+class UpgradeReq(BaseModel):
+    email: str
+    plan: str   # trial / starter_trial / starter / pro / business
+    key: str
+
+@app.post("/api/admin/upgrade")
+def admin_upgrade(req: UpgradeReq, session: Session = Depends(get_session)):
+    """
+    管理员给用户升级套餐。
+    用法示例（用 curl 或 Postman）：
+    POST /api/admin/upgrade
+    {"email": "user@qq.com", "plan": "starter", "key": "geo-admin-2026"}
+    """
+    _check_admin(req.key)
+    if req.plan not in PLANS:
+        raise HTTPException(400, f"套餐不存在，可选：{list(PLANS.keys())}")
+    user = session.exec(select(User).where(User.email == req.email)).first()
+    if not user:
+        raise HTTPException(404, f"用户 {req.email} 不存在")
+    old_plan = user.plan
+    user.plan = req.plan
+    # 升级时重置监测次数
+    user.monitor_count = 0
+    session.add(user)
+    session.commit()
+    return {
+        "success": True,
+        "email": req.email,
+        "old_plan": old_plan,
+        "new_plan": req.plan,
+        "plan_name": PLANS[req.plan]["name"],
+        "message": f"✅ {req.email} 已升级为 {PLANS[req.plan]['name']}"
+    }
 
 
 # 托管前端(单文件 SPA)
