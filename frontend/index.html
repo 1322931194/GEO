@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -239,7 +240,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
     <div class="auth-brand">
       <div class="logo"><span class="dot">◎</span>GEO 雷达</div>
       <h1>出海品牌 AI 能见度平台</h1>
-      <p>监测你的品牌在 ChatGPT、DeepSeek、通义千问、Kimi 等 AI 里被推荐的概率，并告诉你如何提升</p>
+      <p>监测你的品牌在 ChatGPT、DeepSeek、通义千问、Kimi、豆包等 AI 里被推荐的概率，并告诉你如何提升</p>
     </div>
     <div class="auth-stats">
       <div class="auth-stat"><div class="n">6大</div><div class="l">AI 平台监测</div></div>
@@ -680,8 +681,22 @@ async function genContent(question,idx){
       brand_id:currentBrandId,gap_question:question,content_type:"website"})});
     area.innerHTML=`<div class="content-out">
       <h3>📄 已生成内容：${c.title||"GEO 优化内容"}</h3>
-      <div class="body-text">${(c.body||"").replace(/</g,"&lt;")}</div>
+      <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,'').replace(/\*\*/g,'')}</div>
       ${c.publish_tip?`<div class="tip">💡 发布建议：${c.publish_tip}</div>`:""}
+      <div style="margin-top:14px;padding:14px;background:#f0fdf4;border-radius:10px;border:1px solid #a7f3d0">
+        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:10px">📤 发布到这些地方，AI 就能"看到"你</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#065f46">
+          <div>🌐 <b>官网</b> → 产品页/FAQ页（首选）</div>
+          <div>📝 <b>Reddit</b> → 找对应的话题版块</div>
+          <div>❓ <b>Quora</b> → 回答相关问题</div>
+          <div>📰 <b>行业媒体</b> → 投稿测评/专题文章</div>
+          <div>📱 <b>Medium</b> → 发布英文博客</div>
+          <div>💬 <b>知乎/小红书</b> → 国内 AI 信源</div>
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:#dcfce7;border-radius:6px;font-size:12px;color:#065f46">
+          ⏱ 发布后 <b>2-4 周</b>回来复测，查看 AI 提及率是否提升
+        </div>
+      </div>
       <div style="margin-top:14px;display:flex;gap:10px">
         <button class="btn-primary" style="font-size:13px;padding:8px 16px" onclick="copyContent(this)">📋 复制内容</button>
         <button class="btn-ghost" style="font-size:13px;padding:8px 16px" onclick="this.closest('.content-out').remove()">关闭</button>
@@ -723,28 +738,50 @@ async function loadImprovePlan(){
       </p>
       ${d.factors.map(f=>`
         <div class="factor">
-          <div class="fl"><div class="fn">${f.name}</div><div class="fw">${f.why}</div></div>
+          <div class="fl">
+            <div class="fn">${f.name}</div>
+            <div class="fw">${f.why}</div>
+            ${f.ai_logic?`<div style="margin-top:8px;padding:10px 12px;background:#f0f4ff;border-radius:8px;border-left:3px solid var(--brand)">
+              <div style="font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px">🧠 AI 推荐原理</div>
+              <div style="font-size:12px;color:var(--ink-soft);line-height:1.6">${f.ai_logic}</div>
+            </div>`:''}
+            ${f.publish_guide?`<div style="margin-top:8px;padding:10px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid var(--good)">
+              <div style="font-size:12px;color:#065f46;line-height:1.6">${f.publish_guide}</div>
+            </div>`:''}
+          </div>
           <div class="fp">-${f.lost_points}分</div>
         </div>`).join("")}`;
 
-    taskList.innerHTML=(data.tasks||[]).map(t=>`
+    taskList.innerHTML=(data.tasks||[]).map(t=>{
+      // 从target提取中英对照标题
+      const enTitle=t.target||t.title||"";
+      const shortEn=enTitle.length>30?enTitle.substring(0,30)+"...":enTitle;
+      const taskTitle=t.title.includes("「")?t.title:`为「${shortEn}」发布内容`;
+      return`
       <div class="task">
         <div class="task-head">
           <span class="task-step">${t.step}</span>
-          <span class="task-title">${t.title}</span>
+          <span class="task-title">${taskTitle}</span>
           <span class="task-pri ${t.priority}">${t.priority==='high'?'🔴 高优先':'🟡 中优先'}</span>
         </div>
         <div><span class="task-lever">杠杆：${t.lever}</span></div>
         <div class="task-why" style="margin-top:8px">${t.why}</div>
         <div class="task-lift">${t.expected_lift}</div>
-        ${t.action_type==='generate_content'?
-          `<button class="btn-primary" style="font-size:13px;padding:9px 18px"
+        ${t.action_type==='generate_content'?`
+          <div style="margin-bottom:10px;padding:10px 12px;background:#f8faff;border-radius:8px;font-size:12px;color:var(--ink-soft);border:1px solid #e0e7ff">
+            📤 <b>生成后发布到：</b>官网产品页 / FAQ页 / 行业媒体 / Reddit / Quora<br>
+            ⏱ <b>预计见效时间：</b>发布后 2-4 周，AI 实时检索开始抓取
+          </div>
+          <button class="btn-primary" style="font-size:13px;padding:9px 18px"
             onclick='genTaskContent(${JSON.stringify(t.target)},${JSON.stringify(t.content_type)})'>
             ✍️ 生成这篇内容，复制即可发布</button>`:
-          `<button class="btn-ghost" style="font-size:13px;padding:9px 18px"
+          `<div style="margin-bottom:10px;padding:10px 12px;background:#f8faff;border-radius:8px;font-size:12px;color:var(--ink-soft);border:1px solid #e0e7ff">
+            📤 <b>操作建议：</b>针对落后平台，在对应语言的主流平台发布权威内容
+          </div>
+          <button class="btn-ghost" style="font-size:13px;padding:9px 18px"
             onclick='toast("操作指引：针对落后平台，优先争取行业媒体和权威站点的真实引用")'>
             📋 查看操作指引</button>`}
-      </div>`).join("");
+      </div>`}).join("");
   }catch(e){diagBox.innerHTML=`<p style="color:var(--bad);padding:20px">❌ ${e.message}</p>`}
 }
 
@@ -756,8 +793,22 @@ async function genTaskContent(target,ctype){
       brand_id:currentBrandId,gap_question:target,content_type:ctype||"website"})});
     area.innerHTML=`<div class="content-out">
       <h3>📄 ${c.title||"已生成内容"}</h3>
-      <div class="body-text">${(c.body||"").replace(/</g,"&lt;")}</div>
+      <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,'').replace(/\*\*/g,'')}</div>
       ${c.publish_tip?`<div class="tip">💡 ${c.publish_tip}</div>`:""}
+      <div style="margin-top:14px;padding:14px;background:#f0fdf4;border-radius:10px;border:1px solid #a7f3d0">
+        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:10px">📤 发布到这些地方，AI 就能"看到"你</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:#065f46">
+          <div>🌐 <b>官网</b> → 产品页/FAQ页（首选）</div>
+          <div>📝 <b>Reddit</b> → 找对应的话题版块</div>
+          <div>❓ <b>Quora</b> → 回答相关问题</div>
+          <div>📰 <b>行业媒体</b> → 投稿测评/专题文章</div>
+          <div>📱 <b>Medium</b> → 发布英文博客</div>
+          <div>💬 <b>知乎/小红书</b> → 国内 AI 信源</div>
+        </div>
+        <div style="margin-top:10px;padding:8px 10px;background:#dcfce7;border-radius:6px;font-size:12px;color:#065f46">
+          ⏱ 发布后 <b>2-4 周</b>回来复测，查看 AI 提及率是否提升
+        </div>
+      </div>
       <div style="margin-top:14px;display:flex;gap:10px">
         <button class="btn-primary" style="font-size:13px;padding:8px 16px" onclick="copyContent(this)">📋 复制内容</button>
         <button class="btn-ghost" style="font-size:13px;padding:8px 16px" onclick="this.closest('.content-out').remove()">关闭</button>
