@@ -78,6 +78,12 @@ PLATFORMS = {
         "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
         "model": "doubao-pro-4k",
     },
+    "wenxin": {
+        "label": "文心一言",
+        "api_key_env": "WENXIN_API_KEY",
+        "url": "https://qianfan.baidubce.com/v2/chat/completions",
+        "model": "ernie-4.0-8k",
+    },
 }
 
 
@@ -165,16 +171,16 @@ _DISPATCH = {
     "gemini": _call_gemini,
     "claude": _call_claude,
     "perplexity": _call_perplexity,
-    "deepseek": _call_openai,   # 兼容 OpenAI 格式
-    "qwen": _call_openai,       # 通义千问兼容 OpenAI 格式
-    "kimi": _call_openai,       # Kimi 兼容 OpenAI 格式
-    "doubao": _call_openai,     # 豆包兼容 OpenAI 格式
+    "deepseek": _call_openai,
+    "qwen": _call_openai,
+    "kimi": _call_openai,
+    "doubao": _call_openai,
+    "wenxin": _call_openai,   # 文心一言兼容 OpenAI 格式
 }
 
-
-# ----------------------------------------------------------------------------
-# 解析层:从 AI 的回答里抽取品牌提及、竞品、引用来源
-# ----------------------------------------------------------------------------
+# 平台分组
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
+DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
 def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
     """对单条回答做实体解析。返回是否提及品牌、位置、提到了哪些竞品、引用了哪些来源。"""
@@ -202,25 +208,36 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
 # 主流程:跑一遍完整监测
 # ----------------------------------------------------------------------------
 
+# 平台分组：出海模式 vs 国内模式
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
+DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao"}
+
 async def run_monitoring(
     brand: str,
     questions: list,
     competitors: list,
     samples_per_question: int = 1,
+    mode: str = "outbound",
 ) -> VisibilityReport:
     """
-    对一个品牌的问题集,在所有已配置密钥的平台上跑监测。
-
-    samples_per_question: 每个问题重复采样几次(AI 回答有随机性,
-                          多采样能提高数据可信度。默认 1,专业版可调高)。
+    对一个品牌的问题集，在对应模式的平台上跑监测。
+    mode: outbound=出海模式(ChatGPT/Gemini等), domestic=国内模式(DeepSeek/通义千问等)
     """
-    available = {pid: cfg for pid, cfg in PLATFORMS.items()
-                 if os.getenv(cfg["api_key_env"])}
+    # 根据模式筛选平台
+    allowed = DOMESTIC_PLATFORMS if mode == "domestic" else OUTBOUND_PLATFORMS
+    available = {
+        pid: cfg for pid, cfg in PLATFORMS.items()
+        if os.getenv(cfg["api_key_env"]) and pid in allowed
+    }
+
+    if not available:
+        # 没有对应模式的密钥时，退回到所有有密钥的平台
+        available = {pid: cfg for pid, cfg in PLATFORMS.items()
+                     if os.getenv(cfg["api_key_env"])}
 
     if not available:
         raise RuntimeError(
-            "没有任何 AI 平台密钥可用。请在 .env 中至少配置一个:"
-            "OPENAI_API_KEY / GEMINI_API_KEY / ANTHROPIC_API_KEY / PERPLEXITY_API_KEY"
+            "没有任何 AI 平台密钥可用。请在环境变量中配置至少一个密钥。"
         )
 
     results: list[AnswerResult] = []
