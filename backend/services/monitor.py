@@ -53,6 +53,12 @@ PLATFORMS = {
         "url": "https://api.perplexity.ai/chat/completions",
         "model": "sonar",
     },
+    "deepseek": {
+        "label": "DeepSeek",
+        "api_key_env": "DEEPSEEK_API_KEY",
+        "url": "https://api.deepseek.com/v1/chat/completions",
+        "model": "deepseek-chat",
+    },
 }
 
 
@@ -140,6 +146,7 @@ _DISPATCH = {
     "gemini": _call_gemini,
     "claude": _call_claude,
     "perplexity": _call_perplexity,
+    "deepseek": _call_openai,  # DeepSeek 接口与 OpenAI 完全兼容,复用同一调用方式
 }
 
 

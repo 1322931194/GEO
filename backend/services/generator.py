@@ -20,24 +20,40 @@ import httpx
 
 logger = logging.getLogger("geo.generator")
 
-# 生成统一用一个高质量模型即可,默认走 OpenAI,可在 .env 切换。
-GEN_URL = "https://api.openai.com/v1/chat/completions"
-GEN_MODEL = os.getenv("GEN_MODEL", "gpt-4o")
+# 生成服务支持 DeepSeek 和 OpenAI。
+# 优先用 DeepSeek(更便宜、国内可用);若只配了 OpenAI 则自动用 OpenAI。
+# DeepSeek 的接口格式与 OpenAI 完全兼容,只是服务器地址和模型名不同。
+def _gen_config():
+    deepseek_key = os.getenv("DEEPSEEK_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
+    if deepseek_key:
+        return {
+            "key": deepseek_key,
+            "url": "https://api.deepseek.com/v1/chat/completions",
+            "model": os.getenv("GEN_MODEL", "deepseek-chat"),
+        }
+    if openai_key:
+        return {
+            "key": openai_key,
+            "url": "https://api.openai.com/v1/chat/completions",
+            "model": os.getenv("GEN_MODEL", "gpt-4o"),
+        }
+    return None
 
 
 async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
-    key = os.getenv("OPENAI_API_KEY")
-    if not key:
-        raise RuntimeError("生成功能需要 OPENAI_API_KEY,请在 .env 中配置。")
+    cfg = _gen_config()
+    if not cfg:
+        raise RuntimeError("生成功能需要 DEEPSEEK_API_KEY 或 OPENAI_API_KEY,请在环境变量中配置。")
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
     messages.append({"role": "user", "content": prompt})
-    body = {"model": GEN_MODEL, "messages": messages, "temperature": 0.8}
+    body = {"model": cfg["model"], "messages": messages, "temperature": 0.8}
     if json_mode:
         body["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient() as client:
-        r = await client.post(GEN_URL, headers={"Authorization": f"Bearer {key}"},
+        r = await client.post(cfg["url"], headers={"Authorization": f"Bearer {cfg['key']}"},
                               json=body, timeout=90)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
