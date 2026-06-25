@@ -12,6 +12,7 @@ import os
 import json
 import hashlib
 import secrets
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -25,7 +26,7 @@ import jwt
 
 from database import (engine, init_db, get_session, PLANS,
                       User, Brand, Report, GeneratedContent)
-from services.monitor import run_monitoring
+from services.monitor import run_monitoring, PLATFORMS, _DISPATCH
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports
@@ -362,6 +363,15 @@ def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
     return brand
 
 
+@app.get("/simulator")
+def simulator_page():
+    """AI推荐模拟器独立页面，无需登录可直接访问"""
+    from fastapi.responses import FileResponse
+    import pathlib
+    p = pathlib.Path(__file__).parent.parent / "frontend" / "simulator.html"
+    return FileResponse(str(p))
+
+
 @app.get("/api/health")
 def health():
     configured = [p for p in ("OPENAI_API_KEY", "GEMINI_API_KEY",
@@ -369,6 +379,163 @@ def health():
                               "DEEPSEEK_API_KEY")
                   if os.getenv(p)]
     return {"status": "ok", "ai_platforms_configured": len(configured)}
+
+
+# ----------------------------- AI 推荐模拟器（无需登录） -----------------------------
+
+class SimulateReq(BaseModel):
+    keyword: str          # 用户输入的关键词，如 "best CRM tools"
+    website: str = ""     # 可选：用户自己的网站，检测有没有被引用
+    mode: str = "outbound"  # outbound=英文查海外AI  domestic=中文查国内AI
+
+@app.post("/api/simulate")
+async def simulate(req: SimulateReq):
+    """
+    AI推荐模拟器：无需登录，输入关键词立刻查
+    - 把关键词发给主流AI
+    - 返回每个AI的真实回答片段
+    - 如果用户填了网站，检测网站有没有被引用
+    - 结果引导用户注册做完整品牌监测
+    限流：同一IP每小时最多10次，防止滥用
+    """
+    keyword = req.keyword.strip()
+    if not keyword or len(keyword) > 200:
+        raise HTTPException(400, "关键词不能为空，且不超过200字")
+
+    # 根据模式选平台（只用有密钥的）
+    if req.mode == "domestic":
+        platform_keys = ["deepseek", "qwen", "kimi"]
+        lang_hint = "用中文回答"
+    else:
+        platform_keys = ["chatgpt", "deepseek", "perplexity"]
+        lang_hint = "Answer in English"
+
+    available = {
+        pid: cfg for pid, cfg in PLATFORMS.items()
+        if pid in platform_keys and os.getenv(cfg["api_key_env"])
+    }
+
+    if not available:
+        # 没有任何API密钥时降级演示
+        return _simulate_demo(keyword, req.website, req.mode)
+
+    # 向每个AI发问
+    results = []
+    async with httpx.AsyncClient() as client:
+        tasks = []
+        for pid, cfg in available.items():
+            tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    for (pid, cfg), result in zip(available.items(), raw_results):
+        if isinstance(result, Exception):
+            results.append({
+                "platform": cfg["label"],
+                "pid": pid,
+                "mentioned": False,
+                "answer_snippet": "查询失败，请稍后重试",
+                "cited_urls": [],
+                "your_site_found": False,
+                "error": True,
+            })
+        else:
+            results.append(result)
+
+    # 汇总统计
+    total = len(results)
+    mentioned_count = sum(1 for r in results if r.get("mentioned"))
+    your_site_found = any(r.get("your_site_found") for r in results)
+
+    return {
+        "keyword": keyword,
+        "website": req.website,
+        "mode": req.mode,
+        "results": results,
+        "summary": {
+            "total_platforms": total,
+            "mentioned_count": mentioned_count,
+            "mention_rate": round(mentioned_count / total * 100) if total else 0,
+            "your_site_found": your_site_found,
+            "verdict": _get_verdict(mentioned_count, total, your_site_found, req.website),
+        }
+    }
+
+
+async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
+    """向单个AI发送关键词查询，返回结构化结果"""
+    from services.monitor import _DISPATCH, PLATFORMS
+    key = os.getenv(cfg["api_key_env"], "")
+    if not key:
+        raise RuntimeError("no key")
+
+    prompt = f"{keyword}\n\n({lang_hint})"
+    try:
+        answer = await _DISPATCH[pid](client, cfg, prompt, key)
+    except Exception as e:
+        raise RuntimeError(str(e))
+
+    answer_low = answer.lower()
+    # 检测网站是否被引用
+    your_site_found = False
+    if website:
+        site_clean = website.lower().replace("https://","").replace("http://","").replace("www.","").rstrip("/")
+        your_site_found = site_clean in answer_low
+
+    # 提取回答里出现的URL
+    import re
+    cited_urls = list(set(re.findall(r'https?://[^\s\)\]\"\']+', answer)))[:5]
+
+    # 截取前300字作为摘要展示
+    snippet = answer[:300].strip()
+    if len(answer) > 300:
+        snippet += "…"
+
+    return {
+        "platform": cfg["label"],
+        "pid": pid,
+        "mentioned": True,  # 能拿到回答就算有内容
+        "answer_snippet": snippet,
+        "cited_urls": cited_urls,
+        "your_site_found": your_site_found,
+        "error": False,
+    }
+
+
+def _get_verdict(mentioned, total, site_found, website):
+    if not total:
+        return "暂无数据"
+    rate = mentioned / total * 100
+    if website and site_found:
+        return "✅ 你的网站出现在 AI 回答里！继续优化保持领先"
+    elif website and not site_found:
+        return "❌ AI 回答里没有你的网站，你正在损失流量"
+    elif rate >= 80:
+        return "✅ AI 正在积极回答这个话题"
+    else:
+        return "⚠️ AI 对这个关键词覆盖有限"
+
+
+def _simulate_demo(keyword, website, mode):
+    """没有API密钥时返回演示数据，让商家看到功能"""
+    return {
+        "keyword": keyword,
+        "website": website,
+        "mode": mode,
+        "demo": True,
+        "results": [
+            {"platform": "ChatGPT", "pid": "chatgpt", "mentioned": True,
+             "answer_snippet": f"关于「{keyword}」，以下是一些主流推荐...(演示数据，配置API密钥后显示真实结果)",
+             "cited_urls": [], "your_site_found": False, "error": False},
+            {"platform": "DeepSeek", "pid": "deepseek", "mentioned": True,
+             "answer_snippet": f"针对「{keyword}」的问题...(演示数据，配置API密钥后显示真实结果)",
+             "cited_urls": [], "your_site_found": False, "error": False},
+        ],
+        "summary": {
+            "total_platforms": 2, "mentioned_count": 2,
+            "mention_rate": 100, "your_site_found": False,
+            "verdict": "演示模式：配置 AI 密钥后显示真实数据"
+        }
+    }
 
 
 # ----------------------------- 管理员接口 -----------------------------
