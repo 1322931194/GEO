@@ -111,6 +111,23 @@ class AIVisit(SQLModel, table=True):
     visited_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
+class IndustrySample(SQLModel, table=True):
+    """
+    行业匿名样本：每次监测后存一条。
+    只存行业+提及率+模式，不存品牌名，完全匿名。
+    积累足够后用于生成"行业大盘"，告诉商家在行业里的排名。
+    这是数据护城河——越多人用越准，且别人做不出来。
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    industry: str = Field(index=True)         # 行业（标准化后）
+    industry_raw: str = ""                     # 原始行业输入
+    mode: str = "outbound"                      # outbound/domestic
+    mention_rate: float = 0.0                  # 提及率
+    source_count: int = 0                      # 被引用来源数
+    brand_id_hash: str = ""                    # 品牌ID哈希（去重用，不可反推品牌）
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
 
