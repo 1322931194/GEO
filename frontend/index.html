@@ -231,7 +231,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 /* 品牌关键词卡 */
 .kw-card{background:#f8faff;border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px}
 .kw-tag{display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;
-  padding:3px 10px;font-size:12px;margin:2px}
+  padding:3px 10px;font-size:12px;margin:2px;white-space:nowrap}
 
 /* 加载 */
 .loading{text-align:center;padding:48px;color:var(--ink-soft)}
@@ -406,10 +406,10 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
           <!-- 示例标签 -->
           <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="simExamples">
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">best charger</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">herbal tea</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">skincare brand</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">CRM tools</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">best charger</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">herbal tea</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">skincare brand</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">CRM tools</span>
           </div>
 
           <!-- 加载状态 -->
@@ -1839,8 +1839,8 @@ function simSetMode(mode){
   if(kw)kw.placeholder=mode==='outbound'?'best portable charger':'哪款充电宝好用';
   const ex=document.getElementById('simExamples');
   if(ex)ex.innerHTML=mode==='outbound'
-    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">${t}</span>`).join('')
-    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">${t}</span>`).join('');
+    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('')
+    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('');
 }
 
 async function doSimulate(){
