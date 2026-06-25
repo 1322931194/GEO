@@ -504,9 +504,26 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
     <div class="logo"><span class="dot">◎</span>GEO 雷达</div>
     <div style="display:flex;align-items:center;gap:10px">
       <span class="mode-badge outbound hidden" id="modeBadge">🌏 出海模式</span>
+      <button class="btn-ghost" style="padding:7px 14px;font-size:13px;color:var(--brand);border-color:var(--brand)" onclick="showDashboard()" id="dashBtn">📊 增长看板</button>
       <span class="plan-tag" id="planTag">试用版</span>
       <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showPricing()">升级套餐 ✨</button>
       <button class="btn-ghost" style="padding:7px 12px;font-size:13px" onclick="logout()">退出</button>
+    </div>
+  </div>
+
+  <!-- ===== 增长看板视图 ===== -->
+  <div id="dashboardView" class="hidden">
+    <div class="shell">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">📊 增长看板</h2>
+          <p style="font-size:14px;color:var(--ink-soft)" id="dashSubtitle">追踪你的品牌 AI 能见度变化</p>
+        </div>
+        <button class="btn-ghost" onclick="backToFlow()">← 返回监测流程</button>
+      </div>
+      <div id="dashContent">
+        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div>
+      </div>
     </div>
   </div>
 
@@ -833,6 +850,174 @@ function enterApp(planInfo){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
+}
+
+// ===== 增长看板 =====
+let lastBrandIdForDash = null;
+
+async function showDashboard(){
+  // 确定要看哪个品牌：当前监测品牌，或拉取用户第一个品牌
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){
+    try{
+      const brands = await api("/api/brands");
+      if(brands && brands.length){ bid = brands[0].id; lastBrandIdForDash = bid; }
+    }catch(e){}
+  }
+  if(!bid){
+    toast("请先创建品牌并完成一次监测");
+    return;
+  }
+  document.getElementById("mainFlow").classList.add("hidden");
+  document.getElementById("dashboardView").classList.remove("hidden");
+  const content = document.getElementById("dashContent");
+  content.innerHTML='<div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div>';
+
+  try{
+    const d = await api(`/api/brands/${bid}/dashboard`);
+    if(!d.has_data){
+      content.innerHTML=`<div style="text-align:center;padding:50px 20px">
+        <div style="font-size:40px;margin-bottom:14px">📊</div>
+        <div style="font-size:16px;font-weight:600;margin-bottom:6px">还没有监测数据</div>
+        <div style="font-size:14px;color:var(--ink-soft);margin-bottom:20px">${d.message||'完成第一次监测后，这里会显示你的增长看板'}</div>
+        <button class="btn-primary" onclick="backToFlow()">去做第一次监测 →</button>
+      </div>`;
+      return;
+    }
+    document.getElementById("dashSubtitle").textContent = `${d.brand_name} · 已监测 ${d.monitor_count} 次 · 最近 ${d.last_monitor_date}`;
+    renderDashboard(d);
+  }catch(e){
+    content.innerHTML=`<p style="color:var(--bad);padding:20px">加载失败：${e.message}</p>`;
+  }
+}
+
+function renderDashboard(d){
+  const content = document.getElementById("dashContent");
+  // 状态色
+  const statusColors={up:'#10b981',down:'#ef4444',flat:'#f59e0b',first:'#6366f1'};
+  const sc = statusColors[d.status]||'#6366f1';
+
+  // 环比变化展示
+  const changeStr = d.change_vs_prev===null ? '首次监测' :
+    (d.change_vs_prev>0?`+${d.change_vs_prev}`:`${d.change_vs_prev}`);
+  const changeColor = d.change_vs_prev>0?'#10b981':(d.change_vs_prev<0?'#ef4444':'#94a3b8');
+
+  let html=`
+    <!-- 状态横幅 -->
+    <div style="background:${sc}15;border:1px solid ${sc}40;border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+      <div style="font-size:15px;font-weight:600;color:${sc}">${d.status_text}</div>
+    </div>
+
+    <!-- 核心指标卡 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">当前 AI 提及率</div>
+        <div style="font-size:36px;font-weight:900;color:var(--brand);line-height:1">${d.current_rate}%</div>
+        <div style="font-size:13px;margin-top:6px;color:${changeColor};font-weight:600">${d.change_vs_prev!==null?`${changeStr} pt 相比上次`:'首次'}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">累计提升</div>
+        <div style="font-size:36px;font-weight:900;color:${d.change_vs_first>=0?'#10b981':'#ef4444'};line-height:1">${d.change_vs_first>=0?'+':''}${d.change_vs_first}</div>
+        <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">相比首次 ${d.first_rate}%</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">被引用来源</div>
+        <div style="font-size:36px;font-weight:900;color:#6366f1;line-height:1">${d.source_count}</div>
+        <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">AI 引用的外部站点</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">监测次数</div>
+        <div style="font-size:36px;font-weight:900;color:#0f172a;line-height:1">${d.monitor_count}</div>
+        <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">累计监测</div>
+      </div>
+    </div>
+
+    <!-- 目标进度 -->
+    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <div style="font-size:14px;font-weight:600">🎯 距离目标提及率 ${d.target}%</div>
+        <div style="font-size:14px;font-weight:700;color:var(--brand)">${d.progress_pct}%</div>
+      </div>
+      <div style="height:12px;background:#f0f0f0;border-radius:6px;overflow:hidden">
+        <div style="height:100%;width:${d.progress_pct}%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:6px;transition:width .6s"></div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-top:8px">${d.current_rate>=d.target?'🎉 已达成目标！继续保持领先':`还差 ${(d.target-d.current_rate).toFixed(1)} 个百分点达成目标`}</div>
+    </div>
+
+    <!-- 趋势图 -->
+    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px">📈 提及率变化趋势</div>
+      <canvas id="dashTrendChart" height="100"></canvas>
+    </div>`;
+
+  // 各平台表现
+  if(d.platform_now && Object.keys(d.platform_now).length){
+    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px">📊 各平台当前表现</div>`;
+    for(const [pf,rate] of Object.entries(d.platform_now)){
+      const chg = d.platform_change?.[pf];
+      const chgStr = chg===undefined?'':(chg>0?` <span style="color:#10b981">↑${chg}</span>`:(chg<0?` <span style="color:#ef4444">↓${Math.abs(chg)}</span>`:' <span style="color:#94a3b8">—</span>'));
+      html+=`<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+          <span style="font-weight:500">${pf}${chgStr}</span>
+          <span style="font-weight:600">${rate}%</span>
+        </div>
+        <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden">
+          <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
+        </div>
+      </div>`;
+    }
+    html+=`</div>`;
+  }
+
+  // 行动引导
+  html+=`<div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;text-align:center">
+    <div style="font-size:15px;font-weight:600;color:var(--brand-ink);margin-bottom:6px">想让提及率继续上涨？</div>
+    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">完成 GEO 任务清单 → 发布优化内容 → 一周后回来复测看变化</div>
+    <button class="btn-primary" onclick="reMonitorFromDash()">🔁 立即复测看最新数据</button>
+  </div>`;
+
+  content.innerHTML = html;
+
+  // 画趋势图
+  setTimeout(()=>drawTrendChart(d.trend),100);
+}
+
+let dashChartInstance = null;
+function drawTrendChart(trend){
+  const cv = document.getElementById("dashTrendChart");
+  if(!cv || !window.Chart) return;
+  if(dashChartInstance) dashChartInstance.destroy();
+  dashChartInstance = new Chart(cv.getContext("2d"),{
+    type:"line",
+    data:{
+      labels: trend.map(t=>t.date),
+      datasets:[{
+        label:"AI 提及率 %",
+        data: trend.map(t=>t.mention_rate),
+        borderColor:"#4f46e5",
+        backgroundColor:"rgba(79,70,229,.1)",
+        fill:true,tension:.3,
+        pointRadius:4,pointBackgroundColor:"#4f46e5",
+      }]
+    },
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,max:100,ticks:{callback:v=>v+"%"}}}
+    }
+  });
+}
+
+function backToFlow(){
+  document.getElementById("dashboardView").classList.add("hidden");
+  document.getElementById("mainFlow").classList.remove("hidden");
+}
+
+function reMonitorFromDash(){
+  backToFlow();
+  if(currentBrandId){ goMonitor(); }
+  else { toast("请先选择品牌"); }
 }
 function logout(){localStorage.removeItem("geo_token");token=null;location.reload()}
 
