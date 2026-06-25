@@ -173,8 +173,23 @@ async def create_brand(req: BrandReq, user: User = Depends(current_user),
 def list_brands(user: User = Depends(current_user),
                 session: Session = Depends(get_session)):
     brands = session.exec(select(Brand).where(Brand.user_id == user.id)).all()
-    return [{"id": b.id, "name": b.name, "industry": b.industry,
-             "website": b.website} for b in brands]
+    result = []
+    for b in brands:
+        # 查这个品牌有没有监测报告
+        reports = session.exec(
+            select(Report).where(Report.brand_id == b.id)
+            .order_by(Report.generated_at.desc())
+        ).all()
+        latest = reports[0] if reports else None
+        result.append({
+            "id": b.id, "name": b.name, "industry": b.industry,
+            "website": b.website, "mode": getattr(b, "mode", "outbound"),
+            "has_questions": bool(json.loads(b.questions_json or "[]")),
+            "report_count": len(reports),
+            "latest_rate": round(latest.mention_rate, 1) if latest else None,
+            "last_monitor": str(latest.generated_at)[:10] if latest else None,
+        })
+    return result
 
 
 @app.get("/api/brands/{brand_id}/keywords")
@@ -260,13 +275,22 @@ def reports(brand_id: int, user: User = Depends(current_user),
     _owned_brand(brand_id, user, session)
     recs = session.exec(select(Report).where(Report.brand_id == brand_id)
                         .order_by(Report.generated_at.desc())).all()
-    return [{"id": r.id, "generated_at": r.generated_at,
-             "mention_rate": r.mention_rate,
-             "gaps": json.loads(r.gaps_json),
-             "platform_breakdown": json.loads(r.platform_breakdown_json),
-             "competitor_share": json.loads(r.competitor_share_json),
-             "source_count": r.source_count,
-             "sample_note": r.sample_note} for r in recs]
+    result = []
+    for r in recs:
+        item = {"id": r.id, "generated_at": r.generated_at,
+                "mention_rate": r.mention_rate,
+                "gaps": json.loads(r.gaps_json),
+                "platform_breakdown": json.loads(r.platform_breakdown_json),
+                "competitor_share": json.loads(r.competitor_share_json),
+                "source_count": r.source_count,
+                "sample_note": r.sample_note}
+        # 附带完整报告数据，供前端恢复展示
+        try:
+            item["full"] = json.loads(r.full_json)
+        except Exception:
+            item["full"] = None
+        result.append(item)
+    return result
 
 
 @app.get("/api/brands/{brand_id}/history")
