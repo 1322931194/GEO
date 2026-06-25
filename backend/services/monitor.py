@@ -76,7 +76,7 @@ PLATFORMS = {
         "label": "豆包",
         "api_key_env": "DOUBAO_API_KEY",
         "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-        "model": "doubao-pro-4k",
+        "model": "ep-20260625160759-6p6ht",
     },
     "wenxin": {
         "label": "文心一言",
@@ -244,8 +244,8 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
 # ----------------------------------------------------------------------------
 
 # 平台分组：出海模式 vs 国内模式
-OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
-DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao"}
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek", "qwen"}
+DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
 async def run_monitoring(
     brand: str,
