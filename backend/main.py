@@ -985,7 +985,7 @@ async def _do_simulate(req: SimulateReq):
 
     # 候选平台列表（按优先级排，多放几个让客户感觉覆盖广）
     if req.mode == "domestic":
-        candidate_keys = ["deepseek", "qwen", "kimi", "doubao", "wenxin"]
+        candidate_keys = ["deepseek", "doubao", "qwen", "kimi", "wenxin"]
         lang_hint = "用中文回答"
     else:
         candidate_keys = ["chatgpt", "deepseek", "qwen", "perplexity", "gemini", "claude"]
@@ -1003,9 +1003,9 @@ async def _do_simulate(req: SimulateReq):
         for pid in candidate_keys
         if pid in available
     }
-    # 限制最多3个平台，避免免费实例超时/内存爆（502根因）
-    if len(available) > 3:
-        available = dict(list(available.items())[:3])
+    # 限制最多4个平台（速度和覆盖感的平衡）
+    if len(available) > 4:
+        available = dict(list(available.items())[:4])
 
     if not available:
         # 没有任何API密钥时降级演示
