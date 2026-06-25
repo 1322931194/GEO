@@ -1003,23 +1003,15 @@ async def _do_simulate(req: SimulateReq):
         for pid in candidate_keys
         if pid in available
     }
-    # 限制最多4个平台，避免太慢
-    if len(available) > 4:
-        available = dict(list(available.items())[:4])
+    # 限制最多3个平台，避免免费实例超时/内存爆（502根因）
+    if len(available) > 3:
+        available = dict(list(available.items())[:3])
 
     if not available:
         # 没有任何API密钥时降级演示
         return _simulate_demo(keyword, req.website, req.mode)
 
-    # 向每个AI发问
-    results = []
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for pid, cfg in available.items():
-            tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
-        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    # 向每个AI发问
+    # 向每个AI发问（只执行一次！）
     results = []
     debug_errors = []
     async with httpx.AsyncClient() as client:
@@ -1090,7 +1082,7 @@ async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
         if pid == "gemini":
             url = f"{cfg['url']}?key={key}"
             payload = {"contents": [{"parts": [{"text": prompt}]}]}
-            r = await client.post(url, json=payload, timeout=45)
+            r = await client.post(url, json=payload, timeout=22)
             r.raise_for_status()
             answer = r.json()["candidates"][0]["content"]["parts"][0]["text"]
         # Claude 特殊格式
@@ -1098,14 +1090,14 @@ async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
             r = await client.post(cfg["url"],
                 headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
                 json={"model": cfg["model"], "max_tokens": 800, "messages": messages},
-                timeout=45)
+                timeout=22)
             r.raise_for_status()
             answer = r.json()["content"][0]["text"]
         else:
             # OpenAI 兼容格式（ChatGPT/DeepSeek/Perplexity/通义/Kimi/豆包）
             r = await client.post(cfg["url"],
                 headers={"Authorization": f"Bearer {key}"},
-                json=body, timeout=45)
+                json=body, timeout=22)
             r.raise_for_status()
             answer = r.json()["choices"][0]["message"]["content"]
     except Exception as e:
