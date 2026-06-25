@@ -111,7 +111,7 @@ def register(req: RegisterReq, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(user)
     return {"token": _make_token(user.id), "plan": user.plan,
-            "plan_info": plan_of(user)}
+             "plan_info": plan_of(user)}
 
 
 @app.post("/api/login")
@@ -120,13 +120,13 @@ def login(req: RegisterReq, session: Session = Depends(get_session)):
     if not user or user.password_hash != _hash_pw(req.password):
         raise HTTPException(401, "邮箱或密码错误")
     return {"token": _make_token(user.id), "plan": user.plan,
-            "plan_info": plan_of(user)}
+             "plan_info": plan_of(user)}
 
 
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
     return {"email": user.email, "plan": user.plan, "plan_info": plan_of(user),
-            "trial_ends_at": user.trial_ends_at}
+             "trial_ends_at": user.trial_ends_at}
 
 
 # ----------------------------- 品牌接口 -----------------------------
@@ -510,16 +510,16 @@ def simulator_page():
 def health():
     configured = [p for p in ("OPENAI_API_KEY", "GEMINI_API_KEY",
                               "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY",
-                              "DEEPSEEK_API_KEY")
-                  if os.getenv(p)]
+                              "DEEPSEEK_API_KEY", "API_KEY") # Added API_KEY for Kimi
+                 if os.getenv(p)]
     return {"status": "ok", "ai_platforms_configured": len(configured)}
 
 
 # ----------------------------- AI 推荐模拟器（无需登录） -----------------------------
 
 class SimulateReq(BaseModel):
-    keyword: str          # 用户输入的关键词，如 "best CRM tools"
-    website: str = ""     # 可选：用户自己的网站，检测有没有被引用
+    keyword: str            # 用户输入的关键词，如 "best CRM tools"
+    website: str = ""       # 可选：用户自己的网站，检测有没有被引用
     mode: str = "outbound"  # outbound=英文查海外AI  domestic=中文查国内AI
 
 @app.post("/api/simulate")
@@ -555,7 +555,7 @@ async def _do_simulate(req: SimulateReq):
 
     # 根据模式选平台（只用有密钥的）
     if req.mode == "domestic":
-        platform_keys = ["deepseek", "qwen", "kimi"]
+        platform_keys = ["deepseek", "qwen", "kimi"] # Added Kimi support
         lang_hint = "用中文回答"
     else:
         platform_keys = ["chatgpt", "deepseek", "perplexity"]
@@ -569,14 +569,6 @@ async def _do_simulate(req: SimulateReq):
     if not available:
         # 没有任何API密钥时降级演示
         return _simulate_demo(keyword, req.website, req.mode)
-
-    # 向每个AI发问
-    results = []
-    async with httpx.AsyncClient() as client:
-        tasks = []
-        for pid, cfg in available.items():
-            tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
-        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # 向每个AI发问
     results = []
