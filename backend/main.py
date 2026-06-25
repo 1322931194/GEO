@@ -31,6 +31,7 @@ from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports, estimate_monthly_loss
+from services.keyword_opportunity import analyze_keyword_opportunities
 
 JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
 app = FastAPI(title="GEO 雷达 API", version="1.0.0")
@@ -111,7 +112,7 @@ def register(req: RegisterReq, session: Session = Depends(get_session)):
     session.commit()
     session.refresh(user)
     return {"token": _make_token(user.id), "plan": user.plan,
-             "plan_info": plan_of(user)}
+            "plan_info": plan_of(user)}
 
 
 @app.post("/api/login")
@@ -120,13 +121,13 @@ def login(req: RegisterReq, session: Session = Depends(get_session)):
     if not user or user.password_hash != _hash_pw(req.password):
         raise HTTPException(401, "邮箱或密码错误")
     return {"token": _make_token(user.id), "plan": user.plan,
-             "plan_info": plan_of(user)}
+            "plan_info": plan_of(user)}
 
 
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
     return {"email": user.email, "plan": user.plan, "plan_info": plan_of(user),
-             "trial_ends_at": user.trial_ends_at}
+            "trial_ends_at": user.trial_ends_at}
 
 
 # ----------------------------- 品牌接口 -----------------------------
@@ -488,6 +489,27 @@ async def competitor_compare(brand_id: int, req: CompetitorReq,
     }
 
 
+@app.get("/api/brands/{brand_id}/keyword-opportunities")
+async def keyword_opportunities(brand_id: int, user: User = Depends(current_user),
+                                session: Session = Depends(get_session)):
+    """
+    关键词商机分析：
+    告诉商家这个行业哪些关键词在AI时代值得抢占
+    输出：AI热度 + 竞争度 + 商机评分 + 内容建议，按商机评分排序
+    """
+    brand = _owned_brand(brand_id, user, session)
+    result = await analyze_keyword_opportunities(
+        industry=brand.industry or brand.product or brand.name,
+        brand_name=brand.name,
+        product=brand.product,
+        mode=getattr(brand, "mode", "outbound"),
+        count=12,
+    )
+    if result.get("error"):
+        raise HTTPException(500, result.get("message", "分析失败"))
+    return result
+
+
 # ----------------------------- 工具 -----------------------------
 
 def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
@@ -510,16 +532,16 @@ def simulator_page():
 def health():
     configured = [p for p in ("OPENAI_API_KEY", "GEMINI_API_KEY",
                               "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY",
-                              "DEEPSEEK_API_KEY", "API_KEY") # Added API_KEY for Kimi
-                 if os.getenv(p)]
+                              "DEEPSEEK_API_KEY")
+                  if os.getenv(p)]
     return {"status": "ok", "ai_platforms_configured": len(configured)}
 
 
 # ----------------------------- AI 推荐模拟器（无需登录） -----------------------------
 
 class SimulateReq(BaseModel):
-    keyword: str            # 用户输入的关键词，如 "best CRM tools"
-    website: str = ""       # 可选：用户自己的网站，检测有没有被引用
+    keyword: str          # 用户输入的关键词，如 "best CRM tools"
+    website: str = ""     # 可选：用户自己的网站，检测有没有被引用
     mode: str = "outbound"  # outbound=英文查海外AI  domestic=中文查国内AI
 
 @app.post("/api/simulate")
@@ -555,7 +577,7 @@ async def _do_simulate(req: SimulateReq):
 
     # 根据模式选平台（只用有密钥的）
     if req.mode == "domestic":
-        platform_keys = ["deepseek", "qwen", "kimi"] # Added Kimi support
+        platform_keys = ["deepseek", "qwen", "kimi"]
         lang_hint = "用中文回答"
     else:
         platform_keys = ["chatgpt", "deepseek", "perplexity"]
@@ -569,6 +591,14 @@ async def _do_simulate(req: SimulateReq):
     if not available:
         # 没有任何API密钥时降级演示
         return _simulate_demo(keyword, req.website, req.mode)
+
+    # 向每个AI发问
+    results = []
+    async with httpx.AsyncClient() as client:
+        tasks = []
+        for pid, cfg in available.items():
+            tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
     # 向每个AI发问
     results = []
