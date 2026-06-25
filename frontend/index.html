@@ -372,50 +372,101 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
       </div>
 
-      <!-- 右侧注册卡片（电脑端显示，手机端在下面单独显示） -->
+      <!-- 右侧：模拟器 + 注册二合一 -->
       <div id="authFormCard" style="position:sticky;top:68px">
-        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:14px;margin-bottom:20px">
-            <b style="font-size:15px;display:block;margin-bottom:3px">🎁 免费体检你的品牌</b>
-            <span style="font-size:13px;opacity:.9">看完结果再决定是否付费</span>
+
+        <!-- 模拟器卡片 -->
+        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:22px;box-shadow:0 4px 24px rgba(0,0,0,.08);margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px">🔍 AI 推荐模拟器</div>
+          <div style="font-size:12px;color:#64748b;margin-bottom:16px">输入关键词，立刻看 AI 会不会推荐你</div>
+
+          <!-- 模式切换 -->
+          <div style="display:flex;background:#f4f6fb;padding:3px;border-radius:8px;margin-bottom:14px">
+            <button onclick="simSetMode('outbound')" id="simTabOut"
+              style="flex:1;padding:7px;background:#fff;color:#4f46e5;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌏 海外</button>
+            <button onclick="simSetMode('domestic')" id="simTabDom"
+              style="flex:1;padding:7px;background:none;color:#64748b;border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内</button>
           </div>
-          <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:18px">
+
+          <!-- 关键词输入 -->
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <input id="simKw" type="text" placeholder="best portable charger"
+              style="flex:1;padding:10px 12px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:13px;color:#0f172a;outline:none;font-family:inherit"
+              onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'"
+              onkeydown="if(event.key==='Enter')doSimulate()">
+            <button onclick="doSimulate()" id="simBtn"
+              style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+              查 →
+            </button>
+          </div>
+
+          <!-- 示例标签 -->
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="simExamples">
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">best charger</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">herbal tea</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">skincare brand</span>
+            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">CRM tools</span>
+          </div>
+
+          <!-- 加载状态 -->
+          <div id="simLoading" style="display:none;text-align:center;padding:16px 0">
+            <div style="width:28px;height:28px;border:2px solid #e7e8ef;border-top-color:#4f46e5;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
+            <div style="font-size:12px;color:#64748b" id="simMsg">正在查询中…</div>
+          </div>
+
+          <!-- 结果区 -->
+          <div id="simResults" style="display:none"></div>
+
+          <!-- 引导注册 -->
+          <div id="simCta" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;margin-top:12px;text-align:center">
+            <div style="font-size:13px;color:#3730a3;font-weight:600;margin-bottom:4px">想做完整品牌报告？</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:8px">用50个精准问题全面扫描，生成专属提升方案</div>
+            <button onclick="document.getElementById('simSection').scrollIntoView({behavior:'smooth'})"
+              style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+              免费注册做完整体检 →
+            </button>
+          </div>
+        </div>
+
+        <!-- 注册卡片 -->
+        <div id="simSection" style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:12px;margin-bottom:18px">
+            <b style="font-size:14px;display:block;margin-bottom:2px">🎁 免费注册做完整品牌体检</b>
+            <span style="font-size:12px;opacity:.9">¥9.9 解锁完整报告</span>
+          </div>
+          <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:16px">
             <button id="tabLogin" onclick="switchTab('login')"
-              style="flex:1;padding:9px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:14px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
+              style="flex:1;padding:8px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:13px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
             <button id="tabReg" onclick="switchTab('reg')"
-              style="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer">免费注册</button>
+              style="flex:1;padding:8px;background:none;color:#5a5f73;border-radius:7px;font-size:13px;border:none;cursor:pointer">免费注册</button>
           </div>
-          <div style="margin-bottom:13px">
-            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">邮箱地址</label>
+          <div style="margin-bottom:12px">
+            <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">邮箱地址</label>
             <input id="authEmail" type="email" placeholder="your@brand.com"
-              style="width:100%;padding:11px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
+              style="width:100%;padding:10px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
               onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
           </div>
-          <div style="margin-bottom:18px">
-            <label style="font-size:13px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">密码（至少6位）</label>
+          <div style="margin-bottom:16px">
+            <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">密码（至少6位）</label>
             <input id="authPw" type="password" placeholder="设置登录密码"
-              style="width:100%;padding:11px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
+              style="width:100%;padding:10px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
               onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
           </div>
-          <button class="btn-primary" style="width:100%;font-size:15px;padding:13px;border-radius:10px" onclick="doAuth()" id="authBtn">
+          <button class="btn-primary" style="width:100%;font-size:15px;padding:12px;border-radius:10px" onclick="doAuth()" id="authBtn">
             免费开始 AI 品牌体检 →
           </button>
-          <p id="authErr" style="color:#dc2626;font-size:13px;margin-top:10px;text-align:center;min-height:18px"></p>
-          <div style="border-top:1px solid #f0f0f0;margin-top:14px;padding-top:12px;font-size:12px;color:#94a3b8;line-height:2">
-            ① 填品牌名 + 选国内/出海市场<br>
-            ② AI 自动生成专属问题集（免费）<br>
-            ③ ¥9.9 解锁完整监测报告
-          </div>
+          <p id="authErr" style="color:#dc2626;font-size:13px;margin-top:8px;text-align:center;min-height:18px"></p>
           <div style="text-align:center;margin-top:10px;font-size:12px;color:#94a3b8">
             客服微信：<b style="color:#4f46e5">jenly222</b>
           </div>
         </div>
+
         <!-- 用户证言 -->
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px;margin-top:12px">
-          <div style="font-size:13px;color:#92400e;line-height:1.6;margin-bottom:6px">
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px;margin-top:12px">
+          <div style="font-size:12px;color:#92400e;line-height:1.6;margin-bottom:4px">
             💬 <i>"DeepSeek 里竞品出现了6次，我们完全没有。这个数据太直接了。"</i>
           </div>
-          <div style="font-size:12px;color:#b45309">—— 某出海茶叶品牌主</div>
+          <div style="font-size:11px;color:#b45309">—— 某出海茶叶品牌主</div>
         </div>
       </div>
 
@@ -1182,6 +1233,59 @@ function showPricing(){document.getElementById("mainFlow").classList.add("hidden
 function hidePricing(){document.getElementById("pricingView").classList.add("hidden");document.getElementById("mainFlow").classList.remove("hidden")}
 
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!document.getElementById("authView").classList.contains("hidden"))doAuth()});
+
+// ===== 首页内嵌模拟器 =====
+let simMode='outbound';
+function simSetMode(mode){
+  simMode=mode;
+  const out=document.getElementById('simTabOut'),dom=document.getElementById('simTabDom');
+  if(!out||!dom)return;
+  const onStyle='flex:1;padding:7px;background:#fff;color:#4f46e5;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+  const offStyle='flex:1;padding:7px;background:none;color:#64748b;border-radius:6px;font-size:12px;border:none;cursor:pointer';
+  out.style.cssText=mode==='outbound'?onStyle:offStyle;
+  dom.style.cssText=mode==='domestic'?onStyle:offStyle;
+  const kw=document.getElementById('simKw');
+  if(kw)kw.placeholder=mode==='outbound'?'best portable charger':'哪款充电宝好用';
+  const ex=document.getElementById('simExamples');
+  if(ex)ex.innerHTML=mode==='outbound'
+    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">${t}</span>`).join('')
+    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer">${t}</span>`).join('');
+}
+
+async function doSimulate(){
+  const kwEl=document.getElementById('simKw');
+  const kw=(kwEl?.value||'').trim();
+  if(!kw){if(kwEl){kwEl.style.borderColor='#ef4444';setTimeout(()=>kwEl.style.borderColor='#e7e8ef',2000);}return;}
+  const btn=document.getElementById('simBtn'),loading=document.getElementById('simLoading');
+  const resEl=document.getElementById('simResults'),ctaEl=document.getElementById('simCta');
+  btn.disabled=true;btn.textContent='…';
+  loading.style.display='block';resEl.style.display='none';resEl.innerHTML='';ctaEl.style.display='none';
+  const pfs=simMode==='domestic'?['DeepSeek','通义千问','Kimi']:['ChatGPT','DeepSeek','Perplexity'];
+  let mi=0;const mt=setInterval(()=>{const m=document.getElementById('simMsg');if(m)m.textContent=`正在向 ${pfs[mi++%pfs.length]} 查询…`;},2000);
+  try{
+    const r=await fetch(API+'/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({keyword:kw,website:'',mode:simMode})});
+    clearInterval(mt);
+    if(!r.ok){const e=await r.json().catch(()=>({}));throw new Error(e.detail||'查询失败');}
+    renderSimResults(await r.json());
+  }catch(e){
+    clearInterval(mt);
+    resEl.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:13px;color:#dc2626">❌ ${e.message}</div>`;
+    resEl.style.display='block';
+  }
+  loading.style.display='none';btn.disabled=false;btn.textContent='查 →';
+}
+
+function renderSimResults(data){
+  const resEl=document.getElementById('simResults'),ctaEl=document.getElementById('simCta');
+  const s=data.summary;
+  const good=s.mention_rate>=60;
+  let html=`<div style="background:${good?'#f0fdf4':'#fef2f2'};border:1px solid ${good?'#bbf7d0':'#fecaca'};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:${good?'#065f46':'#991b1b'};font-weight:600">${good?'✅':'❌'} ${s.verdict}</div>`;
+  (data.results||[]).filter(r=>!r.error).forEach(r=>{
+    const icons={chatgpt:'🤖',deepseek:'🔵',perplexity:'🔍',qwen:'☁️',kimi:'🌙',doubao:'📦'};
+    html+=`<div style="background:#f8faff;border:1px solid #e7e8ef;border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:#0f172a;margin-bottom:5px">${icons[r.pid]||'🤖'} ${r.platform}</div><div style="font-size:12px;color:#475569;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${(r.answer_snippet||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div></div>`;
+  });
+  resEl.innerHTML=html;resEl.style.display='block';ctaEl.style.display='block';
+}
 if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;localStorage.removeItem("geo_token")})}
 </script>
 </body>
