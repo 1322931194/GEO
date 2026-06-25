@@ -266,3 +266,71 @@ def _build_summary(mention_delta, source_delta, gaps_closed, improved):
     if gaps_closed > 0:
         parts.append(f"补上了 {gaps_closed} 个内容缺口")
     return "本期优化见效:" + "、".join(parts) + "。这是你完成 GEO 任务后的真实变化。"
+
+
+# ----------------------------------------------------------------------------
+# 月损失 AI 流量估算
+# ----------------------------------------------------------------------------
+
+# 行业基准月均 AI 查询量（保守估计，来源：Gartner / SimilarWeb 行业均值）
+INDUSTRY_AI_QUERY_BASELINE = {
+    "电商": 280000,
+    "出海": 180000,
+    "茶叶": 45000,
+    "食品": 120000,
+    "美妆": 200000,
+    "护肤": 200000,
+    "服装": 150000,
+    "3C数码": 320000,
+    "充电": 180000,
+    "家居": 140000,
+    "餐饮": 90000,
+    "教育": 160000,
+    "软件": 240000,
+    "default": 150000,
+}
+
+def estimate_monthly_loss(mention_rate: float, industry: str = "") -> dict:
+    """
+    根据提及率估算每月损失的 AI 流量曝光次数。
+    公式：月损失 = 行业月均AI查询量 × (1 - 提及率) × AI点击转化率(3%)
+    返回区间值（保守/乐观）给商家看到量级感
+    """
+    # 匹配行业基准
+    baseline = INDUSTRY_AI_QUERY_BASELINE["default"]
+    for key, val in INDUSTRY_AI_QUERY_BASELINE.items():
+        if key in (industry or ""):
+            baseline = val
+            break
+
+    # 损失率 = 1 - 提及率
+    loss_rate = max(0, 1 - mention_rate / 100)
+
+    # 保守估计（基准 × 0.6）和乐观估计（基准 × 1.4）
+    conservative = int(baseline * 0.6 * loss_rate)
+    optimistic = int(baseline * 1.4 * loss_rate)
+
+    # 格式化数字
+    def fmt(n):
+        if n >= 10000:
+            return f"{n//10000}万+"
+        if n >= 1000:
+            return f"{n//100 * 100:,}"
+        return str(n)
+
+    if mention_rate >= 60:
+        verdict = "✅ 你的 AI 曝光处于良好水平，继续保持"
+    elif mention_rate >= 30:
+        verdict = f"⚠️ 你每月预计损失 {fmt(conservative)}-{fmt(optimistic)} 次 AI 推荐曝光"
+    else:
+        verdict = f"❗ 你每月预计损失 {fmt(conservative)}-{fmt(optimistic)} 次 AI 推荐曝光"
+
+    return {
+        "mention_rate": mention_rate,
+        "monthly_loss_conservative": conservative,
+        "monthly_loss_optimistic": optimistic,
+        "monthly_loss_display": f"{fmt(conservative)} - {fmt(optimistic)}",
+        "verdict": verdict,
+        "baseline_industry": baseline,
+        "note": "基于 Gartner 行业 AI 查询量基准估算，实际数据因品类和市场而异"
+    }
