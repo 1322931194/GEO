@@ -983,6 +983,68 @@ function renderDashboard(d){
   setTimeout(()=>drawTrendChart(d.trend),100);
   // 加载AI流量数据
   loadAITraffic();
+  // 加载行业大盘
+  loadIndustryBenchmark();
+}
+
+// ===== 行业大盘 =====
+async function loadIndustryBenchmark(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid) return;
+  try{
+    const b = await api(`/api/brands/${bid}/industry-benchmark`);
+    renderIndustryBenchmark(b);
+  }catch(e){ console.log('行业大盘加载失败', e); }
+}
+
+function renderIndustryBenchmark(b){
+  const content = document.getElementById("dashContent");
+  let html='';
+  if(!b.has_benchmark){
+    // 样本积累中
+    const pct = Math.round((b.sample_count/b.needed)*100);
+    html=`
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">📊 行业大盘排名</div>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${b.message}</p>
+        <div style="height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin-bottom:8px">
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft)">${b.industry} · 已收集 ${b.sample_count}/${b.needed} 个品牌</div>
+      </div>`;
+  } else {
+    // 有大盘数据
+    const colors={good:'#10b981',neutral:'#f59e0b',bad:'#ef4444'};
+    const rc=colors[b.rank_color]||'#6366f1';
+    html=`
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">📊 你在「${b.industry}」行业的排名</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px">基于 ${b.sample_count} 个同行品牌的匿名数据</div>
+        <div style="background:${rc}15;border:1px solid ${rc}40;border-radius:10px;padding:14px;margin-bottom:18px">
+          <div style="font-size:15px;font-weight:600;color:${rc}">${b.rank_text}</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px">
+          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:var(--brand)">${b.my_rate}%</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">你的提及率</div>
+          </div>
+          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:#64748b">${b.industry_avg}%</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业平均</div>
+          </div>
+          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:#10b981">${b.industry_max}%</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业最高</div>
+          </div>
+          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:#0f172a">${b.percentile}%</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">超过同行</div>
+          </div>
+        </div>
+        ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13px;color:#065f46;margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
+      </div>`;
+  }
+  content.insertAdjacentHTML('beforeend', html);
 }
 
 // ===== AI流量追踪 =====
