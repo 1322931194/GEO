@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GEO 雷达 — AI 能见度平台</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+// 全局变量，页面加载即可用，登录页模拟器也能访问
+const API = location.origin.includes("file") ? "http://localhost:8000" : "";
+</script>
 <style>
 :root{
   --ink:#16182b;--ink-soft:#5a5f73;--line:#e7e8ef;--bg:#f4f6fb;
@@ -613,12 +617,51 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
       </div>
 
       <div class="metrics" id="repMetrics"></div>
+
+      <!-- 月损失AI流量（商业化表达核心） -->
+      <div id="monthlyLossCard" style="display:none;background:linear-gradient(135deg,#fef2f2,#fff7ed);border:1px solid #fecaca;border-radius:14px;padding:20px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:4px">📉 你每月预计损失的 AI 推荐曝光</div>
+            <div style="font-size:32px;font-weight:900;color:#dc2626" id="monthlyLossNum">—</div>
+            <div style="font-size:12px;color:#b45309;margin-top:4px" id="monthlyLossNote">次/月</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:13px;color:#92400e;margin-bottom:8px" id="monthlyLossVerdict"></div>
+            <button class="btn-primary" style="font-size:13px;padding:9px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c)"
+              onclick="reMonitor()">立即开始优化 →</button>
+          </div>
+        </div>
+      </div>
+
       <div class="section-title">📊 各 AI 平台表现</div>
       <div class="platforms" id="repPlatforms"></div>
       <div class="section-title">🔍 发现的内容缺口</div>
       <div id="repGaps"></div>
       <div id="contentArea"></div>
       <div class="note" id="repNote"></div>
+
+      <!-- 竞品对比入口 -->
+      <div style="background:#f8faff;border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-top:20px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px">⚔️ 竞品对比分析</div>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">输入竞品官网，系统用同样的问题集监测竞品，告诉你对方为什么比你被AI推荐得多</p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <input id="compUrl" placeholder="竞品官网，如 anker.com" style="flex:1;min-width:200px;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
+          <input id="compName" placeholder="竞品名称（可选）" style="width:140px;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
+          <button class="btn-primary" style="font-size:13px;padding:10px 18px" onclick="doCompare()" id="compareBtn">开始对比</button>
+        </div>
+        <div id="compareResult" style="margin-top:14px"></div>
+      </div>
+
+      <!-- Schema/FAQ 生成 -->
+      <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-top:16px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">生成可直接复制到网站的 JSON-LD Schema 代码 + FAQ 问答，让 AI 更容易引用你的页面</p>
+        <button class="btn-primary" style="font-size:13px;padding:10px 20px;background:linear-gradient(135deg,#059669,#047857)" onclick="genSchemaFaq()" id="schemaBtn">
+          🔧 生成 Schema + FAQ 代码
+        </button>
+        <div id="schemaResult" style="margin-top:14px"></div>
+      </div>
 
       <!-- 提升方案 -->
       <div style="border-top:2px solid var(--line);padding-top:26px;margin-top:28px">
@@ -706,7 +749,6 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 <div class="toast" id="toast"></div>
 
 <script>
-const API = location.origin.includes("file") ? "http://localhost:8000" : "";
 let token = localStorage.getItem("geo_token") || null;
 let authMode = "login";
 let currentBrandId = null;
@@ -992,6 +1034,7 @@ function renderReport(rep){
   document.getElementById("contentArea").innerHTML="";
   loadImprovePlan();
   loadProgress();
+  loadMonthlyLoss();
 }
 
 // ===== 历史折线图 =====
@@ -1202,6 +1245,114 @@ async function loadProgress(){
 }
 
 async function reMonitor(){toast("🔄 开始重新监测…");goMonitor()}
+
+// ===== 月损失AI流量 =====
+async function loadMonthlyLoss(){
+  try{
+    const data = await api("/api/brands/"+currentBrandId+"/monthly-loss");
+    if(!data.has_data) return;
+    const card = document.getElementById('monthlyLossCard');
+    const num = document.getElementById('monthlyLossNum');
+    const note = document.getElementById('monthlyLossNote');
+    const verdict = document.getElementById('monthlyLossVerdict');
+    if(!card) return;
+    if(data.mention_rate >= 60){
+      card.style.background = 'linear-gradient(135deg,#ecfdf5,#f0fdf4)';
+      card.style.borderColor = '#a7f3d0';
+      num.style.color = '#059669';
+    }
+    num.textContent = data.monthly_loss_display;
+    note.textContent = `次/月（保守估算）· 基于 Gartner 行业基准`;
+    verdict.textContent = data.verdict;
+    card.style.display = 'block';
+  }catch(e){ console.log('月损失加载失败',e) }
+}
+
+// ===== 竞品对比 =====
+async function doCompare(){
+  const url = document.getElementById('compUrl')?.value.trim();
+  const name = document.getElementById('compName')?.value.trim();
+  if(!url){ toast('请填写竞品官网地址'); return; }
+  const btn = document.getElementById('compareBtn');
+  const result = document.getElementById('compareResult');
+  btn.textContent='对比中…';btn.disabled=true;
+  result.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在抓取竞品官网并监测，约需 1-2 分钟…</p></div>';
+  try{
+    const data = await api(`/api/brands/${currentBrandId}/competitor-compare`,{
+      method:'POST',
+      body:JSON.stringify({brand_id:currentBrandId,competitor_url:url,competitor_name:name||url})
+    });
+    const myRate = data.brand_mention_rate;
+    const compRate = data.competitor_mention_rate;
+    const gap = data.gap;
+    const myColor = myRate >= compRate ? 'var(--good)' : 'var(--bad)';
+    const compColor = compRate > myRate ? 'var(--bad)' : 'var(--good)';
+    result.innerHTML=`
+      <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+        <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:14px">
+          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">你的品牌</div>
+            <div style="font-size:28px;font-weight:800;color:${myColor}">${myRate}%</div>
+            <div style="font-size:12px;color:var(--ink-soft)">AI 推荐率</div>
+          </div>
+          <div style="text-align:center;font-size:18px;color:var(--ink-soft)">VS</div>
+          <div style="text-align:center;background:#fef2f2;border-radius:10px;padding:14px">
+            <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">${data.competitor_name}</div>
+            <div style="font-size:28px;font-weight:800;color:${compColor}">${compRate}%</div>
+            <div style="font-size:12px;color:var(--ink-soft)">AI 推荐率</div>
+          </div>
+        </div>
+        <div style="background:${gap>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:12px;font-size:13px;color:${gap>0?'#991b1b':'#065f46'};line-height:1.6;margin-bottom:10px">
+          ${data.analysis}
+        </div>
+        <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--brand-ink)">
+          💡 ${data.action}
+        </div>
+      </div>`;
+  }catch(e){
+    result.innerHTML=`<p style="color:var(--bad);font-size:13px;padding:10px">❌ ${e.message}</p>`;
+  }
+  btn.textContent='开始对比';btn.disabled=false;
+}
+
+// ===== Schema + FAQ 生成 =====
+async function genSchemaFaq(){
+  const btn = document.getElementById('schemaBtn');
+  const result = document.getElementById('schemaResult');
+  btn.textContent='生成中…';btn.disabled=true;
+  result.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在生成 Schema 和 FAQ…</p></div>';
+  try{
+    const data = await api('/api/content/schema-faq',{
+      method:'POST',
+      body:JSON.stringify({brand_id:currentBrandId,gap_question:'',content_type:'faq'})
+    });
+    const faqHtml = (data.faq||[]).map((f,i)=>`
+      <div style="border-bottom:1px solid var(--line);padding:10px 0">
+        <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px">Q${i+1}. ${f.q||''}</div>
+        <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${f.a||''}</div>
+      </div>`).join('');
+    result.innerHTML=`
+      <div style="background:#fff;border:1px solid #a7f3d0;border-radius:12px;padding:16px">
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#065f46">📋 FAQ 内容（复制到网站FAQ页面）</div>
+        ${faqHtml}
+        <div style="margin-top:16px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#065f46">🏗️ JSON-LD Schema 代码（复制到网站 &lt;head&gt; 里）</div>
+          <pre style="background:#0f172a;color:#e2e8f0;border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre-wrap;line-height:1.6">${(data.schema_code||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+        </div>
+        ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:#065f46;margin-top:10px">💡 ${data.publish_tip}</div>`:''}
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:linear-gradient(135deg,#059669,#047857)"
+            onclick="navigator.clipboard.writeText(document.querySelector('pre').innerText).then(()=>toast('✅ Schema 代码已复制'))">
+            📋 复制 Schema 代码
+          </button>
+        </div>
+      </div>`;
+    toast('✅ Schema + FAQ 生成完成');
+  }catch(e){
+    result.innerHTML=`<p style="color:var(--bad);font-size:13px;padding:10px">❌ ${e.message}</p>`;
+  }
+  btn.textContent='🔧 生成 Schema + FAQ 代码';btn.disabled=false;
+}
 
 async function checkUpgrade(){
   try{
