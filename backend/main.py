@@ -560,13 +560,23 @@ async def simulate(req: SimulateReq):
             tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
         raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
+    # 向每个AI发问
+    results = []
+    debug_errors = []
+    async with httpx.AsyncClient() as client:
+        tasks = []
+        for pid, cfg in available.items():
+            tasks.append(_simulate_one(client, pid, cfg, keyword, req.website, lang_hint))
+        raw_results = await asyncio.gather(*tasks, return_exceptions=True)
+
     for (pid, cfg), result in zip(available.items(), raw_results):
         if isinstance(result, Exception):
+            debug_errors.append(f"{cfg['label']}: {str(result)[:150]}")
             results.append({
                 "platform": cfg["label"],
                 "pid": pid,
                 "mentioned": False,
-                "answer_snippet": "查询失败，请稍后重试",
+                "answer_snippet": f"该平台查询失败：{str(result)[:100]}",
                 "cited_urls": [],
                 "your_site_found": False,
                 "error": True,
@@ -578,6 +588,18 @@ async def simulate(req: SimulateReq):
     total = len(results)
     mentioned_count = sum(1 for r in results if r.get("mentioned"))
     your_site_found = any(r.get("your_site_found") for r in results)
+
+    # 如果全部失败，返回错误信息方便调试
+    if mentioned_count == 0 and debug_errors:
+        return {
+            "keyword": keyword, "website": req.website, "mode": req.mode,
+            "results": results,
+            "summary": {
+                "total_platforms": total, "mentioned_count": 0,
+                "mention_rate": 0, "your_site_found": False,
+                "verdict": "所有平台查询失败，可能是 API 密钥问题：" + "; ".join(debug_errors[:2]),
+            }
+        }
 
     return {
         "keyword": keyword,
@@ -703,6 +725,106 @@ ADMIN_KEY = os.getenv("ADMIN_KEY", "geo-admin-2026")
 def _check_admin(key: str):
     if key != ADMIN_KEY:
         raise HTTPException(403, "管理员密钥错误")
+
+@app.get("/admin")
+def admin_page():
+    """手机/电脑都能访问的管理后台页面"""
+    from fastapi.responses import HTMLResponse
+    html = """<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GEO雷达 管理后台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f4f6fb;color:#16182b;padding:16px}
+.wrap{max-width:600px;margin:0 auto}
+h1{font-size:20px;color:#4f46e5;margin-bottom:6px}
+.sub{color:#5a5f73;font-size:13px;margin-bottom:20px}
+.card{background:#fff;border:1px solid #e7e8ef;border-radius:14px;padding:18px;margin-bottom:16px}
+.card h2{font-size:15px;margin-bottom:14px}
+label{font-size:13px;color:#5a5f73;display:block;margin-bottom:5px}
+input,select{width:100%;padding:11px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:15px;margin-bottom:12px;font-family:inherit}
+button{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+.result{margin-top:12px;padding:12px;border-radius:8px;font-size:13px;display:none}
+.result.ok{background:#d1fae5;color:#065f46}
+.result.err{background:#fee2e2;color:#991b1b}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
+th{text-align:left;padding:8px;background:#f8faff;color:#5a5f73;font-size:12px}
+td{padding:8px;border-bottom:1px solid #f0f0f0}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#eef2ff;color:#3730a3}
+.up-btn{width:auto;padding:4px 10px;font-size:12px}
+</style></head><body><div class="wrap">
+<h1>⚙️ GEO雷达 管理后台</h1>
+<p class="sub">手机电脑都能用 · 给用户开通套餐</p>
+<div class="card" id="loginCard">
+<h2>🔑 输入管理员密钥</h2>
+<input type="password" id="key" placeholder="你在Render设置的ADMIN_KEY">
+<button onclick="login()">登录</button>
+<div class="result" id="loginR"></div>
+</div>
+<div id="main" style="display:none">
+<div class="card">
+<h2>🚀 给用户开通套餐</h2>
+<label>客户邮箱</label>
+<input type="email" id="email" placeholder="客户注册邮箱">
+<label>套餐</label>
+<select id="plan">
+<option value="starter_trial">¥9.9体验版（1次监测）</option>
+<option value="starter">基础版¥299/月</option>
+<option value="pro">专业版¥899/月（不限次）</option>
+<option value="business">企业版¥2999/月</option>
+<option value="trial">退回免费试用</option>
+</select>
+<button onclick="upgrade()">确认开通</button>
+<div class="result" id="upR"></div>
+</div>
+<div class="card">
+<h2>👥 用户列表 <button onclick="loadUsers()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
+<div id="users">点刷新加载</div>
+</div>
+</div>
+<script>
+let KEY='';
+function show(id,msg,ok){var e=document.getElementById(id);e.textContent=msg;e.className='result '+(ok?'ok':'err');e.style.display='block';}
+async function login(){
+  KEY=document.getElementById('key').value.trim();
+  if(!KEY){show('loginR','请输入密钥',false);return;}
+  try{
+    const r=await fetch('/api/admin/users?key='+encodeURIComponent(KEY));
+    if(r.status===403){show('loginR','❌密钥错误',false);return;}
+    if(!r.ok){show('loginR','❌连接失败',false);return;}
+    document.getElementById('loginCard').style.display='none';
+    document.getElementById('main').style.display='block';
+    loadUsers();
+  }catch(e){show('loginR','❌'+e.message,false);}
+}
+async function upgrade(){
+  const email=document.getElementById('email').value.trim();
+  const plan=document.getElementById('plan').value;
+  if(!email){show('upR','请填邮箱',false);return;}
+  try{
+    const r=await fetch('/api/admin/upgrade',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,plan,key:KEY})});
+    const d=await r.json();
+    if(!r.ok){show('upR','❌'+(d.detail||'失败'),false);return;}
+    show('upR','✅ '+d.message,true);
+    document.getElementById('email').value='';
+    loadUsers();
+  }catch(e){show('upR','❌'+e.message,false);}
+}
+const PN={trial:'免费',starter_trial:'¥9.9',starter:'基础',pro:'专业',business:'企业'};
+async function loadUsers(){
+  const t=document.getElementById('users');t.innerHTML='加载中…';
+  try{
+    const r=await fetch('/api/admin/users?key='+encodeURIComponent(KEY));
+    const us=await r.json();
+    if(!us.length){t.innerHTML='暂无用户';return;}
+    t.innerHTML='<table><tr><th>邮箱</th><th>套餐</th><th>监测</th><th></th></tr>'+
+      us.map(u=>'<tr><td>'+u.email+'</td><td><span class="badge">'+(PN[u.plan]||u.plan)+'</span></td><td>'+(u.monitor_count||0)+'</td><td><button class="up-btn" onclick="quick(\\''+u.email+'\\')">开通</button></td></tr>').join('')+'</table>';
+  }catch(e){t.innerHTML='加载失败:'+e.message;}
+}
+function quick(email){document.getElementById('email').value=email;document.getElementById('email').scrollIntoView({behavior:'smooth'});}
+</script></div></body></html>"""
+    return HTMLResponse(content=html)
 
 @app.get("/api/admin/users")
 def admin_list_users(key: str, session: Session = Depends(get_session)):
