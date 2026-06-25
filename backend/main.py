@@ -346,6 +346,103 @@ def progress(brand_id: int, user: User = Depends(current_user),
     return result
 
 
+@app.get("/api/brands/{brand_id}/dashboard")
+def growth_dashboard(brand_id: int, user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """
+    增长看板：商家每周必看的核心页面。
+    汇总该品牌所有历史监测，生成趋势数据、环比变化、各平台表现、目标进度。
+    这是让商家持续回来的核心钩子——看到自己的提及率涨没涨。
+    """
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.asc())
+    ).all()
+
+    if not recs:
+        return {"has_data": False, "message": "完成第一次监测后，这里会显示你的增长看板"}
+
+    # 趋势数据（按时间正序）
+    trend = []
+    for r in recs:
+        trend.append({
+            "date": r.generated_at.strftime("%m-%d") if hasattr(r.generated_at, "strftime") else str(r.generated_at)[:10],
+            "full_date": str(r.generated_at)[:19],
+            "mention_rate": round(r.mention_rate, 1),
+            "source_count": r.source_count,
+        })
+
+    latest = recs[-1]
+    first = recs[0]
+    prev = recs[-2] if len(recs) >= 2 else None
+
+    # 环比变化（相比上一次）
+    current_rate = round(latest.mention_rate, 1)
+    prev_rate = round(prev.mention_rate, 1) if prev else None
+    change_vs_prev = round(current_rate - prev_rate, 1) if prev_rate is not None else None
+
+    # 累计变化（相比第一次）
+    first_rate = round(first.mention_rate, 1)
+    change_vs_first = round(current_rate - first_rate, 1)
+
+    # 各平台当前表现
+    platform_now = {}
+    try:
+        platform_now = json.loads(latest.platform_breakdown_json or "{}")
+    except Exception:
+        platform_now = {}
+
+    # 各平台变化（相比上次）
+    platform_change = {}
+    if prev:
+        try:
+            platform_prev = json.loads(prev.platform_breakdown_json or "{}")
+            for pf, rate in platform_now.items():
+                old = platform_prev.get(pf, 0)
+                platform_change[pf] = round(rate - old, 1)
+        except Exception:
+            pass
+
+    # 目标进度（默认目标提及率60%）
+    target = 60
+    progress_pct = min(100, round(current_rate / target * 100)) if target else 0
+
+    # 增长状态判断
+    if change_vs_prev is None:
+        status = "first"
+        status_text = "这是你的第一次监测，完成优化后再次监测即可看到增长曲线"
+    elif change_vs_prev > 0:
+        status = "up"
+        status_text = f"📈 相比上次提升了 {change_vs_prev} 个百分点，优化见效了！"
+    elif change_vs_prev < 0:
+        status = "down"
+        status_text = f"📉 相比上次下降了 {abs(change_vs_prev)} 个百分点，竞品可能在加速，需要加强优化"
+    else:
+        status = "flat"
+        status_text = "数据与上次持平，GEO 优化通常需要 2-4 周显现，继续保持"
+
+    return {
+        "has_data": True,
+        "brand_name": brand.name,
+        "monitor_count": len(recs),
+        "current_rate": current_rate,
+        "prev_rate": prev_rate,
+        "change_vs_prev": change_vs_prev,
+        "first_rate": first_rate,
+        "change_vs_first": change_vs_first,
+        "source_count": latest.source_count,
+        "trend": trend,
+        "platform_now": platform_now,
+        "platform_change": platform_change,
+        "target": target,
+        "progress_pct": progress_pct,
+        "status": status,
+        "status_text": status_text,
+        "last_monitor_date": str(latest.generated_at)[:19],
+    }
+
+
 @app.post("/api/content/generate")
 async def gen_content(req: GenContentReq, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
