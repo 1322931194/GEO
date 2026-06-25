@@ -13,6 +13,7 @@ import json
 import hashlib
 import secrets
 import asyncio
+import httpx
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -525,12 +526,29 @@ class SimulateReq(BaseModel):
 async def simulate(req: SimulateReq):
     """
     AI推荐模拟器：无需登录，输入关键词立刻查
-    - 把关键词发给主流AI
-    - 返回每个AI的真实回答片段
-    - 如果用户填了网站，检测网站有没有被引用
-    - 结果引导用户注册做完整品牌监测
-    限流：同一IP每小时最多10次，防止滥用
     """
+    try:
+        return await _do_simulate(req)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 任何意外错误都返回友好提示，不返回500
+        import traceback
+        return {
+            "keyword": req.keyword,
+            "website": req.website,
+            "mode": req.mode,
+            "results": [],
+            "summary": {
+                "total_platforms": 0, "mentioned_count": 0,
+                "mention_rate": 0, "your_site_found": False,
+                "verdict": f"查询出错：{str(e)[:150]}",
+            },
+            "error_detail": traceback.format_exc()[-500:],
+        }
+
+
+async def _do_simulate(req: SimulateReq):
     keyword = req.keyword.strip()
     if not keyword or len(keyword) > 200:
         raise HTTPException(400, "关键词不能为空，且不超过200字")
