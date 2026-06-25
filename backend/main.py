@@ -26,7 +26,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample)
 from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -242,6 +242,13 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
         full_json=json.dumps(report.__dict__, ensure_ascii=False, default=str),
     )
     session.add(rec)
+
+    # 存行业匿名样本（数据护城河，默默积累）
+    try:
+        _save_industry_sample(brand, report.mention_rate, report.source_count, session)
+    except Exception:
+        pass  # 样本采集失败不影响主流程
+
     session.commit()
     session.refresh(rec)
     return report.__dict__
@@ -606,6 +613,136 @@ def ai_traffic_stats(brand_id: int, user: User = Depends(current_user),
             "landing_page": v.landing_page,
             "visited_at": str(v.visited_at)[:19],
         } for v in visits[:10]],
+    }
+
+
+# ----------------------------- 行业大盘（数据护城河） -----------------------------
+
+INDUSTRY_KEYWORDS = {
+    "茶饮/茶叶": ["茶", "tea", "莓茶", "养生茶"],
+    "美妆护肤": ["美妆", "护肤", "化妆", "skincare", "cosmetic", "beauty", "面膜", "精华"],
+    "服装鞋帽": ["服装", "衣服", "鞋", "帽", "clothing", "apparel", "fashion", "shoe"],
+    "3C数码": ["数码", "3c", "电子", "手机", "电脑", "耳机", "充电", "charger", "electronic", "digital"],
+    "家居家具": ["家居", "家具", "furniture", "home", "床", "沙发", "灯"],
+    "食品饮料": ["食品", "零食", "饮料", "food", "snack", "drink", "咖啡", "coffee"],
+    "母婴用品": ["母婴", "婴儿", "儿童", "baby", "kids", "玩具", "toy"],
+    "户外运动": ["户外", "运动", "健身", "outdoor", "sport", "fitness", "露营", "camping"],
+    "宠物用品": ["宠物", "pet", "猫", "狗", "dog", "cat"],
+    "保健品": ["保健", "营养", "supplement", "vitamin", "膳食"],
+    "电商/软件": ["电商", "跨境", "ecommerce", "saas", "软件", "software"],
+    "餐饮": ["餐饮", "餐厅", "restaurant", "外卖"],
+    "教育培训": ["教育", "培训", "课程", "education", "course", "training"],
+}
+
+def _normalize_industry(industry_raw: str) -> str:
+    if not industry_raw:
+        return "其他"
+    low = industry_raw.lower()
+    for std, keywords in INDUSTRY_KEYWORDS.items():
+        if any(kw in low for kw in keywords):
+            return std
+    return "其他"
+
+
+def _save_industry_sample(brand: Brand, mention_rate: float,
+                          source_count: int, session: Session):
+    """存一条行业匿名样本。用品牌ID哈希去重，不存品牌名。"""
+    industry_raw = brand.industry or brand.product or ""
+    industry_std = _normalize_industry(industry_raw)
+    brand_hash = hashlib.sha256(f"brand_{brand.id}".encode()).hexdigest()[:16]
+    sample = IndustrySample(
+        industry=industry_std,
+        industry_raw=industry_raw[:100],
+        mode=getattr(brand, "mode", "outbound"),
+        mention_rate=mention_rate,
+        source_count=source_count,
+        brand_id_hash=brand_hash,
+    )
+    session.add(sample)
+
+
+@app.get("/api/brands/{brand_id}/industry-benchmark")
+def industry_benchmark(brand_id: int, user: User = Depends(current_user),
+                       session: Session = Depends(get_session)):
+    """行业大盘：商家看自己在行业里的排名。数据不足时诚实显示积累中。"""
+    brand = _owned_brand(brand_id, user, session)
+    industry_std = _normalize_industry(brand.industry or brand.product or "")
+
+    samples = session.exec(
+        select(IndustrySample).where(IndustrySample.industry == industry_std)
+        .order_by(IndustrySample.created_at.desc())
+    ).all()
+
+    # 按品牌哈希去重
+    seen = set()
+    unique = []
+    for s in samples:
+        if s.brand_id_hash not in seen:
+            seen.add(s.brand_id_hash)
+            unique.append(s)
+    sample_count = len(unique)
+
+    my_recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    my_rate = round(my_recs[0].mention_rate, 1) if my_recs else 0
+
+    MIN_SAMPLES = 5
+    if sample_count < MIN_SAMPLES:
+        return {
+            "has_benchmark": False, "industry": industry_std,
+            "sample_count": sample_count, "needed": MIN_SAMPLES, "my_rate": my_rate,
+            "message": f"「{industry_std}」行业样本积累中，已收集 {sample_count} 个品牌，达到 {MIN_SAMPLES} 个后即可看到行业大盘和你的排名。",
+        }
+
+    rates = sorted([s.mention_rate for s in unique], reverse=True)
+    avg_rate = round(sum(rates) / len(rates), 1)
+    max_rate = round(max(rates), 1)
+    median_rate = round(rates[len(rates)//2], 1)
+    below_me = sum(1 for r in rates if r < my_rate)
+    percentile = round(below_me / len(rates) * 100)
+
+    if percentile >= 70:
+        rank_text = f"🏆 你超过了行业 {percentile}% 的品牌，处于领先地位！"
+        rank_color = "good"
+    elif percentile >= 40:
+        rank_text = f"📊 你超过了行业 {percentile}% 的品牌，处于中游，还有提升空间。"
+        rank_color = "neutral"
+    else:
+        rank_text = f"⚠️ 你只超过了行业 {percentile}% 的品牌，落后于多数同行，需加快优化。"
+        rank_color = "bad"
+
+    return {
+        "has_benchmark": True, "industry": industry_std,
+        "sample_count": sample_count, "my_rate": my_rate,
+        "industry_avg": avg_rate, "industry_max": max_rate, "industry_median": median_rate,
+        "percentile": percentile, "rank_text": rank_text, "rank_color": rank_color,
+        "gap_to_avg": round(my_rate - avg_rate, 1),
+        "gap_to_top": round(max_rate - my_rate, 1),
+    }
+
+
+@app.get("/api/industry-stats")
+def industry_stats_public(session: Session = Depends(get_session)):
+    """公开行业统计（无需登录）。展示各行业积累的样本量。"""
+    samples = session.exec(select(IndustrySample)).all()
+    by_industry = {}
+    for s in samples:
+        by_industry.setdefault(s.industry, {})[s.brand_id_hash] = s.mention_rate
+    result = []
+    for industry, brands in by_industry.items():
+        rates = list(brands.values())
+        if rates:
+            result.append({
+                "industry": industry, "brand_count": len(rates),
+                "avg_rate": round(sum(rates) / len(rates), 1),
+            })
+    result.sort(key=lambda x: -x["brand_count"])
+    return {
+        "total_samples": len(samples),
+        "total_brands": sum(r["brand_count"] for r in result),
+        "industries": result,
     }
 
 
