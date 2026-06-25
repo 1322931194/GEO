@@ -29,7 +29,7 @@ from database import (engine, init_db, get_session, PLANS,
 from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
-from services.optimizer import diagnose_score, build_action_plan, compare_reports
+from services.optimizer import diagnose_score, build_action_plan, compare_reports, estimate_monthly_loss
 
 JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
 app = FastAPI(title="GEO 雷达 API", version="1.0.0")
@@ -352,6 +352,139 @@ async def gen_content(req: GenContentReq, user: User = Depends(current_user),
     session.add(gc)
     session.commit()
     return result
+
+
+@app.post("/api/content/schema-faq")
+async def gen_schema_faq(req: GenContentReq, user: User = Depends(current_user),
+                         session: Session = Depends(get_session)):
+    """
+    一键生成 Schema + FAQ：
+    - 输出可直接复制到网站的 JSON-LD Schema 代码
+    - 输出基于品牌特征的 FAQ 问答对
+    这两个是让 AI 更容易引用你网站的最高效手段
+    """
+    brand = _owned_brand(req.brand_id, user, session)
+    questions_raw = json.loads(brand.questions_json or "[]")
+    # 取前8个问题作为FAQ基础
+    faq_questions = [q.get("question","") for q in questions_raw[:8] if q.get("question")]
+
+    from services.generator import _chat, _safe_parse_json
+    system = "你是网站SEO和GEO优化专家，擅长生成让AI搜索引擎更容易引用的结构化内容。"
+    prompt = f"""
+品牌：{brand.name}
+行业：{brand.industry}
+主营产品：{brand.product}
+品牌官网信息：{brand.brand_facts[:500] if brand.brand_facts else '暂无'}
+
+基于以上信息，生成：
+
+1. FAQ（常见问题解答）：基于以下问题，每个写一个简洁有力的回答（2-3句话）
+{chr(10).join(f'- {q}' for q in faq_questions[:6])}
+
+2. JSON-LD Schema代码：生成 FAQPage schema，包含上述FAQ
+
+只返回JSON：
+{{"faq":[{{"q":"问题","a":"回答"}}],"schema_code":"JSON-LD代码字符串","publish_tip":"发布建议"}}
+"""
+    raw = await _chat(prompt, system, json_mode=True)
+    data = _safe_parse_json(raw)
+    if not data:
+        raise HTTPException(500, "生成失败，请重试")
+    return data
+
+
+@app.get("/api/brands/{brand_id}/monthly-loss")
+def monthly_loss(brand_id: int, user: User = Depends(current_user),
+                 session: Session = Depends(get_session)):
+    """
+    月损失AI流量估算：
+    基于最新监测的提及率，估算每月损失多少次AI推荐曝光
+    这个数字让商家感受到损失的量级，是付费的强力触发器
+    """
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    if not recs:
+        return {"has_data": False, "message": "请先完成一次监测"}
+    latest = recs[0]
+    result = estimate_monthly_loss(latest.mention_rate, brand.industry)
+    result["has_data"] = True
+    result["based_on_report_date"] = latest.generated_at
+    return result
+
+
+class CompetitorReq(BaseModel):
+    brand_id: int
+    competitor_url: str   # 竞品官网URL
+    competitor_name: str = ""  # 竞品名称（可选）
+
+@app.post("/api/brands/{brand_id}/competitor-compare")
+async def competitor_compare(brand_id: int, req: CompetitorReq,
+                             user: User = Depends(current_user),
+                             session: Session = Depends(get_session)):
+    """
+    竞品对比：
+    输入竞品URL → 抓取竞品官网 → 用同样的问题集监测竞品 → 并排对比
+    让商家清楚看到：竞品为什么比我被AI推荐得多？
+    """
+    brand = _owned_brand(brand_id, user, session)
+    questions_raw = json.loads(brand.questions_json or "[]")
+    if not questions_raw:
+        raise HTTPException(400, "请先生成问题集")
+
+    # 抓取竞品官网
+    comp_name = req.competitor_name or req.competitor_url
+    comp_facts = ""
+    try:
+        comp_facts = await build_knowledge_base(req.competitor_url)
+    except Exception:
+        comp_facts = ""
+
+    # 用前10个问题监测竞品（节省成本）
+    questions = [q.get("question","") for q in questions_raw[:10] if q.get("question")]
+    competitors = []
+    mode = getattr(brand, "mode", "outbound")
+
+    comp_report = await run_monitoring(
+        comp_name, questions, competitors,
+        samples_per_question=1, mode=mode
+    )
+    # 获取品牌自己最新报告
+    brand_recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+
+    brand_rate = brand_recs[0].mention_rate if brand_recs else 0
+    comp_rate = comp_report.mention_rate
+
+    # 分析差距原因
+    gap = comp_rate - brand_rate
+    if gap > 20:
+        analysis = f"竞品 {comp_name} 的 AI 推荐率比你高 {gap:.0f} 个百分点，差距显著。主要原因：竞品在 AI 训练数据中的内容覆盖更广，被引用来源（{comp_report.source_count} 个）多于你。"
+        action = "建议优先补充官网结构化内容，并在 Reddit/知乎等高权重平台发布品牌内容，缩短与竞品的差距。"
+    elif gap > 0:
+        analysis = f"竞品 {comp_name} 的 AI 推荐率比你高 {gap:.0f} 个百分点，差距较小，有追平机会。"
+        action = "针对竞品覆盖的问题场景，补充 2-3 篇针对性内容即可追平。"
+    else:
+        analysis = f"恭喜！你的 AI 推荐率（{brand_rate}%）高于竞品 {comp_name}（{comp_rate}%），保持优势。"
+        action = "继续完成 GEO 任务清单，扩大领先优势。"
+
+    return {
+        "brand_name": brand.name,
+        "brand_mention_rate": brand_rate,
+        "competitor_name": comp_name,
+        "competitor_url": req.competitor_url,
+        "competitor_mention_rate": comp_rate,
+        "competitor_source_count": comp_report.source_count,
+        "competitor_platform_breakdown": comp_report.platform_breakdown,
+        "gap": round(gap, 1),
+        "analysis": analysis,
+        "action": action,
+        "questions_tested": len(questions),
+    }
 
 
 # ----------------------------- 工具 -----------------------------
