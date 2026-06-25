@@ -850,6 +850,118 @@ function enterApp(planInfo){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
+  // 登录后自动加载历史品牌
+  loadMyBrands();
+}
+
+// ===== 加载用户历史品牌 =====
+async function loadMyBrands(){
+  try{
+    const brands = await api("/api/brands");
+    if(brands && brands.length){
+      // 有历史品牌，显示品牌选择
+      showBrandPicker(brands);
+    }
+    // 没有品牌就保持在第1步填品牌流程（默认）
+  }catch(e){ console.log('加载品牌失败', e); }
+}
+
+function showBrandPicker(brands){
+  // 在第1步顶部插入"我的品牌"卡片
+  const panel1 = document.getElementById("panel1");
+  if(!panel1) return;
+  // 避免重复插入
+  if(document.getElementById("myBrandsCard")) return;
+
+  const card = document.createElement("div");
+  card.id = "myBrandsCard";
+  card.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.04)";
+
+  let html = `<div style="font-size:16px;font-weight:700;margin-bottom:4px">📁 我的品牌</div>
+    <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">继续查看历史监测，或在下方创建新品牌</p>
+    <div style="display:grid;gap:10px">`;
+
+  brands.forEach(b=>{
+    const hasReport = b.report_count > 0;
+    const rateStr = b.latest_rate !== null ? `${b.latest_rate}%` : '未监测';
+    const rateColor = b.latest_rate === null ? '#94a3b8' : (b.latest_rate >= 50 ? '#10b981' : (b.latest_rate >= 20 ? '#f59e0b' : '#ef4444'));
+    html += `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#f8faff">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:600;color:var(--ink)">${escHtml(b.name)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">
+            ${b.mode==='domestic'?'🇨🇳 国内':'🌏 海外'} · ${escHtml(b.industry||'未填行业')}
+            ${hasReport?` · 已监测 ${b.report_count} 次 · 最近 ${b.last_monitor}`:' · 尚未监测'}
+          </div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:20px;font-weight:800;color:${rateColor}">${rateStr}</div>
+          <div style="font-size:10px;color:var(--ink-soft)">AI提及率</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          ${hasReport
+            ? `<button class="btn-primary" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="openBrand(${b.id},'report')">看报告</button>`
+            : `<button class="btn-primary" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="openBrand(${b.id},'monitor')">去监测</button>`}
+          ${hasReport?`<button class="btn-ghost" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="openBrand(${b.id},'dashboard')">看看板</button>`:''}
+        </div>
+      </div>`;
+  });
+  html += `</div>
+    <div style="text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--line)">
+      <button class="btn-ghost" onclick="hideBrandPicker()" style="font-size:13px">+ 创建新品牌监测</button>
+    </div>`;
+
+  card.innerHTML = html;
+  panel1.parentNode.insertBefore(card, panel1);
+  // 隐藏填品牌表单（用户可点"创建新品牌"展开）
+  panel1.style.display = "none";
+}
+
+function hideBrandPicker(){
+  const card = document.getElementById("myBrandsCard");
+  if(card) card.remove();
+  const panel1 = document.getElementById("panel1");
+  if(panel1) panel1.style.display = "";
+}
+
+async function openBrand(brandId, action){
+  currentBrandId = brandId;
+  lastBrandIdForDash = brandId;
+  // 拉取品牌详情，恢复模式
+  try{
+    const brands = await api("/api/brands");
+    const b = brands.find(x=>x.id===brandId);
+    if(b){ currentMode = b.mode; }
+  }catch(e){}
+
+  if(action==='dashboard'){
+    showDashboard();
+  } else if(action==='report'){
+    // 加载最新报告
+    hideBrandPicker();
+    await loadLatestReport(brandId);
+  } else if(action==='monitor'){
+    hideBrandPicker();
+    setStep(2);
+    loadQuestions();
+  }
+}
+
+async function loadLatestReport(brandId){
+  setStep(4);
+  const panel4 = document.getElementById("panel4");
+  try{
+    const reports = await api(`/api/brands/${brandId}/reports`);
+    if(reports && reports.length){
+      // 用最新报告渲染
+      renderReport(reports[0].full || reports[0]);
+    } else {
+      toast("该品牌还没有监测报告，先去监测");
+      setStep(2); loadQuestions();
+    }
+  }catch(e){
+    toast("加载报告失败："+e.message);
+  }
 }
 
 // ===== 增长看板 =====
