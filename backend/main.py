@@ -101,11 +101,17 @@ class GenContentReq(BaseModel):
 
 @app.post("/api/register")
 def register(req: RegisterReq, session: Session = Depends(get_session)):
-    existing = session.exec(select(User).where(User.email == req.email)).first()
+    # 邮箱标准化：去空格、转小写，避免后续登录因大小写/空格不匹配
+    email = req.email.strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(400, "邮箱格式不正确")
+    if len(req.password) < 6:
+        raise HTTPException(400, "密码至少需要6位")
+    existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
         raise HTTPException(400, "该邮箱已注册")
     user = User(
-        email=req.email, password_hash=_hash_pw(req.password),
+        email=email, password_hash=_hash_pw(req.password),
         plan="trial", trial_ends_at=datetime.utcnow() + timedelta(days=7),
     )
     session.add(user)
@@ -117,7 +123,9 @@ def register(req: RegisterReq, session: Session = Depends(get_session)):
 
 @app.post("/api/login")
 def login(req: RegisterReq, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.email == req.email)).first()
+    # 邮箱标准化，与注册保持一致
+    email = req.email.strip().lower()
+    user = session.exec(select(User).where(User.email == email)).first()
     if not user or user.password_hash != _hash_pw(req.password):
         raise HTTPException(401, "邮箱或密码错误")
     return {"token": _make_token(user.id), "plan": user.plan,
@@ -891,9 +899,10 @@ def admin_upgrade(req: UpgradeReq, session: Session = Depends(get_session)):
     _check_admin(req.key)
     if req.plan not in PLANS:
         raise HTTPException(400, f"套餐不存在，可选：{list(PLANS.keys())}")
-    user = session.exec(select(User).where(User.email == req.email)).first()
+    email = req.email.strip().lower()
+    user = session.exec(select(User).where(User.email == email)).first()
     if not user:
-        raise HTTPException(404, f"用户 {req.email} 不存在")
+        raise HTTPException(404, f"用户 {email} 不存在")
     old_plan = user.plan
     user.plan = req.plan
     # 升级时重置监测次数
