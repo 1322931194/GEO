@@ -26,7 +26,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent)
+                      User, Brand, Report, GeneratedContent, AIVisit)
 from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -440,6 +440,172 @@ def growth_dashboard(brand_id: int, user: User = Depends(current_user),
         "status": status,
         "status_text": status_text,
         "last_monitor_date": str(latest.generated_at)[:19],
+    }
+
+
+# ----------------------------- AI访客追踪 -----------------------------
+
+import re as _re_track
+
+# AI平台来源识别规则
+AI_SOURCE_PATTERNS = {
+    "chatgpt": ["openai.com", "chatgpt.com", "chat.openai"],
+    "perplexity": ["perplexity.ai"],
+    "gemini": ["gemini.google", "bard.google"],
+    "copilot": ["copilot.microsoft", "bing.com/chat"],
+    "claude": ["claude.ai"],
+    "deepseek": ["deepseek.com", "chat.deepseek"],
+    "doubao": ["doubao.com"],
+    "kimi": ["kimi.moonshot", "kimi.ai"],
+    "tongyi": ["tongyi.aliyun", "qianwen"],
+    "wenxin": ["yiyan.baidu", "wenxin"],
+}
+
+def _detect_ai_source(referrer: str) -> str:
+    """从referrer识别是否来自AI平台"""
+    if not referrer:
+        return ""
+    ref_low = referrer.lower()
+    for source, patterns in AI_SOURCE_PATTERNS.items():
+        if any(p in ref_low for p in patterns):
+            return source
+    return ""
+
+
+def _get_or_create_track_id(brand: Brand, session: Session) -> str:
+    """获取或生成品牌的追踪码"""
+    if not brand.track_id:
+        brand.track_id = "geo_" + secrets.token_hex(8)
+        session.add(brand)
+        session.commit()
+        session.refresh(brand)
+    return brand.track_id
+
+
+@app.get("/api/brands/{brand_id}/tracking-code")
+def get_tracking_code(brand_id: int, user: User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+    """
+    获取商家官网要嵌入的追踪代码。
+    商家把这段JS贴到自己官网，就能追踪从AI来的访客。
+    """
+    brand = _owned_brand(brand_id, user, session)
+    track_id = _get_or_create_track_id(brand, session)
+    # 服务器地址
+    base_url = os.getenv("PUBLIC_URL", "https://geo-radar.onrender.com")
+    tracking_js = f"""<!-- GEO雷达 AI访客追踪代码 -->
+<script>
+(function(){{
+  try{{
+    var ref = document.referrer || '';
+    if(!ref) return;
+    var img = new Image();
+    img.src = '{base_url}/api/track?tid={track_id}'
+      + '&ref=' + encodeURIComponent(ref)
+      + '&page=' + encodeURIComponent(location.href);
+  }}catch(e){{}}
+}})();
+</script>
+<!-- GEO雷达追踪代码结束 -->"""
+    return {
+        "track_id": track_id,
+        "tracking_code": tracking_js,
+        "install_guide": "把这段代码粘贴到你官网每个页面的 </body> 标签前即可。安装后，从 ChatGPT、Perplexity 等 AI 点链接进来的访客就会被记录。",
+    }
+
+
+@app.get("/api/track")
+def track_visit(tid: str, ref: str = "", page: str = "",
+                user_agent: str = Header(None),
+                session: Session = Depends(get_session)):
+    """
+    接收追踪数据（公开接口，无需登录）。
+    商家官网的追踪代码会调用这个接口上报访客来源。
+    只记录来自AI平台的访客。
+    """
+    if not tid:
+        return {"ok": False}
+    # 识别是否AI来源
+    source = _detect_ai_source(ref)
+    if not source:
+        # 不是AI来源，不记录
+        return {"ok": True, "tracked": False}
+
+    visit = AIVisit(
+        track_id=tid,
+        source=source,
+        referrer=ref[:500],
+        landing_page=page[:500],
+        user_agent=(user_agent or "")[:300],
+    )
+    session.add(visit)
+    session.commit()
+    return {"ok": True, "tracked": True}
+
+
+@app.get("/api/brands/{brand_id}/ai-traffic")
+def ai_traffic_stats(brand_id: int, user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """
+    AI流量统计：商家看到从AI来的真实访客数据。
+    这是从"虚指标"到"真客户"的质变——告诉商家AI到底带来了多少访客。
+    """
+    brand = _owned_brand(brand_id, user, session)
+    if not brand.track_id:
+        return {"has_tracking": False,
+                "message": "还没有安装追踪代码。安装后即可看到从AI来的真实访客。"}
+
+    visits = session.exec(
+        select(AIVisit).where(AIVisit.track_id == brand.track_id)
+        .order_by(AIVisit.visited_at.desc())
+    ).all()
+
+    if not visits:
+        return {"has_tracking": True, "has_data": False,
+                "track_id": brand.track_id,
+                "message": "追踪代码已就绪，但还没有从AI来的访客。继续做GEO优化，让AI开始推荐你。"}
+
+    # 按来源统计
+    by_source = {}
+    for v in visits:
+        by_source[v.source] = by_source.get(v.source, 0) + 1
+
+    # 按日期统计（近30天）
+    from collections import defaultdict
+    by_date = defaultdict(int)
+    now = datetime.utcnow()
+    for v in visits:
+        days_ago = (now - v.visited_at).days
+        if days_ago <= 30:
+            date_key = v.visited_at.strftime("%m-%d")
+            by_date[date_key] += 1
+
+    # 近7天 vs 前7天对比
+    last_7 = sum(1 for v in visits if (now - v.visited_at).days <= 7)
+    prev_7 = sum(1 for v in visits if 7 < (now - v.visited_at).days <= 14)
+    week_change = last_7 - prev_7
+
+    source_labels = {
+        "chatgpt": "ChatGPT", "perplexity": "Perplexity", "gemini": "Gemini",
+        "copilot": "Copilot", "claude": "Claude", "deepseek": "DeepSeek",
+        "doubao": "豆包", "kimi": "Kimi", "tongyi": "通义千问", "wenxin": "文心一言",
+    }
+
+    return {
+        "has_tracking": True,
+        "has_data": True,
+        "total_visits": len(visits),
+        "last_7_days": last_7,
+        "prev_7_days": prev_7,
+        "week_change": week_change,
+        "by_source": [{"source": source_labels.get(k, k), "count": v}
+                      for k, v in sorted(by_source.items(), key=lambda x: -x[1])],
+        "by_date": [{"date": k, "count": v} for k, v in sorted(by_date.items())],
+        "recent_visits": [{
+            "source": source_labels.get(v.source, v.source),
+            "landing_page": v.landing_page,
+            "visited_at": str(v.visited_at)[:19],
+        } for v in visits[:10]],
     }
 
 
