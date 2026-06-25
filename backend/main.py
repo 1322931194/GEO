@@ -26,7 +26,7 @@ import jwt
 
 from database import (engine, init_db, get_session, PLANS,
                       User, Brand, Report, GeneratedContent)
-from services.monitor import run_monitoring, PLATFORMS, _DISPATCH
+from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports
@@ -463,16 +463,39 @@ async def simulate(req: SimulateReq):
 
 async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
     """向单个AI发送关键词查询，返回结构化结果"""
-    from services.monitor import _DISPATCH, PLATFORMS
     key = os.getenv(cfg["api_key_env"], "")
     if not key:
         raise RuntimeError("no key")
 
-    prompt = f"{keyword}\n\n({lang_hint})"
+    prompt = f"{keyword}"
+    messages = [{"role": "user", "content": prompt}]
+    body = {"model": cfg["model"], "messages": messages, "temperature": 0.7, "max_tokens": 800}
+
     try:
-        answer = await _DISPATCH[pid](client, cfg, prompt, key)
+        # Gemini 特殊格式
+        if pid == "gemini":
+            url = f"{cfg['url']}?key={key}"
+            payload = {"contents": [{"parts": [{"text": prompt}]}]}
+            r = await client.post(url, json=payload, timeout=45)
+            r.raise_for_status()
+            answer = r.json()["candidates"][0]["content"]["parts"][0]["text"]
+        # Claude 特殊格式
+        elif pid == "claude":
+            r = await client.post(cfg["url"],
+                headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
+                json={"model": cfg["model"], "max_tokens": 800, "messages": messages},
+                timeout=45)
+            r.raise_for_status()
+            answer = r.json()["content"][0]["text"]
+        else:
+            # OpenAI 兼容格式（ChatGPT/DeepSeek/Perplexity/通义/Kimi/豆包）
+            r = await client.post(cfg["url"],
+                headers={"Authorization": f"Bearer {key}"},
+                json=body, timeout=45)
+            r.raise_for_status()
+            answer = r.json()["choices"][0]["message"]["content"]
     except Exception as e:
-        raise RuntimeError(str(e))
+        raise RuntimeError(f"{cfg['label']} 查询失败: {str(e)[:100]}")
 
     answer_low = answer.lower()
     # 检测网站是否被引用
@@ -481,19 +504,19 @@ async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
         site_clean = website.lower().replace("https://","").replace("http://","").replace("www.","").rstrip("/")
         your_site_found = site_clean in answer_low
 
-    # 提取回答里出现的URL
-    import re
-    cited_urls = list(set(re.findall(r'https?://[^\s\)\]\"\']+', answer)))[:5]
+    # 提取URL
+    import re as _re
+    cited_urls = list(set(_re.findall(r'https?://[^\s\)\]\"\'<>]+', answer)))[:5]
 
-    # 截取前300字作为摘要展示
-    snippet = answer[:300].strip()
-    if len(answer) > 300:
+    # 截取前400字摘要
+    snippet = answer[:400].strip()
+    if len(answer) > 400:
         snippet += "…"
 
     return {
         "platform": cfg["label"],
         "pid": pid,
-        "mentioned": True,  # 能拿到回答就算有内容
+        "mentioned": True,
         "answer_snippet": snippet,
         "cited_urls": cited_urls,
         "your_site_found": your_site_found,
