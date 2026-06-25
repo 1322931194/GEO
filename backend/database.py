@@ -71,6 +71,7 @@ class Brand(SQLModel, table=True):
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
     questions_json: str = "[]"       # 问题集
+    track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -97,6 +98,17 @@ class GeneratedContent(SQLModel, table=True):
     publish_tip: str = ""
     status: str = "draft"          # draft / published(人工标记)
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class AIVisit(SQLModel, table=True):
+    """AI来源访客记录：商家官网被AI推荐后带来的真实访客"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    track_id: str = Field(index=True)        # 品牌的追踪码
+    source: str = ""                          # AI来源：chatgpt/perplexity/deepseek/gemini/copilot/other
+    referrer: str = ""                        # 完整来源URL
+    landing_page: str = ""                    # 落地页
+    user_agent: str = ""                      # 设备信息
+    visited_at: datetime = Field(default_factory=datetime.utcnow, index=True)
 
 
 def init_db():
