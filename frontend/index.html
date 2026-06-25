@@ -259,10 +259,16 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
       <span style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0">◎</span>
       GEO 雷达
     </div>
-    <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-      style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
-      免费体检 →
-    </button>
+    <div style="display:flex;align-items:center;gap:8px">
+      <a href="/simulator" style="font-size:13px;color:#4f46e5;font-weight:600;text-decoration:none;
+        background:#eef2ff;padding:7px 12px;border-radius:8px;border:1px solid #c7d2fe;white-space:nowrap;display:none" id="simLink">
+        🔍 模拟器
+      </a>
+      <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
+        style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+        免费体检 →
+      </button>
+    </div>
   </div>
 
   <!-- 手机端：单列布局 / 电脑端：左右分栏 -->
