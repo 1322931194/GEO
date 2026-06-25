@@ -981,6 +981,103 @@ function renderDashboard(d){
 
   // 画趋势图
   setTimeout(()=>drawTrendChart(d.trend),100);
+  // 加载AI流量数据
+  loadAITraffic();
+}
+
+// ===== AI流量追踪 =====
+async function loadAITraffic(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid) return;
+  try{
+    const t = await api(`/api/brands/${bid}/ai-traffic`);
+    renderAITraffic(t, bid);
+  }catch(e){ console.log('AI流量加载失败', e); }
+}
+
+function renderAITraffic(t, bid){
+  const content = document.getElementById("dashContent");
+  let html = '';
+
+  if(!t.has_tracking || !t.has_data){
+    // 没有追踪或没数据，显示引导
+    html = `
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:6px">📡 AI 真实访客追踪</div>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
+          ${t.message||'安装追踪代码，看到从 ChatGPT、Perplexity 等 AI 点链接进入你官网的真实访客。这是 AI 给你带来的真客户。'}
+        </p>
+        <button class="btn-primary" onclick="showTrackingCode(${bid})">📋 获取追踪代码</button>
+      </div>`;
+  } else {
+    // 有数据，展示统计
+    const wc = t.week_change;
+    const wcColor = wc>0?'#10b981':(wc<0?'#ef4444':'#94a3b8');
+    const wcStr = wc>0?`+${wc}`:`${wc}`;
+    html = `
+      <div style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;border-radius:14px;padding:24px;margin-top:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:16px">📡 AI 真实访客（从AI点链接进你官网的人）</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px">
+          <div style="background:#fff;border-radius:12px;padding:16px">
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">累计 AI 访客</div>
+            <div style="font-size:30px;font-weight:900;color:#059669">${t.total_visits}</div>
+          </div>
+          <div style="background:#fff;border-radius:12px;padding:16px">
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">近 7 天</div>
+            <div style="font-size:30px;font-weight:900;color:#0f172a">${t.last_7_days}</div>
+            <div style="font-size:12px;color:${wcColor};font-weight:600">${wcStr} vs 上周</div>
+          </div>
+          <div style="background:#fff;border-radius:12px;padding:16px">
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">主要来源</div>
+            <div style="font-size:18px;font-weight:700;color:#4f46e5;margin-top:6px">${t.by_source[0]?.source||'—'}</div>
+          </div>
+        </div>`;
+    // 各来源分布
+    if(t.by_source.length){
+      html += `<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;margin-bottom:12px">各 AI 平台带来的访客</div>`;
+      const maxCount = Math.max(...t.by_source.map(s=>s.count));
+      t.by_source.forEach(s=>{
+        const pct = Math.round(s.count/maxCount*100);
+        html += `<div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:3px">
+            <span>${s.source}</span><span style="font-weight:600">${s.count} 人</span>
+          </div>
+          <div style="height:7px;background:#f0f0f0;border-radius:4px;overflow:hidden">
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#059669,#10b981)"></div>
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+    }
+    html += `<div style="font-size:11px;color:var(--ink-soft);text-align:center">📌 仅统计带来源信息的访客，实际 AI 影响可能更大（部分 AI 不传递来源）</div>`;
+    html += `</div>`;
+  }
+
+  content.insertAdjacentHTML('beforeend', html);
+}
+
+async function showTrackingCode(bid){
+  try{
+    const d = await api(`/api/brands/${bid}/tracking-code`);
+    const modal = document.createElement('div');
+    modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
+    modal.innerHTML=`
+      <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="font-size:18px;font-weight:700">📋 你的 AI 访客追踪代码</h3>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8">×</button>
+        </div>
+        <p style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px">${d.install_guide}</p>
+        <div style="background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;line-height:1.6;margin-bottom:14px" id="trackCode">${d.tracking_code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <button class="btn-primary" style="width:100%" onclick="navigator.clipboard.writeText(document.getElementById('trackCode').innerText).then(()=>toast('✅ 追踪代码已复制'))">📋 复制追踪代码</button>
+        <div style="background:#f0f4ff;border-radius:8px;padding:12px;margin-top:14px;font-size:12px;color:var(--brand-ink);line-height:1.6">
+          💡 安装后，访客从 ChatGPT、Perplexity、DeepSeek 等 AI 平台点链接进入你官网时会被自动记录。回到这个看板就能看到 AI 给你带来了多少真实访客。
+        </div>
+      </div>`;
+    modal.onclick=()=>modal.remove();
+    document.body.appendChild(modal);
+  }catch(e){ toast('获取失败：'+e.message); }
 }
 
 let dashChartInstance = null;
