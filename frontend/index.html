@@ -653,6 +653,16 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
         <div id="compareResult" style="margin-top:14px"></div>
       </div>
 
+      <!-- 关键词商机分析 -->
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:20px;margin-top:16px">
+        <div style="font-weight:700;font-size:15px;margin-bottom:6px">💰 关键词商机分析</div>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分析你这个行业里，哪些关键词在 AI 时代值得抢占——高需求、低竞争的"蓝海词"就是你的机会</p>
+        <button class="btn-primary" style="font-size:13px;padding:10px 20px;background:linear-gradient(135deg,#f59e0b,#d97706)" onclick="loadKeywordOpp()" id="kwOppBtn">
+          📊 分析行业关键词商机
+        </button>
+        <div id="kwOppResult" style="margin-top:14px"></div>
+      </div>
+
       <!-- Schema/FAQ 生成 -->
       <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-top:16px">
         <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
@@ -1242,6 +1252,71 @@ async function loadProgress(){
         <p style="font-size:14px;line-height:1.7">${p.summary}</p>
       </div></div>`;
   }catch(e){sec.innerHTML=""}
+}
+
+// ===== 关键词商机分析 =====
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+async function loadKeywordOpp(){
+  const btn = document.getElementById('kwOppBtn');
+  const result = document.getElementById('kwOppResult');
+  btn.textContent='分析中…';btn.disabled=true;
+  result.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在分析行业关键词商机，约需 30 秒…</p></div>';
+  try{
+    const data = await api(`/api/brands/${currentBrandId}/keyword-opportunities`);
+    const kws = data.keywords||[];
+    const stats = data.stats||{};
+    // 顶部统计
+    let html=`
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:#d97706">${stats.gold_count||0}</div>
+          <div style="font-size:11px;color:var(--ink-soft)">黄金词</div>
+        </div>
+        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:#4f46e5">${stats.blue_ocean_count||0}</div>
+          <div style="font-size:11px;color:var(--ink-soft)">蓝海机会</div>
+        </div>
+        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #e7e8ef;border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:#0f172a">${stats.avg_opportunity||0}</div>
+          <div style="font-size:11px;color:var(--ink-soft)">平均商机分</div>
+        </div>
+      </div>`;
+    // 核心建议
+    if(data.top_advice){
+      html+=`<div style="background:#fff;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e">💡 ${data.top_advice}</div>`;
+    }
+    // 关键词卡片
+    const gradeColors={gold:'#f59e0b',green:'#10b981',gray:'#94a3b8',red:'#ef4444'};
+    kws.forEach((k,i)=>{
+      const gc = gradeColors[k.grade_color]||'#94a3b8';
+      html+=`
+        <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
+            <div style="font-size:14px;font-weight:600;color:#0f172a;flex:1;min-width:160px">${i+1}. ${escHtml(k.keyword||'')}</div>
+            <span style="background:${gc}1a;color:${gc};border:1px solid ${gc}55;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${k.grade||''} · ${k.opportunity_score||0}分</span>
+          </div>
+          <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px">${k.tag||''} · ${k.intent||''}</div>
+          <div style="display:flex;gap:12px;margin-bottom:8px">
+            <div style="flex:1">
+              <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px">AI热度 ${k.ai_heat||0}</div>
+              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.ai_heat||0}%;background:#f59e0b"></div></div>
+            </div>
+            <div style="flex:1">
+              <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px">竞争度 ${k.competition||0}</div>
+              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.competition||0}%;background:#ef4444"></div></div>
+            </div>
+          </div>
+          ${k.content_direction?`<div style="background:#f8faff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:4px">✍️ 内容方向：${escHtml(k.content_direction)}</div>`:''}
+          ${k.reason?`<div style="font-size:12px;color:var(--ink-soft);line-height:1.5">💭 ${escHtml(k.reason)}</div>`:''}
+        </div>`;
+    });
+    result.innerHTML=html;
+    toast('✅ 关键词商机分析完成');
+  }catch(e){
+    result.innerHTML=`<p style="color:var(--bad);font-size:13px;padding:10px">❌ ${e.message}</p>`;
+  }
+  btn.textContent='📊 分析行业关键词商机';btn.disabled=false;
 }
 
 async function reMonitor(){toast("🔄 开始重新监测…");goMonitor()}
