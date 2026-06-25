@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI推荐模拟器 — 你的品牌/网站被AI推荐了吗？</title>
+<meta name="description" content="免费工具：输入关键词，立刻查看ChatGPT、DeepSeek等AI会不会推荐你的品牌或网站">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+  background:#f8faff;color:#0f172a;line-height:1.6;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:8px;font-size:14px;font-weight:500;transition:.15s}
+input{font-family:inherit;font-size:15px;width:100%;padding:13px 16px;
+  border:2px solid #e7e8ef;border-radius:10px;color:#0f172a;outline:none;transition:.2s;background:#fff}
+input:focus{border-color:#4f46e5;box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+.hidden{display:none!important}
+
+/* 顶栏 */
+.topbar{background:#fff;border-bottom:1px solid #e7e8ef;padding:0 24px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:#4f46e5;text-decoration:none}
+.logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  display:grid;place-items:center;color:#fff;font-size:14px}
+
+/* 英雄区 */
+.hero{max-width:720px;margin:0 auto;padding:52px 24px 0;text-align:center}
+.hero-badge{display:inline-flex;align-items:center;gap:7px;background:#fff0f0;
+  border:1px solid #fecaca;border-radius:20px;padding:6px 14px;margin-bottom:24px}
+.hero-badge span{width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1.5s infinite;flex-shrink:0}
+.hero-badge p{font-size:13px;color:#dc2626;font-weight:500}
+h1{font-size:clamp(28px,6vw,48px);font-weight:900;line-height:1.15;color:#0f172a;
+  margin-bottom:14px;letter-spacing:-.5px}
+h1 em{font-style:normal;background:linear-gradient(135deg,#4f46e5,#7c3aed);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:17px;color:#475569;margin-bottom:40px;line-height:1.7}
+
+/* 输入区 */
+.input-card{background:#fff;border:1px solid #e7e8ef;border-radius:20px;
+  padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.06);max-width:720px;margin:0 auto 32px}
+
+/* 模式切换 */
+.mode-tabs{display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:20px;gap:0}
+.mode-tab{flex:1;padding:9px;background:none;color:#64748b;border-radius:7px;
+  font-size:14px;border:none;cursor:pointer;transition:.15s}
+.mode-tab.on{background:#fff;color:#4f46e5;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+
+.field-label{font-size:13px;color:#64748b;font-weight:500;margin-bottom:6px;display:block}
+.field{margin-bottom:16px}
+.input-hint{font-size:12px;color:#94a3b8;margin-top:6px}
+
+/* 示例关键词 */
+.examples{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.example-tag{background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;
+  padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:.15s}
+.example-tag:hover{background:#4f46e5;color:#fff;border-color:#4f46e5}
+
+/* 搜索按钮 */
+.btn-search{width:100%;padding:15px;font-size:17px;font-weight:700;
+  background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:12px;
+  box-shadow:0 4px 16px rgba(79,70,229,.3);margin-top:6px}
+.btn-search:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(79,70,229,.4)}
+.btn-search:disabled{opacity:.6;cursor:default;transform:none}
+
+/* 加载状态 */
+.loading-area{text-align:center;padding:40px;display:none}
+.spinner{width:40px;height:40px;border:3px solid #e7e8ef;border-top-color:#4f46e5;
+  border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.platform-progress{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.pf-chip{padding:6px 14px;border-radius:20px;font-size:12px;
+  background:#f0f4ff;color:#64748b;border:1px solid #e7e8ef;transition:.3s}
+.pf-chip.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+.pf-chip.done{background:#d1fae5;color:#065f46;border-color:#a7f3d0}
+
+/* 结果区 */
+.results-area{max-width:720px;margin:0 auto 32px;display:none}
+
+/* 总结卡 */
+.summary-card{border-radius:16px;padding:24px;margin-bottom:20px;text-align:center}
+.summary-card.good{background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0}
+.summary-card.bad{background:linear-gradient(135deg,#fef2f2,#fff7ed);border:1px solid #fecaca}
+.summary-card.neutral{background:linear-gradient(135deg,#f0f4ff,#faf5ff);border:1px solid #c7d2fe}
+.summary-verdict{font-size:18px;font-weight:700;margin-bottom:8px}
+.summary-stats{display:flex;justify-content:center;gap:24px;margin-top:16px;flex-wrap:wrap}
+.summary-stat .n{font-size:32px;font-weight:900}
+.summary-stat .l{font-size:12px;color:#64748b;margin-top:2px}
+
+/* 平台结果卡 */
+.platform-card{background:#fff;border:1px solid #e7e8ef;border-radius:14px;
+  padding:20px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+.pf-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.pf-name{font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px}
+.pf-status{font-size:12px;padding:4px 12px;border-radius:20px;font-weight:600}
+.pf-status.found{background:#d1fae5;color:#065f46}
+.pf-status.notfound{background:#fee2e2;color:#991b1b}
+.pf-status.checking{background:#f0f4ff;color:#4338ca}
+.answer-box{background:#f8faff;border:1px solid #e7e8ef;border-radius:10px;
+  padding:14px;font-size:13px;color:#334155;line-height:1.7;margin-bottom:12px}
+.answer-box .label{font-size:11px;color:#94a3b8;margin-bottom:6px;font-weight:500}
+.your-site-found{background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;
+  padding:10px 14px;font-size:13px;color:#065f46;font-weight:600;margin-top:8px;
+  display:flex;align-items:center;gap:8px}
+.your-site-notfound{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
+  padding:10px 14px;font-size:13px;color:#991b1b;font-weight:600;margin-top:8px;
+  display:flex;align-items:center;gap:8px}
+.cited-urls{margin-top:10px}
+.cited-urls .label{font-size:11px;color:#94a3b8;margin-bottom:4px}
+.url-chip{display:inline-block;font-size:11px;color:#4338ca;background:#f0f4ff;
+  border:1px solid #c7d2fe;padding:2px 8px;border-radius:6px;margin:2px;
+  max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle}
+
+/* CTA 转化区 */
+.cta-card{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;
+  border-radius:18px;padding:28px;text-align:center;max-width:720px;margin:0 auto 40px}
+.cta-card h3{font-size:20px;font-weight:700;margin-bottom:8px}
+.cta-card p{font-size:14px;opacity:.9;margin-bottom:20px;line-height:1.6}
+.btn-cta{background:#fff;color:#4f46e5;padding:13px 28px;font-size:15px;
+  font-weight:700;border-radius:10px;display:inline-block;text-decoration:none}
+.btn-cta:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(0,0,0,.2)}
+
+/* 数据说明 */
+.data-note{max-width:720px;margin:0 auto 60px;font-size:12px;color:#94a3b8;
+  text-align:center;line-height:1.8;padding:0 24px}
+
+@media(max-width:640px){
+  .hero{padding:36px 16px 0}
+  .input-card{padding:20px 16px;border-radius:16px}
+  .summary-stats{gap:16px}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <a href="/" class="logo">
+    <span class="logo-icon">◎</span>
+    GEO 雷达
+  </a>
+  <a href="/" style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;
+    padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none">
+    免费品牌体检 →
+  </a>
+</div>
+
+<!-- 英雄区 -->
+<div class="hero">
+  <div class="hero-badge">
+    <span></span>
+    <p>免费工具 · 无需注册 · 实时查询</p>
+  </div>
+  <h1>输入关键词，<br><em>看 AI 会不会推荐你</em></h1>
+  <p class="hero-sub">
+    直接模拟真实用户在 ChatGPT / DeepSeek 里的提问<br>
+    看看 AI 的回答里有没有你的品牌或网站
+  </p>
+</div>
+
+<!-- 输入卡片 -->
+<div class="input-card">
+  <!-- 模式选择 -->
+  <div class="mode-tabs">
+    <button class="mode-tab on" onclick="setMode('outbound')" id="tab-out">🌏 海外市场</button>
+    <button class="mode-tab" onclick="setMode('domestic')" id="tab-dom">🇨🇳 国内市场</button>
+  </div>
+
+  <!-- 关键词输入 -->
+  <div class="field">
+    <label class="field-label" id="kw-label">输入用户会问 AI 的关键词（英文）</label>
+    <input id="kwInput" type="text" placeholder="如：best portable charger for travel"
+      onkeydown="if(event.key==='Enter')doSimulate()">
+    <div class="input-hint">输入你的行业关键词，系统会帮你问 AI 看结果</div>
+    <!-- 示例关键词 -->
+    <div class="examples" id="examples-out">
+      <span class="example-tag" onclick="setKw(this)">best portable charger</span>
+      <span class="example-tag" onclick="setKw(this)">herbal tea for sleep</span>
+      <span class="example-tag" onclick="setKw(this)">outdoor power station</span>
+      <span class="example-tag" onclick="setKw(this)">Chinese skincare brand</span>
+      <span class="example-tag" onclick="setKw(this)">best CRM for small business</span>
+    </div>
+    <div class="examples hidden" id="examples-dom">
+      <span class="example-tag" onclick="setKw(this)">哪款便携充电宝好用</span>
+      <span class="example-tag" onclick="setKw(this)">养生茶推荐哪个品牌</span>
+      <span class="example-tag" onclick="setKw(this)">出海电商哪个平台好</span>
+      <span class="example-tag" onclick="setKw(this)">小企业用什么CRM</span>
+      <span class="example-tag" onclick="setKw(this)">户外露营电源推荐</span>
+    </div>
+  </div>
+
+  <!-- 可选：填自己的网站 -->
+  <div class="field">
+    <label class="field-label">你的网站（可选）— 检测 AI 有没有引用你</label>
+    <input id="siteInput" type="text" placeholder="如：yoursite.com（不填也可以查）">
+    <div class="input-hint">填写后系统会额外检测 AI 回答里有没有出现你的网站</div>
+  </div>
+
+  <button class="btn-search" onclick="doSimulate()" id="searchBtn">
+    🔍 立即模拟查询
+  </button>
+</div>
+
+<!-- 加载区 -->
+<div class="loading-area" id="loadingArea">
+  <div class="spinner"></div>
+  <p style="font-size:16px;font-weight:600;color:#0f172a;margin-bottom:6px" id="loadMsg">
+    正在向 AI 发送查询…
+  </p>
+  <p style="font-size:13px;color:#64748b;margin-bottom:16px">这是真实查询，不是模拟，需要 10-30 秒</p>
+  <div class="platform-progress" id="pfProgress"></div>
+</div>
+
+<!-- 结果区 -->
+<div class="results-area" id="resultsArea"></div>
+
+<!-- 转化 CTA -->
+<div class="cta-card hidden" id="ctaCard">
+  <h3>📊 想知道你的品牌在 AI 里的完整处境？</h3>
+  <p>
+    模拟器只能查单个关键词。完整品牌体检会用 <b>50 个</b>精准问题<br>
+    全面扫描你在 8 大 AI 的提及率 + 给你专属提升方案
+  </p>
+  <a href="/" class="btn-cta">免费做完整品牌体检 →</a>
+  <p style="font-size:12px;opacity:.7;margin-top:12px">
+    注册即可，¥9.9 解锁完整报告 · 客服微信 jenly222
+  </p>
+</div>
+
+<!-- 数据说明 -->
+<div class="data-note">
+  本工具直接调用 AI 平台 API 进行真实查询，结果为实时数据。<br>
+  不同时间查询结果可能略有差异，AI 回答具有随机性。<br>
+  © GEO 雷达 · AI 流量增长系统
+</div>
+
+<script>
+const API = location.origin.includes('file') ? 'https://geo-radar.onrender.com' : '';
+let currentMode = 'outbound';
+
+const PLATFORM_LABELS = {
+  outbound: ['ChatGPT','DeepSeek','Perplexity'],
+  domestic: ['DeepSeek','通义千问','Kimi'],
+};
+
+const LOAD_MSGS = {
+  outbound: ['正在向 ChatGPT 发送查询…','正在向 DeepSeek 发送查询…','正在向 Perplexity 发送查询…','正在解析 AI 回答…'],
+  domestic: ['正在向 DeepSeek 发送查询…','正在向通义千问发送查询…','正在向 Kimi 发送查询…','正在汇总结果…'],
+};
+
+function setMode(mode){
+  currentMode = mode;
+  document.getElementById('tab-out').classList.toggle('on', mode==='outbound');
+  document.getElementById('tab-dom').classList.toggle('on', mode==='domestic');
+  document.getElementById('examples-out').classList.toggle('hidden', mode!=='outbound');
+  document.getElementById('examples-dom').classList.toggle('hidden', mode==='outbound');
+  document.getElementById('kw-label').textContent =
+    mode==='outbound' ? '输入用户会问 AI 的关键词（英文）' : '输入用户会问 AI 的关键词（中文）';
+  document.getElementById('kwInput').placeholder =
+    mode==='outbound' ? '如：best portable charger for travel' : '如：哪款便携充电宝性价比高';
+}
+
+function setKw(el){
+  document.getElementById('kwInput').value = el.textContent.trim();
+  document.getElementById('kwInput').focus();
+}
+
+async function doSimulate(){
+  const kw = document.getElementById('kwInput').value.trim();
+  const site = document.getElementById('siteInput').value.trim();
+  if(!kw){
+    document.getElementById('kwInput').focus();
+    document.getElementById('kwInput').style.borderColor='#ef4444';
+    setTimeout(()=>document.getElementById('kwInput').style.borderColor='#e7e8ef',2000);
+    return;
+  }
+
+  // 开始加载
+  document.getElementById('searchBtn').disabled = true;
+  document.getElementById('searchBtn').textContent = '查询中…';
+  document.getElementById('loadingArea').style.display = 'block';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('resultsArea').innerHTML = '';
+  document.getElementById('ctaCard').classList.add('hidden');
+
+  // 平台进度展示
+  const platforms = PLATFORM_LABELS[currentMode];
+  const pfProg = document.getElementById('pfProgress');
+  pfProg.innerHTML = platforms.map(p=>`<span class="pf-chip" id="chip-${p}">${p}</span>`).join('');
+
+  // 滚动到加载区
+  document.getElementById('loadingArea').scrollIntoView({behavior:'smooth', block:'nearest'});
+
+  // 轮播消息 + 高亮平台
+  const msgs = LOAD_MSGS[currentMode];
+  let mi = 0;
+  const mt = setInterval(()=>{
+    document.getElementById('loadMsg').textContent = msgs[mi % msgs.length];
+    platforms.forEach((p,i)=>{
+      const chip = document.getElementById('chip-'+p);
+      if(!chip) return;
+      chip.className = 'pf-chip' + (i === mi % platforms.length ? ' active' : i < mi ? ' done' : '');
+    });
+    mi++;
+  }, 2000);
+
+  try{
+    const resp = await fetch(`${API}/api/simulate`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({keyword:kw, website:site, mode:currentMode})
+    });
+    clearInterval(mt);
+
+    if(!resp.ok){
+      const err = await resp.json().catch(()=>({detail:'查询失败'}));
+      throw new Error(err.detail || '服务暂时不可用');
+    }
+
+    const data = await resp.json();
+    renderResults(data, kw, site);
+
+  } catch(e){
+    clearInterval(mt);
+    document.getElementById('loadingArea').style.display = 'none';
+    document.getElementById('resultsArea').style.display = 'block';
+    document.getElementById('resultsArea').innerHTML = `
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:14px;padding:24px;text-align:center">
+        <div style="font-size:24px;margin-bottom:8px">😔</div>
+        <div style="font-weight:600;color:#991b1b;margin-bottom:6px">查询失败</div>
+        <div style="font-size:13px;color:#b91c1c">${e.message}</div>
+        <button onclick="doSimulate()" style="margin-top:16px;background:#ef4444;color:#fff;
+          padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600">重试</button>
+      </div>`;
+  }
+
+  document.getElementById('loadingArea').style.display = 'none';
+  document.getElementById('searchBtn').disabled = false;
+  document.getElementById('searchBtn').textContent = '🔍 立即模拟查询';
+}
+
+function renderResults(data, kw, site){
+  const area = document.getElementById('resultsArea');
+  area.style.display = 'block';
+  const s = data.summary;
+
+  // 判断整体好坏
+  const cardClass = s.your_site_found ? 'good' : (s.mention_rate >= 80 ? 'neutral' : 'bad');
+  const verdictColor = s.your_site_found ? '#065f46' : (s.mention_rate >= 80 ? '#3730a3' : '#991b1b');
+
+  let html = `
+    <div class="summary-card ${cardClass}">
+      <div style="font-size:28px;margin-bottom:8px">${s.your_site_found ? '🎉' : site ? '😟' : '📊'}</div>
+      <div class="summary-verdict" style="color:${verdictColor}">${s.verdict}</div>
+      <div style="font-size:13px;color:#64748b;margin-top:6px">
+        关键词「<b style="color:#0f172a">${escHtml(kw)}</b>」的查询结果
+        ${site ? `· 检测网站：<b style="color:#0f172a">${escHtml(site)}</b>` : ''}
+      </div>
+      <div class="summary-stats">
+        <div class="summary-stat">
+          <div class="n" style="color:#4f46e5">${s.total_platforms}</div>
+          <div class="l">查询平台数</div>
+        </div>
+        <div class="summary-stat">
+          <div class="n" style="color:#10b981">${s.mentioned_count}</div>
+          <div class="l">有回答的平台</div>
+        </div>
+        ${site ? `
+        <div class="summary-stat">
+          <div class="n" style="color:${s.your_site_found?'#10b981':'#ef4444'}">${s.your_site_found ? '✓' : '✗'}</div>
+          <div class="l">你的网站被引用</div>
+        </div>` : ''}
+      </div>
+    </div>`;
+
+  // 各平台详情
+  html += `<div style="font-size:13px;font-weight:600;color:#64748b;margin-bottom:10px;padding:0 4px">各平台详细结果</div>`;
+  (data.results || []).forEach(r=>{
+    const hasError = r.error;
+    html += `
+      <div class="platform-card">
+        <div class="pf-header">
+          <div class="pf-name">
+            ${getPfIcon(r.pid)} ${r.platform}
+          </div>
+          <span class="pf-status ${hasError?'checking':r.mentioned?'found':'notfound'}">
+            ${hasError ? '查询失败' : r.mentioned ? '✓ 有回答' : '— 无数据'}
+          </span>
+        </div>
+        ${!hasError && r.answer_snippet ? `
+          <div class="answer-box">
+            <div class="label">AI 回答摘要（前300字）</div>
+            ${escHtml(r.answer_snippet)}
+          </div>` : ''}
+        ${site && !hasError ? `
+          <div class="${r.your_site_found ? 'your-site-found' : 'your-site-notfound'}">
+            ${r.your_site_found
+              ? `✅ 在这个平台的回答里发现了你的网站`
+              : `❌ 这个平台的回答里没有出现你的网站`}
+          </div>` : ''}
+        ${r.cited_urls && r.cited_urls.length ? `
+          <div class="cited-urls">
+            <div class="label">AI 回答中出现的链接</div>
+            ${r.cited_urls.map(u=>`<span class="url-chip" title="${u}">${u.replace('https://','').replace('http://','')}</span>`).join('')}
+          </div>` : ''}
+      </div>`;
+  });
+
+  // 演示模式提示
+  if(data.demo){
+    html += `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:14px;
+      font-size:13px;color:#92400e;margin-bottom:16px">
+      ⚠️ 当前为演示模式（API密钥未配置），以上为示例数据。配置密钥后显示真实查询结果。
+    </div>`;
+  }
+
+  area.innerHTML = html;
+  document.getElementById('ctaCard').classList.remove('hidden');
+  area.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function getPfIcon(pid){
+  const icons = {chatgpt:'🤖', deepseek:'🔵', perplexity:'🔍', qwen:'☁️', kimi:'🌙', doubao:'📦', gemini:'💫'};
+  return icons[pid] || '🤖';
+}
+
+function escHtml(str){
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+</script>
+</body>
+</html>
