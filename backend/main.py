@@ -1219,10 +1219,16 @@ async def auto_extract_knowledge(brand_id: int,
 只返回JSON：
 {{"items":[{{"category":"selling_point","title":"卖点标题","content":"详细说明"}},{{"category":"faq","title":"问题","content":"答案"}}]}}
 """
-    raw = await _chat(prompt, system, json_mode=True)
+    try:
+        raw = await _chat(prompt, system, json_mode=True)
+    except Exception as e:
+        # 把_chat的真实错误传给前端（密钥无效/余额不足/超时等）
+        raise HTTPException(500, f"AI调用失败：{str(e)[:200]}")
+
     data = _safe_parse_json(raw)
     if not data or "items" not in data:
-        raise HTTPException(500, "提取失败，请重试")
+        # 解析失败，返回AI实际返回的内容片段帮助定位
+        raise HTTPException(500, f"AI返回格式异常，无法解析。返回内容：{(raw or '空')[:150]}")
 
     # 存入知识库
     count = 0
