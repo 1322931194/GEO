@@ -850,14 +850,21 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 <div id="toast"></div>
 
 <script>
-let token = localStorage.getItem("geo_token") || null;
+const API = location.origin.includes("file") ? "http://localhost:8000" : "";
+// localStorage 安全封装：某些浏览器隐私模式/跟踪防护会阻止访问，需容错
+const safeStore = {
+  get(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } },
+  set(k,v){ try{ localStorage.setItem(k,v); }catch(e){} },
+  remove(k){ try{ localStorage.removeItem(k); }catch(e){} },
+};
+let token = safeStore.get("geo_token") || null;
 
 // 从URL读取邀请码并保存（用户可能先看落地页再注册）
 function getInviteCode(){
   const url = new URLSearchParams(location.search);
   const ref = url.get("ref");
-  if(ref){ localStorage.setItem("geo_ref", ref); return ref; }
-  return localStorage.getItem("geo_ref") || "";
+  if(ref){ safeStore.set("geo_ref", ref); return ref; }
+  return safeStore.get("geo_ref") || "";
 }
 // 页面加载时如果有ref参数，存下来
 getInviteCode();
@@ -909,7 +916,7 @@ async function doAuth(){
   try{
     const data=await api("/api/"+(authMode==="login"?"login":"register"),
       {method:"POST",body:JSON.stringify({email,password,invite_code:getInviteCode()})});
-    token=data.token;localStorage.setItem("geo_token",token);
+    token=data.token;safeStore.set("geo_token",token);
     if(authMode!=="login"){
       toast("✅ 注册成功，欢迎使用 GEO 雷达！");
     }
@@ -988,7 +995,7 @@ function navTo(key){
 
 // ===== 新手引导 =====
 function maybeShowOnboarding(){
-  if(localStorage.getItem("geo_onboarded")) return;
+  if(safeStore.get("geo_onboarded")) return;
   setTimeout(showOnboarding, 600);
 }
 
@@ -1032,7 +1039,7 @@ function renderOnboardStep(){
 function onboardNext(){ if(onboardIdx<ONBOARD_STEPS.length-1){onboardIdx++;renderOnboardStep();} }
 function onboardPrev(){ if(onboardIdx>0){onboardIdx--;renderOnboardStep();} }
 function finishOnboard(){
-  localStorage.setItem("geo_onboarded","1");
+  safeStore.set("geo_onboarded","1");
   const m=document.getElementById("onboardModal");
   if(m) m.remove();
 }
@@ -1812,7 +1819,7 @@ function reMonitorFromDash(){
   if(currentBrandId){ goMonitor(); }
   else { toast("请先选择品牌"); }
 }
-function logout(){localStorage.removeItem("geo_token");token=null;location.reload()}
+function logout(){safeStore.remove("geo_token");token=null;location.reload()}
 
 // ===== 模式选择（双引擎核心）=====
 function selectMode(mode){
@@ -2604,7 +2611,7 @@ function renderSimResults(data){
   });
   resEl.innerHTML=html;resEl.style.display='block';ctaEl.style.display='block';
 }
-if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;localStorage.removeItem("geo_token")})}
+if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;safeStore.remove("geo_token")})}
 
 // 加载首页案例
 (async function loadShowcase(){
