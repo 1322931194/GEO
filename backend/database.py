@@ -104,6 +104,22 @@ class KnowledgeItem(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class Order(SQLModel, table=True):
+    """
+    支付订单。支付成功后自动开通套餐 + 结算分销佣金。
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    order_no: str = Field(index=True, unique=True)   # 商户订单号
+    user_id: int = Field(index=True)
+    plan: str = ""                  # 购买的套餐
+    amount: float = 0.0             # 金额（元）
+    status: str = "pending"         # pending=待支付 paid=已支付 failed=失败
+    pay_method: str = ""            # wxpay / alipay
+    pay_no: str = ""                # 支付平台流水号
+    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    paid_at: Optional[datetime] = None
+
+
 class Report(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     brand_id: int = Field(index=True)
