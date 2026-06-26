@@ -870,6 +870,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div class="card-header">
                 <div><h2>第 4 步 · AI 能见度报告</h2><p style="font-size:13px;color:var(--ink-soft);margin-top:4px" id="repDate"></p></div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn-cyan" style="font-size:13px;padding:9px 16px" onclick="exportExecPDF()">📊 导出高管级汇报</button>
                   <button class="btn-ghost" style="font-size:13px" onclick="reMonitor()">🔁 重新监测</button>
                   <button class="btn-ghost" style="font-size:13px" onclick="resetFlow()">+ 新品牌</button>
                 </div>
@@ -1735,6 +1736,21 @@ function renderDashboard(d){
     <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:600;margin-bottom:16px">📈 提及率变化趋势</div>
       <canvas id="dashTrendChart" height="100"></canvas>
+    </div>
+
+    <!-- 品牌健康度雷达图 -->
+    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:600">🛡️ 品牌健康度雷达</div>
+        <div style="display:flex;gap:14px;font-size:12px">
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:var(--good);display:inline-block"></span>正面推荐</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:var(--ink-faint);display:inline-block"></span>客观提及</span>
+          <span style="display:flex;align-items:center;gap:5px"><span style="width:11px;height:11px;border-radius:3px;background:var(--bad);display:inline-block"></span>负面预警</span>
+        </div>
+      </div>
+      <div id="radarBox" style="display:flex;justify-content:center;padding:10px 0">
+        <div class="loading" style="padding:20px"><div class="spinner"></div></div>
+      </div>
     </div>`;
 
   // 各平台表现
@@ -1768,10 +1784,88 @@ function renderDashboard(d){
 
   // 画趋势图
   setTimeout(()=>drawTrendChart(d.trend),100);
+  // 加载雷达图
+  loadHealthRadar();
   // 加载AI流量数据
   loadAITraffic();
   // 加载行业大盘
   loadIndustryBenchmark();
+}
+
+// ===== 品牌健康度雷达图 =====
+async function loadHealthRadar(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid) return;
+  try{
+    const d = await api(`/api/brands/${bid}/health-radar`);
+    drawRadar(d);
+  }catch(e){
+    // 没数据时用演示
+    try{
+      const d = await api(`/api/brands/${bid}/health-radar?demo=true`);
+      drawRadar(d, true);
+    }catch(e2){
+      const box=document.getElementById("radarBox");
+      if(box) box.innerHTML='<p style="color:var(--ink-faint);font-size:13px;padding:20px">完成一次监测后显示</p>';
+    }
+  }
+}
+
+function drawRadar(d, isDemo){
+  const box = document.getElementById("radarBox");
+  if(!box) return;
+  const dims = d.dimensions;
+  const N = dims.length;
+  const cx=180, cy=170, R=120;
+  const levels=4;
+  // 计算每个维度的角度
+  function pt(i, r){
+    const ang = (Math.PI*2*i/N) - Math.PI/2;
+    return [cx + r*Math.cos(ang), cy + r*Math.sin(ang)];
+  }
+  let svg=`<svg viewBox="0 0 360 340" style="max-width:380px;width:100%">`;
+  // 网格圈
+  for(let l=1;l<=levels;l++){
+    const r=R*l/levels;
+    let poly=dims.map((_,i)=>pt(i,r).join(",")).join(" ");
+    svg+=`<polygon points="${poly}" fill="none" stroke="var(--line)" stroke-width="1"/>`;
+  }
+  // 轴线
+  dims.forEach((_,i)=>{
+    const [x,y]=pt(i,R);
+    svg+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="var(--line)" stroke-width="1"/>`;
+  });
+  // 三色数据多边形(正面/客观/负面叠加)
+  function polyFor(key,color,op){
+    let poly=dims.map((dm,i)=>{
+      const v=Math.min(dm[key]||0, dm.max)/dm.max;
+      return pt(i, R*v).join(",");
+    }).join(" ");
+    return `<polygon points="${poly}" fill="${color}" fill-opacity="${op}" stroke="${color}" stroke-width="2"/>`;
+  }
+  // 客观(灰,底层) → 正面(绿) → 负面(红,最显眼在上)
+  svg+=polyFor("neutral","#9c958a",.12);
+  svg+=polyFor("positive","#5a7d5a",.22);
+  svg+=polyFor("negative","#b0524a",.28);
+  // 维度标签
+  dims.forEach((dm,i)=>{
+    const [x,y]=pt(i,R+24);
+    const anchor = Math.abs(x-cx)<10?"middle":(x>cx?"start":"end");
+    svg+=`<text x="${x}" y="${y}" font-size="12" fill="var(--ink-soft)" text-anchor="${anchor}" dominant-baseline="middle">${dm.label}</text>`;
+  });
+  svg+=`</svg>`;
+
+  // 底部三色汇总
+  const s=d.summary;
+  svg+=`<div style="display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap">
+    <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--good)">${s.positive_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">正面推荐</div></div>
+    <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--ink-faint)">${s.neutral_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">客观提及</div></div>
+    <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--bad)">${s.negative_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">负面预警</div></div>
+  </div>`;
+  if(isDemo||d.demo){
+    svg+=`<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin-top:8px">* 演示数据，完成监测后显示真实健康度</p>`;
+  }
+  box.innerHTML=svg;
 }
 
 // ===== 行业大盘 =====
@@ -2472,6 +2566,145 @@ async function loadKeywordOpp(){
 }
 
 async function reMonitor(){toast("🔄 开始重新监测…");goMonitor()}
+
+// ===== 导出高管级汇报 PDF =====
+async function exportExecPDF(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ toast("请先完成一次监测"); return; }
+  toast("📊 正在生成高管级汇报…");
+  let d;
+  try{
+    d = await api(`/api/brands/${bid}/exec-report`);
+  }catch(e){
+    try{ d = await api(`/api/brands/${bid}/exec-report?demo=true`); }
+    catch(e2){ toast("生成失败："+e2.message); return; }
+  }
+  openExecPDF(d);
+}
+
+function openExecPDF(d){
+  const comps = d.intercept.competitors;
+  const maxRate = Math.max(d.intercept.your_rate, ...comps.map(c=>c.rate), 1);
+  // 竞品拦截条形图
+  const barRow=(name,rate,you)=>`
+    <div style="margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:6px">
+        <span style="font-weight:${you?'700':'500'};color:${you?'#b0524a':'#26221c'}">${you?'🔴 ':''}${name}${you?'（你的品牌）':''}</span>
+        <span style="font-weight:700;color:${you?'#b0524a':'#5a7d5a'}">${rate}%</span>
+      </div>
+      <div style="height:22px;background:#efebe2;border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${rate/maxRate*100}%;background:${you?'#b0524a':'#5a7d5a'};border-radius:4px"></div>
+      </div>
+    </div>`;
+
+  // 流量挽回折线(SVG简版)
+  const proj=d.recovery.projection;
+  const pmax=Math.max(...proj.map(p=>p.rate),1);
+  const pw=440, ph=180, pad=36;
+  const px=(i)=>pad+(pw-pad*2)*i/(proj.length-1);
+  const py=(v)=>ph-pad-(ph-pad*2)*v/pmax;
+  let line=proj.map((p,i)=>`${px(i)},${py(p.rate)}`).join(" ");
+  let dots=proj.map((p,i)=>`<circle cx="${px(i)}" cy="${py(p.rate)}" r="4" fill="#5a7d5a"/><text x="${px(i)}" y="${py(p.rate)-12}" font-size="13" fill="#5a7d5a" font-weight="700" text-anchor="middle">${p.rate}%</text><text x="${px(i)}" y="${ph-12}" font-size="11" fill="#6b655b" text-anchor="middle">${p.month}</text>`).join("");
+
+  const negHtml = d.negatives.length ? d.negatives.map(n=>`
+    <div style="border:1px solid #e8e3d8;border-left:4px solid #b0524a;border-radius:6px;padding:16px;margin-bottom:14px;background:#fdfaf6">
+      <div style="font-size:12px;color:#9c958a;margin-bottom:6px">${n.platform} · 用户提问</div>
+      <div style="font-size:14px;font-weight:600;color:#26221c;margin-bottom:8px">"${n.question}"</div>
+      <div style="font-size:13px;color:#b0524a;line-height:1.6">⚠️ ${n.answer_snippet}</div>
+    </div>`).join("") : '<p style="color:#6b655b">本次监测未发现明显负面，但仍有提升空间。</p>';
+
+  const today = new Date().toLocaleDateString('zh-CN');
+  const demoTag = d.demo ? '<span style="font-size:11px;color:#b08442;background:#fef3c7;padding:2px 8px;border-radius:4px;margin-left:8px">演示数据</span>' : '';
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${d.brand_name} · AI 能见度高管汇报</title>
+<style>
+  @page{margin:0;size:A4}
+  *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
+  body{color:#26221c;background:#fff}
+  .page{width:210mm;min-height:296mm;padding:24mm 22mm;page-break-after:always;position:relative;background:#f4f1ea}
+  .page:last-child{page-break-after:auto}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .brand .m{width:32px;height:32px;border-radius:8px;background:#26221c;color:#f4f1ea;display:grid;place-items:center;font-size:16px;font-weight:600}
+  .brand .n{font-size:18px;font-weight:700}
+  .ptitle{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:32px 0 8px;line-height:1.2}
+  .psub{font-size:15px;color:#6b655b;margin-bottom:36px}
+  .big{font-size:64px;font-weight:850;line-height:1}
+  .card{background:#fff;border:1px solid #e8e3d8;border-radius:12px;padding:28px;margin-bottom:20px}
+  .foot{position:absolute;bottom:16mm;left:22mm;right:22mm;font-size:11px;color:#9c958a;border-top:1px solid #e8e3d8;padding-top:10px;display:flex;justify-content:space-between}
+  @media print{.noprint{display:none}}
+</style></head><body>
+
+<!-- 第1页：竞品拦截对比 -->
+<div class="page">
+  <div class="brand"><span class="m">見</span><span class="n">见微 · AI 能见度汇报</span>${demoTag}</div>
+  <div class="ptitle">你的客户，正在被竞品<span style="color:#b0524a">拦截</span></div>
+  <div class="psub">${d.industry} · 当客户向 AI 询问推荐时，谁被推荐了？ · ${today}</div>
+  <div class="card">
+    <div style="font-size:14px;color:#6b655b;margin-bottom:24px;font-weight:600">AI 推荐率对比（被 AI 主动推荐的概率）</div>
+    ${barRow(d.brand_name, d.intercept.your_rate, true)}
+    ${comps.map(c=>barRow(c.name,c.rate,false)).join("")}
+  </div>
+  <div class="card" style="background:#fdf3f2;border-color:#e8c5c0">
+    <div style="font-size:15px;font-weight:700;color:#b0524a;margin-bottom:8px">💡 这意味着什么？</div>
+    <div style="font-size:14px;color:#26221c;line-height:1.8">每当潜在客户问 AI"推荐这个行业的品牌"，你的品牌出现率仅 <b style="color:#b0524a">${d.intercept.your_rate}%</b>，而竞品高达 <b>${comps[0]?.rate||0}%</b>。这些本该属于你的客户，正在被 AI 直接送给对手。</div>
+  </div>
+  <div class="foot"><span>见微 GEO · 见微知著</span><span>第 1 页 · 客服微信 jenly222</span></div>
+</div>
+
+<!-- 第2页：负面危机 -->
+<div class="page">
+  <div class="brand"><span class="m">見</span><span class="n">见微 · AI 能见度汇报</span></div>
+  <div class="ptitle">AI 是这样<span style="color:#b0524a">回答客户</span>的</div>
+  <div class="psub">我们模拟真实客户提问，记录 AI 的实际回答 · 这些是你看不见的流失</div>
+  ${negHtml}
+  <div class="card" style="background:#fdf3f2;border-color:#e8c5c0;margin-top:8px">
+    <div style="font-size:14px;color:#26221c;line-height:1.8">⚠️ 客户信任 AI 的回答。当 AI 不提你、只提竞品时，你失去的不是一次曝光，而是一个本可成交的订单——而且你完全不知情。</div>
+  </div>
+  <div class="foot"><span>见微 GEO · 见微知著</span><span>第 2 页 · 客服微信 jenly222</span></div>
+</div>
+
+<!-- 第3页：流量挽回模型 -->
+<div class="page">
+  <div class="brand"><span class="m">見</span><span class="n">见微 · AI 能见度汇报</span></div>
+  <div class="ptitle">优化后，<span style="color:#5a7d5a">预期挽回</span>模型</div>
+  <div class="psub">基于见微 GEO 优化路径的提及率提升预估（预估值，非承诺）</div>
+  <div class="card">
+    <div style="font-size:14px;color:#6b655b;margin-bottom:16px;font-weight:600">AI 推荐率提升曲线（预期）</div>
+    <svg viewBox="0 0 ${pw} ${ph}" style="width:100%">
+      <polyline points="${line}" fill="none" stroke="#5a7d5a" stroke-width="3"/>
+      ${dots}
+    </svg>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card" style="text-align:center;margin:0">
+      <div style="font-size:13px;color:#6b655b;margin-bottom:8px">当前推荐率</div>
+      <div class="big" style="font-size:42px;color:#b0524a">${proj[0].rate}%</div>
+    </div>
+    <div class="card" style="text-align:center;margin:0;background:#f0f5ee;border-color:#c5d6bd">
+      <div style="font-size:13px;color:#6b655b;margin-bottom:8px">3个月后预期</div>
+      <div class="big" style="font-size:42px;color:#5a7d5a">${proj[proj.length-1].rate}%</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px;background:#26221c;color:#f4f1ea;border:none">
+    <div style="font-size:16px;font-weight:700;margin-bottom:8px">下一步</div>
+    <div style="font-size:14px;line-height:1.8;color:rgba(244,241,234,.85)">见微帮你生成针对性内容、补齐 AI 引用缺口，把上面的预期变成现实。越早开始，越早占住 AI 的推荐位。</div>
+    <div style="margin-top:14px;font-size:14px;font-weight:600">联系顾问：微信 jenly222</div>
+  </div>
+  <div class="foot"><span>见微 GEO · 数据基于真实监测，挽回模型为预估值</span><span>第 3 页</span></div>
+</div>
+
+<div class="noprint" style="position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:99">
+  <button onclick="window.print()" style="background:#3a6b4a;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2)">🖨️ 打印 / 存为 PDF</button>
+  <button onclick="window.close()" style="background:#fff;color:#26221c;border:1px solid #ddd;padding:12px 20px;border-radius:8px;font-size:14px;cursor:pointer">关闭</button>
+</div>
+<script>setTimeout(()=>{try{window.print()}catch(e){}}, 800)<\/script>
+</body></html>`;
+
+  const w = window.open("", "_blank");
+  if(!w){ toast("请允许弹出窗口以生成PDF"); return; }
+  w.document.write(html);
+  w.document.close();
+}
 
 // ===== 月损失AI流量 =====
 async function loadMonthlyLoss(){
