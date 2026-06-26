@@ -311,11 +311,17 @@ def delete_brand(brand_id: int, user: User = Depends(current_user),
     brand = session.get(Brand, brand_id)
     if not brand or brand.user_id != user.id:
         raise HTTPException(404, "品牌不存在")
-    # 删除关联数据
-    for model in (Report, GeneratedContent, KnowledgeItem, AIVisit):
+    # 删除关联数据（这些表都有 brand_id 字段）
+    for model in (Report, GeneratedContent, KnowledgeItem):
         rows = session.exec(select(model).where(model.brand_id == brand_id)).all()
         for r in rows:
             session.delete(r)
+    # AIVisit 用 track_id 关联（不是 brand_id）
+    track_id = getattr(brand, "track_id", "")
+    if track_id:
+        visits = session.exec(select(AIVisit).where(AIVisit.track_id == track_id)).all()
+        for v in visits:
+            session.delete(v)
     session.delete(brand)
     session.commit()
     return {"message": "已删除", "brand_id": brand_id}
