@@ -522,6 +522,160 @@ def progress(brand_id: int, user: User = Depends(current_user),
     return result
 
 
+@app.get("/api/brands/{brand_id}/health-radar")
+def health_radar(brand_id: int, demo: bool = False,
+                 user: User = Depends(current_user),
+                 session: Session = Depends(get_session)):
+    """
+    品牌健康度雷达图数据。
+    6个维度，每个含正面推荐/客观提及/负面预警三色占比。
+    demo=True 返回演示数据；否则基于真实监测报告计算。
+    """
+    brand = _owned_brand(brand_id, user, session)
+
+    if demo:
+        # 演示数据：制造视觉冲击的典型"待优化"画像
+        return {
+            "demo": True,
+            "brand_name": brand.name,
+            "dimensions": [
+                {"label": "AI 推荐率", "positive": 15, "neutral": 25, "negative": 10, "max": 100},
+                {"label": "内容覆盖", "positive": 20, "neutral": 30, "negative": 5, "max": 100},
+                {"label": "竞品压制", "positive": 12, "neutral": 18, "negative": 0, "max": 100},
+                {"label": "权威背书", "positive": 8, "neutral": 22, "negative": 0, "max": 100},
+                {"label": "舆情安全", "positive": 30, "neutral": 40, "negative": 25, "max": 100},
+                {"label": "信息准确", "positive": 35, "neutral": 35, "negative": 8, "max": 100},
+            ],
+            "summary": {"positive_rate": 18, "neutral_rate": 28, "negative_rate": 9},
+        }
+
+    # 真实数据：基于最新报告
+    latest = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).first()
+    if not latest:
+        raise HTTPException(404, "暂无监测数据，请先完成一次监测")
+
+    rate = latest.mention_rate
+    full = _jload(latest.full_json, {})
+    gaps = _jload(latest.gaps_json, [])
+    platforms = _jload(latest.platform_breakdown_json, [])
+
+    # 从真实数据推导各维度（正面=被推荐，客观=被提及未推荐，负面=缺口/未提及）
+    gap_penalty = min(len(gaps) * 5, 40)
+    plat_count = len(platforms) if platforms else 1
+    plat_covered = sum(1 for p in platforms if isinstance(p, dict) and p.get("mentioned")) if platforms else 0
+    coverage = round(100 * plat_covered / plat_count) if plat_count else 0
+
+    dims = [
+        {"label": "AI 推荐率", "positive": round(rate), "neutral": round(min(rate*0.6, 100-rate)), "negative": 0, "max": 100},
+        {"label": "内容覆盖", "positive": coverage, "neutral": round(coverage*0.5), "negative": 0, "max": 100},
+        {"label": "竞品压制", "positive": round(max(rate-10, 0)), "neutral": round(rate*0.4), "negative": 0, "max": 100},
+        {"label": "权威背书", "positive": round(rate*0.5), "neutral": round(rate*0.6), "negative": 0, "max": 100},
+        {"label": "舆情安全", "positive": round(100-gap_penalty), "neutral": round(gap_penalty*0.5), "negative": round(gap_penalty*0.3), "max": 100},
+        {"label": "信息准确", "positive": round(min(rate+20, 90)), "neutral": round((100-rate)*0.3), "negative": 0, "max": 100},
+    ]
+    avg_pos = round(sum(d["positive"] for d in dims) / len(dims))
+    avg_neu = round(sum(d["neutral"] for d in dims) / len(dims))
+    avg_neg = round(sum(d["negative"] for d in dims) / len(dims))
+    return {
+        "demo": False,
+        "brand_name": brand.name,
+        "dimensions": dims,
+        "summary": {"positive_rate": avg_pos, "neutral_rate": avg_neu, "negative_rate": avg_neg},
+    }
+
+
+@app.get("/api/brands/{brand_id}/exec-report")
+def exec_report_data(brand_id: int, demo: bool = False,
+                     user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """
+    高管级汇报PDF所需数据。
+    三页：竞品拦截对比、负面/缺口危机、流量挽回模型。
+    demo=True 用演示数据。
+    """
+    brand = _owned_brand(brand_id, user, session)
+
+    if demo:
+        return {
+            "demo": True,
+            "brand_name": brand.name,
+            "industry": brand.industry or "你的行业",
+            "intercept": {
+                "your_rate": 0,
+                "competitors": [
+                    {"name": "行业领先竞品 A", "rate": 82},
+                    {"name": "竞品 B", "rate": 68},
+                    {"name": "竞品 C", "rate": 55},
+                ],
+            },
+            "negatives": [
+                {"platform": "ChatGPT", "question": "推荐这个行业靠谱的品牌", "answer_snippet": "推荐了 A、B、C 三个竞品，未提及你的品牌。客户直接获得了竞品信息。"},
+                {"platform": "DeepSeek", "question": "哪个品牌质量更好", "answer_snippet": "重点介绍了竞品 A 的优势，你的品牌完全没有出现在回答中。"},
+            ],
+            "recovery": {
+                "current_monthly_loss": 8400,
+                "recoverable": 6200,
+                "timeline_months": 3,
+                "projection": [
+                    {"month": "现状", "rate": 0},
+                    {"month": "第1月", "rate": 12},
+                    {"month": "第2月", "rate": 28},
+                    {"month": "第3月", "rate": 45},
+                ],
+            },
+        }
+
+    latest = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).first()
+    if not latest:
+        raise HTTPException(404, "暂无监测数据，请先完成一次监测")
+
+    rate = latest.mention_rate
+    comp_share = _jload(latest.competitor_share_json, [])
+    gaps = _jload(latest.gaps_json, [])
+
+    competitors = []
+    for c in comp_share[:3]:
+        if isinstance(c, dict):
+            competitors.append({"name": c.get("name", "竞品"), "rate": round(c.get("share", 0))})
+    if not competitors:
+        competitors = [{"name": "行业竞品", "rate": round(max(rate+30, 50))}]
+
+    # 负面/缺口（真实缺口问题）
+    negatives = []
+    for g in gaps[:3]:
+        q = g if isinstance(g, str) else g.get("question", "")
+        if q:
+            negatives.append({"platform": "AI 平台", "question": q,
+                              "answer_snippet": "AI 在回答这个问题时未推荐你的品牌，客户获得的是其他品牌的信息。"})
+
+    # 流量挽回模型（基于当前提及率的合理预估）
+    base = round(rate)
+    return {
+        "demo": False,
+        "brand_name": brand.name,
+        "industry": brand.industry or "你的行业",
+        "intercept": {"your_rate": round(rate), "competitors": competitors},
+        "negatives": negatives,
+        "recovery": {
+            "current_monthly_loss": None,
+            "recoverable": None,
+            "timeline_months": 3,
+            "projection": [
+                {"month": "现状", "rate": base},
+                {"month": "第1月", "rate": min(base+12, 100)},
+                {"month": "第2月", "rate": min(base+28, 100)},
+                {"month": "第3月", "rate": min(base+45, 100)},
+            ],
+        },
+    }
+
+
 @app.get("/api/brands/{brand_id}/dashboard")
 def growth_dashboard(brand_id: int, user: User = Depends(current_user),
                      session: Session = Depends(get_session)):
