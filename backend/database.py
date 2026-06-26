@@ -159,6 +159,41 @@ class IndustrySample(SQLModel, table=True):
 
 def init_db():
     SQLModel.metadata.create_all(engine)
+    _auto_migrate()
+
+
+def _auto_migrate():
+    """
+    自动迁移：给已存在的表补充新增字段。
+    create_all 不会给旧表加新列，所以手动 ALTER。
+    每条都用 try 包裹，字段已存在时静默跳过。
+    兼容 SQLite 和 PostgreSQL。
+    """
+    from sqlalchemy import text
+    # 需要补的字段：(表名, 字段名, 类型与默认值)
+    migrations = [
+        ("user", "invite_code", "VARCHAR DEFAULT ''"),
+        ("user", "referred_by", "INTEGER DEFAULT 0"),
+        ("user", "monitor_count", "INTEGER DEFAULT 0"),
+        ("user", "is_admin", "BOOLEAN DEFAULT FALSE"),
+        ("user", "trial_ends_at", "TIMESTAMP"),
+        ("brand", "track_id", "VARCHAR DEFAULT ''"),
+        ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
+    ]
+    is_sqlite = str(engine.url).startswith("sqlite")
+    with engine.connect() as conn:
+        for table, col, coltype in migrations:
+            # 表名在不同库的引用方式
+            tbl = f'"{table}"' if not is_sqlite else table
+            try:
+                conn.execute(text(f'ALTER TABLE {tbl} ADD COLUMN {col} {coltype}'))
+                conn.commit()
+            except Exception:
+                # 字段已存在或表不存在，跳过
+                try:
+                    conn.rollback()
+                except Exception:
+                    pass
 
 
 def get_session():
