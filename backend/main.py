@@ -29,8 +29,8 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem)
-from services.monitor import run_monitoring, PLATFORMS
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order)
+from services.monitor import run_monitoring, PLATFORMS, estimate_cost
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports, estimate_monthly_loss
@@ -1075,6 +1075,173 @@ def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
     return brand
 
 
+# ============================= 支付模块 =============================
+# 对接 YunGouOS（个人可签约的微信支付宝服务商）
+# 需要在 Render 配置：YUNGOUOS_MCH_ID（商户号）、YUNGOUOS_KEY（密钥）
+# 未配置时，下单走"联系客服"降级模式，不影响其他功能
+
+import hashlib as _hashlib_pay
+
+YUNGOUOS_MCH_ID = os.getenv("YUNGOUOS_MCH_ID", "")
+YUNGOUOS_KEY = os.getenv("YUNGOUOS_KEY", "")
+YUNGOUOS_WXPAY_URL = "https://api.pay.yungouos.com/api/pay/wxpay/nativePay"
+YUNGOUOS_ALIPAY_URL = "https://api.pay.yungouos.com/api/pay/alipay/nativePay"
+PUBLIC_URL = os.getenv("PUBLIC_URL", "https://geo-radar.onrender.com")
+
+
+def _pay_enabled() -> bool:
+    return bool(YUNGOUOS_MCH_ID and YUNGOUOS_KEY)
+
+
+def _yungouos_sign(params: dict) -> str:
+    """YunGouOS 签名：参数按key升序拼接 + 密钥，MD5大写"""
+    # 过滤空值和sign本身
+    items = {k: v for k, v in params.items() if v != "" and k != "sign"}
+    sorted_keys = sorted(items.keys())
+    sign_str = "&".join(f"{k}={items[k]}" for k in sorted_keys)
+    sign_str += f"&key={YUNGOUOS_KEY}"
+    return _hashlib_pay.md5(sign_str.encode()).hexdigest().upper()
+
+
+class CreateOrderReq(BaseModel):
+    plan: str                       # 要购买的套餐
+    pay_method: str = "wxpay"       # wxpay 或 alipay
+
+
+@app.post("/api/order/create")
+async def create_order(req: CreateOrderReq, user: User = Depends(current_user),
+                       session: Session = Depends(get_session)):
+    """
+    创建支付订单，返回支付二维码链接。
+    未配置支付时返回"联系客服"降级提示。
+    """
+    if req.plan not in PLAN_PRICES:
+        raise HTTPException(400, "套餐不存在")
+    amount = PLAN_PRICES[req.plan]
+    plan_name = PLANS.get(req.plan, {}).get("name", req.plan)
+
+    # 生成订单号
+    order_no = "GEO" + datetime.utcnow().strftime("%Y%m%d%H%M%S") + secrets.token_hex(3).upper()
+    order = Order(
+        order_no=order_no, user_id=user.id, plan=req.plan,
+        amount=amount, status="pending", pay_method=req.pay_method,
+    )
+    session.add(order)
+    session.commit()
+
+    # 未配置支付：降级为联系客服
+    if not _pay_enabled():
+        return {
+            "order_no": order_no,
+            "pay_enabled": False,
+            "amount": amount,
+            "plan_name": plan_name,
+            "message": "在线支付即将开通，当前请联系客服微信 jenly222 开通，备注订单号即可",
+            "service_wechat": "jenly222",
+        }
+
+    # 调用 YunGouOS 生成支付二维码
+    params = {
+        "mch_id": YUNGOUOS_MCH_ID,
+        "out_trade_no": order_no,
+        "total_fee": f"{amount:.2f}",
+        "body": f"GEO雷达-{plan_name}",
+        "notify_url": f"{PUBLIC_URL}/api/order/notify",
+    }
+    params["sign"] = _yungouos_sign(params)
+    url = YUNGOUOS_WXPAY_URL if req.pay_method == "wxpay" else YUNGOUOS_ALIPAY_URL
+
+    try:
+        async with httpx.AsyncClient() as client:
+            r = await client.post(url, data=params, timeout=20)
+            data = r.json()
+    except Exception as e:
+        raise HTTPException(500, f"支付下单失败：{str(e)[:100]}")
+
+    # YunGouOS 返回 code=0 成功，data 是二维码内容
+    if str(data.get("code")) != "0":
+        raise HTTPException(500, f"支付下单失败：{data.get('msg', '未知错误')}")
+
+    return {
+        "order_no": order_no,
+        "pay_enabled": True,
+        "amount": amount,
+        "plan_name": plan_name,
+        "qr_content": data.get("data", ""),   # 二维码内容，前端生成二维码图
+        "pay_method": req.pay_method,
+    }
+
+
+@app.post("/api/order/notify")
+async def order_notify(request: Request, session: Session = Depends(get_session)):
+    """
+    YunGouOS 支付回调（公开接口）。
+    支付成功后：自动开通套餐 + 重置次数 + 结算分销佣金。
+    """
+    form = await request.form()
+    data = dict(form)
+
+    # 验签
+    recv_sign = data.get("sign", "")
+    calc_sign = _yungouos_sign(data)
+    if recv_sign != calc_sign:
+        return "fail"
+
+    order_no = data.get("out_trade_no", "")
+    pay_status = data.get("code", "")   # YunGouOS 成功通常 code=1 或 success
+
+    order = session.exec(select(Order).where(Order.order_no == order_no)).first()
+    if not order:
+        return "fail"
+    if order.status == "paid":
+        return "SUCCESS"   # 已处理过，幂等
+
+    # 标记订单已支付
+    order.status = "paid"
+    order.pay_no = data.get("pay_no", "")
+    order.paid_at = datetime.utcnow()
+    session.add(order)
+
+    # 自动开通套餐
+    user = session.get(User, order.user_id)
+    if user and order.plan in PLANS:
+        user.plan = order.plan
+        user.monitor_count = 0   # 重置监测次数
+        session.add(user)
+
+        # 分销佣金自动结算
+        if user.referred_by and order.plan in PLAN_PRICES:
+            ref = session.exec(
+                select(Referral).where(
+                    Referral.referrer_id == user.referred_by,
+                    Referral.referred_user_id == user.id,
+                )
+            ).first()
+            if ref and ref.status != "paid":
+                ref.status = "paid"
+                ref.commission = round(order.amount * COMMISSION_RATE, 2)
+                ref.paid_plan = order.plan
+                ref.paid_at = datetime.utcnow()
+                session.add(ref)
+
+    session.commit()
+    return "SUCCESS"
+
+
+@app.get("/api/order/{order_no}/status")
+def order_status(order_no: str, user: User = Depends(current_user),
+                 session: Session = Depends(get_session)):
+    """前端轮询订单状态，支付成功后前端自动跳转"""
+    order = session.exec(select(Order).where(Order.order_no == order_no)).first()
+    if not order or order.user_id != user.id:
+        raise HTTPException(404, "订单不存在")
+    result = {"order_no": order_no, "status": order.status}
+    if order.status == "paid":
+        result["plan"] = order.plan
+        result["plan_info"] = plan_of(user)
+    return result
+
+
 # ----------------------------- 分销接口 -----------------------------
 
 @app.get("/api/my-referral")
@@ -1393,12 +1560,13 @@ async def _do_simulate(req: SimulateReq):
     if not keyword or len(keyword) > 200:
         raise HTTPException(400, "关键词不能为空，且不超过200字")
 
-    # 候选平台列表（按优先级排，多放几个让客户感觉覆盖广）
+    # 候选平台列表（便宜平台优先，模拟器是免费钩子，控制成本）
     if req.mode == "domestic":
-        candidate_keys = ["deepseek", "doubao", "qwen", "kimi", "wenxin"]
+        candidate_keys = ["deepseek", "qwen", "doubao", "kimi", "wenxin"]
         lang_hint = "用中文回答"
     else:
-        candidate_keys = ["chatgpt", "deepseek", "qwen", "perplexity", "gemini", "claude"]
+        # 海外模式：便宜的 DeepSeek/通义 在前，贵的 GPT/Gemini 在后
+        candidate_keys = ["deepseek", "qwen", "gemini", "chatgpt", "perplexity", "claude"]
         lang_hint = "Answer in English"
 
     # 只保留有密钥的平台
@@ -1407,15 +1575,15 @@ async def _do_simulate(req: SimulateReq):
         if pid in candidate_keys and os.getenv(cfg["api_key_env"])
     }
 
-    # 按候选顺序排序，最多取4个（保证速度和覆盖感的平衡）
+    # 按候选顺序排序
     available = {
         pid: available[pid]
         for pid in candidate_keys
         if pid in available
     }
-    # 限制最多4个平台（速度和覆盖感的平衡）
-    if len(available) > 4:
-        available = dict(list(available.items())[:4])
+    # 模拟器是免费功能，限制最多3个平台，控制 token 叠加成本
+    if len(available) > 3:
+        available = dict(list(available.items())[:3])
 
     if not available:
         # 没有任何API密钥时降级演示
@@ -1586,6 +1754,44 @@ ADMIN_KEY = os.getenv("ADMIN_KEY", "geo-admin-2026")
 def _check_admin(key: str):
     if key != ADMIN_KEY:
         raise HTTPException(403, "管理员密钥错误")
+
+
+@app.get("/api/admin/cost-estimate")
+def admin_cost_estimate(key: str):
+    """
+    成本估算（管理员）：看各套餐配置大概烧多少 token 成本。
+    用于定价决策，确保毛利。
+    """
+    _check_admin(key)
+    # 各套餐的典型配置（问题数 × 平台数）
+    scenarios = [
+        {"name": "模拟器(免费,1次)", "questions": 1, "platforms": 3, "cost_level": "cheap"},
+        {"name": "¥9.9体验版(30问)", "questions": 30, "platforms": 3, "cost_level": "cheap"},
+        {"name": "基础版单次(50问)", "questions": 50, "platforms": 4, "cost_level": "cheap"},
+        {"name": "基础版/月(4次)", "questions": 50, "platforms": 4, "cost_level": "cheap", "times": 4},
+        {"name": "专业版/月(估20次)", "questions": 50, "platforms": 4, "cost_level": "cheap", "times": 20},
+    ]
+    results = []
+    for s in scenarios:
+        est = estimate_cost(s["questions"], s["platforms"], s["cost_level"])
+        times = s.get("times", 1)
+        monthly_cost = round(est["estimated_cost_rmb"] * times, 2)
+        results.append({
+            "scenario": s["name"],
+            "calls_per_run": est["calls"],
+            "cost_per_run": est["estimated_cost_rmb"],
+            "times": times,
+            "total_cost": monthly_cost,
+        })
+    # 套餐价格对照
+    plan_prices = {"starter_trial": 9.9, "starter": 299, "pro": 899, "business": 2999}
+    return {
+        "scenarios": results,
+        "plan_prices": plan_prices,
+        "note": "成本为粗估(基于国产模型¥2/百万token)。实际因模型和问题长度而异。毛利=售价-成本。",
+        "advice": "经济模式下成本极低，毛利率普遍80%+。专业版不限次需关注重度用户成本。",
+    }
+
 
 @app.get("/api/showcase")
 def showcase():
