@@ -1,11 +1,13 @@
 """
 GEO 雷达 - AI 能见度监测引擎
 ================================
+这是整个产品的核心。它把品牌的"问题集"逐条丢给各大 AI 模型,
+采集回答,解析其中的品牌提及、引用来源、竞品对比,算出能见度分数。
+
 设计原则(基于市场调研的真实结论):
 1. 只用各家官方 API,不爬网页 / 不模拟登录 —— 合规、稳定、可上线。
 2. 监测结果标注采样口径(采样次数、置信度),绝不包装成"绝对精确"。
 3. 不承诺排名,只给"被提及概率 / 竞品份额 / 引用来源"三个真实指标。
-4. 【新增】前置 RAG 联网增强：确保 API 测试环境与用户网页端体感完全一致。
 """
 
 import os
@@ -23,6 +25,7 @@ logger = logging.getLogger("geo.monitor")
 
 # ----------------------------------------------------------------------------
 # 配置:各大 AI 平台的接入点。商家部署时在 .env 填入自己的密钥即可。
+# 缺密钥的平台会被自动跳过,不会让整个监测失败。
 # ----------------------------------------------------------------------------
 
 PLATFORMS = {
@@ -31,48 +34,57 @@ PLATFORMS = {
         "api_key_env": "OPENAI_API_KEY",
         "url": "https://api.openai.com/v1/chat/completions",
         "model": "gpt-4o",
+        "cost": "expensive",   # 贵：约 ¥0.02-0.05/次
     },
     "gemini": {
         "label": "Gemini",
         "api_key_env": "GEMINI_API_KEY",
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent",
         "model": "gemini-2.0-flash",
+        "cost": "mid",         # 中：gemini-flash 较便宜
     },
     "claude": {
         "label": "Claude",
         "api_key_env": "ANTHROPIC_API_KEY",
         "url": "https://api.anthropic.com/v1/messages",
         "model": "claude-sonnet-4-5",
+        "cost": "expensive",
     },
     "perplexity": {
         "label": "Perplexity",
         "api_key_env": "PERPLEXITY_API_KEY",
         "url": "https://api.perplexity.ai/chat/completions",
-        "model": "sonar", # Perplexity 原生支持联网
+        "model": "sonar",
+        "cost": "mid",
     },
     "deepseek": {
         "label": "DeepSeek",
         "api_key_env": "DEEPSEEK_API_KEY",
         "url": "https://api.deepseek.com/v1/chat/completions",
         "model": "deepseek-chat",
+        "cost": "cheap",       # 便宜：约 ¥0.001-0.003/次
     },
+    # 国内 AI 平台 —— 接口均兼容 OpenAI 格式，有密钥即自动启用
     "qwen": {
         "label": "通义千问",
         "api_key_env": "QWEN_API_KEY",
         "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
         "model": "qwen-plus",
+        "cost": "cheap",
     },
     "kimi": {
         "label": "Kimi",
         "api_key_env": "KIMI_API_KEY",
         "url": "https://api.moonshot.cn/v1/chat/completions",
         "model": "moonshot-v1-8k",
+        "cost": "cheap",
     },
     "doubao": {
         "label": "豆包",
         "api_key_env": "DOUBAO_API_KEY",
         "url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-        "model": "ep-20260625160759-6p6ht", # 请确保这是你真实的豆包接入点
+        "model": "ep-20260625160759-6p6ht",
+        "cost": "cheap",
     },
     "wenxin": {
         "label": "文心一言",
@@ -82,81 +94,52 @@ PLATFORMS = {
     },
 }
 
+
 @dataclass
 class AnswerResult:
+    """单次"某个问题问某个平台"的监测结果。"""
     platform: str
     question: str
     answer_text: str
     brand_mentioned: bool = False
-    brand_position: Optional[int] = None
+    brand_position: Optional[int] = None        # 品牌在回答中第一次出现的字符位置(越靠前越好)
     competitors_mentioned: list = field(default_factory=list)
     cited_sources: list = field(default_factory=list)
     error: Optional[str] = None
-    is_rag_enhanced: bool = False # 记录是否使用了实时联网
 
 
 @dataclass
 class VisibilityReport:
+    """一次完整监测的汇总报告 —— 这就是商家在首屏看到的那张报告。"""
     brand: str
     generated_at: str
     total_queries: int
     answered_queries: int
-    mention_rate: float
-    avg_position_score: float
-    competitor_share: dict = field(default_factory=dict)
+    mention_rate: float                          # 被提及概率(%)
+    avg_position_score: float                    # 平均位置分(0-100,越靠前分越高)
+    competitor_share: dict = field(default_factory=dict)   # 各竞品抢走的份额
     source_count: int = 0
-    platform_breakdown: dict = field(default_factory=dict)
-    gaps: list = field(default_factory=list)
+    platform_breakdown: dict = field(default_factory=dict) # 各平台分别的提及率
+    gaps: list = field(default_factory=list)               # 发现的缺口(可一键修复)
     raw_results: list = field(default_factory=list)
-    sample_note: str = ""
+    sample_note: str = ""                        # 采样口径说明(合规要求,必须标注)
+
 
 # ----------------------------------------------------------------------------
-# 核心新增：全局实时联网搜索模块 (RAG)
+# 各平台的调用适配器:统一输入(prompt),统一输出(回答文本)
 # ----------------------------------------------------------------------------
-async def _fetch_web_context(client: httpx.AsyncClient, query: str) -> str:
-    """使用 Tavily API 获取最新的网页快照（需在 .env 配置 TAVILY_API_KEY）"""
-    tavily_key = os.getenv("TAVILY_API_KEY")
-    if not tavily_key:
-        return "" # 如果没有配置搜索密钥，安全退回到无联网模式
-    
-    try:
-        r = await client.post(
-            "https://api.tavily.com/search",
-            json={"api_key": tavily_key, "query": query, "search_depth": "basic", "max_results": 4},
-            timeout=10
-        )
-        if r.status_code == 200:
-            results = r.json().get("results", [])
-            context = "\n".join([f"- 标题: {res.get('title')}\n  内容: {res.get('content')}\n  URL: {res.get('url')}" for res in results])
-            return context
-    except Exception as e:
-        logger.warning(f"RAG Web Search Failed for query '{query}': {e}")
-    return ""
 
-def _build_rag_prompt(question: str, web_context: str) -> str:
-    """拼装携带实时上下文的 Prompt"""
-    if not web_context:
-        return question
-    return (
-        f"【系统前置信息：以下是针对该问题最新的全网实时检索快照】\n"
-        f"{web_context}\n\n"
-        f"【用户真实提问】\n{question}\n\n"
-        f"请综合上述实时信息与你的已有知识库，直接且客观地回答用户的问题。如果有推荐，请优先参考上述全网公认的真实信息源并附上 URL。"
-    )
-
-# ----------------------------------------------------------------------------
-# 各平台的调用适配器
-# ----------------------------------------------------------------------------
 async def _call_openai(client, cfg, prompt, key):
     r = await client.post(
         cfg["url"],
         headers={"Authorization": f"Bearer {key}"},
         json={"model": cfg["model"], "messages": [{"role": "user", "content": prompt}],
-              "temperature": 0.3, "max_tokens": 800}, # 降低 temperature 到 0.3，减少幻觉，增强对 RAG 上下文的忠诚度
+              "temperature": 0.7, "max_tokens": 800},
         timeout=60,
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
+
 
 async def _call_gemini(client, cfg, prompt, key):
     r = await client.post(
@@ -166,6 +149,7 @@ async def _call_gemini(client, cfg, prompt, key):
     )
     r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
+
 
 async def _call_claude(client, cfg, prompt, key):
     r = await client.post(
@@ -178,6 +162,7 @@ async def _call_claude(client, cfg, prompt, key):
     r.raise_for_status()
     return r.json()["content"][0]["text"]
 
+
 async def _call_perplexity(client, cfg, prompt, key):
     r = await client.post(
         cfg["url"],
@@ -188,39 +173,61 @@ async def _call_perplexity(client, cfg, prompt, key):
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
 
+
 _DISPATCH = {
-    "chatgpt": _call_openai, "gemini": _call_gemini, "claude": _call_claude,
-    "perplexity": _call_perplexity, "deepseek": _call_openai, "qwen": _call_openai,
-    "kimi": _call_openai, "doubao": _call_openai, "wenxin": _call_openai,
+    "chatgpt": _call_openai,
+    "gemini": _call_gemini,
+    "claude": _call_claude,
+    "perplexity": _call_perplexity,
+    "deepseek": _call_openai,
+    "qwen": _call_openai,
+    "kimi": _call_openai,
+    "doubao": _call_openai,
+    "wenxin": _call_openai,   # 文心一言兼容 OpenAI 格式
 }
 
-# ----------------------------------------------------------------------------
-# 解析逻辑
-# ----------------------------------------------------------------------------
+# 平台分组
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
+DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
+
 def _normalize(text: str) -> str:
+    """标准化文本：转小写、去掉空格和常见标点，方便匹配"""
+    import unicodedata
     text = text.lower().strip()
+    # 去掉中间的空格和常见标点
     text = re.sub(r'[\s\-_·•·]', '', text)
     return text
 
+
 def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
+    """
+    对单条回答做实体解析。
+    品牌匹配策略：
+    1. 精确小写匹配（最严格）
+    2. 去空格匹配（处理 "G X G" 这种情况）
+    3. 部分匹配（品牌名超过3字时）
+    """
     low = answer.lower()
+    # 去掉回答里的空格做标准化匹配
     low_norm = _normalize(answer)
     brand_low = brand.lower().strip()
     brand_norm = _normalize(brand)
 
+    # 多种匹配方式，任一命中即为提及
     mentioned = (
-        brand_low in low or
-        brand_norm in low_norm or
-        (len(brand_low) >= 2 and
+        brand_low in low or           # 精确匹配（已有）
+        brand_norm in low_norm or     # 标准化匹配（处理空格/标点问题）
+        (len(brand_low) >= 2 and      # 品牌名>=2字时，检查各种变体
          any(v in low for v in [
-             brand_low.replace(' ', ''),
-             brand_low.replace('-', ''),
+             brand_low.replace(' ', ''),   # 去空格
+             brand_low.replace('-', ''),   # 去横线
          ]))
     )
     position = low.find(brand_low) if brand_low in low else (
         low_norm.find(brand_norm) if brand_norm in low_norm else None
     )
 
+    # 竞品同样用增强匹配
     comps_found = []
     for c in competitors:
         c_low = c.lower().strip()
@@ -228,6 +235,7 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
         if c_low in low or c_norm in low_norm:
             comps_found.append(c)
 
+    # 抽取回答里出现的 URL / 来源域名
     urls = re.findall(r"https?://([\w\.-]+)", answer)
     sources = sorted(set(d.lower().lstrip("www.") for d in urls))
 
@@ -238,18 +246,31 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
         "cited_sources": sources,
     }
 
+
 # ----------------------------------------------------------------------------
-# 主流程
+# 主流程:跑一遍完整监测
 # ----------------------------------------------------------------------------
+
+# 平台分组：出海模式 vs 国内模式
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek", "qwen"}
 DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
 async def run_monitoring(
-    brand: str, questions: list, competitors: list,
-    samples_per_question: int = 2,  # 默认提频到2次，抹平大模型单次波动
+    brand: str,
+    questions: list,
+    competitors: list,
+    samples_per_question: int = 1,
     mode: str = "outbound",
+    economy: bool = True,        # 经济模式：优先便宜平台，控制成本
+    max_platforms: int = 4,      # 最多用几个平台（控制token叠加）
 ) -> VisibilityReport:
-    
+    """
+    对一个品牌的问题集，在对应模式的平台上跑监测。
+    mode: outbound=出海模式, domestic=国内模式
+    economy: True=经济模式(优先便宜的国产模型，控制成本)
+    max_platforms: 最多平台数，控制 token 叠加消耗
+    """
+    # 根据模式筛选平台
     allowed = DOMESTIC_PLATFORMS if mode == "domestic" else OUTBOUND_PLATFORMS
     available = {
         pid: cfg for pid, cfg in PLATFORMS.items()
@@ -257,24 +278,37 @@ async def run_monitoring(
     }
 
     if not available:
-        available = {pid: cfg for pid, cfg in PLATFORMS.items() if os.getenv(cfg["api_key_env"])}
+        # 没有对应模式的密钥时，退回到所有有密钥的平台
+        available = {pid: cfg for pid, cfg in PLATFORMS.items()
+                     if os.getenv(cfg["api_key_env"])}
+
     if not available:
-        raise RuntimeError("没有任何 AI 平台密钥可用。请在环境变量中配置至少一个密钥。")
+        raise RuntimeError(
+            "没有任何 AI 平台密钥可用。请在环境变量中配置至少一个密钥。"
+        )
+
+    # 成本优化：经济模式下，按成本排序(便宜优先)，限制平台数
+    cost_order = {"cheap": 0, "mid": 1, "expensive": 2}
+    if economy:
+        sorted_pids = sorted(
+            available.keys(),
+            key=lambda p: cost_order.get(available[p].get("cost", "mid"), 1)
+        )
+        # 只取最便宜的 max_platforms 个
+        available = {p: available[p] for p in sorted_pids[:max_platforms]}
+    else:
+        # 完整模式也限制最大平台数，防止token爆炸
+        if len(available) > max_platforms:
+            available = dict(list(available.items())[:max_platforms])
 
     results: list[AnswerResult] = []
 
     async with httpx.AsyncClient() as client:
-        # 【重要提效】：同一问题只搜索一次网络快照，所有平台共享，节省外部 API 调用
         tasks = []
         for q in questions:
-            web_context = await _fetch_web_context(client, q)
-            final_prompt = _build_rag_prompt(q, web_context)
-            has_rag = bool(web_context)
-
             for pid, cfg in available.items():
                 for _ in range(samples_per_question):
-                    tasks.append(_one_query(client, pid, cfg, final_prompt, q, brand, competitors, has_rag))
-                    
+                    tasks.append(_one_query(client, pid, cfg, q, brand, competitors))
         gathered = await asyncio.gather(*tasks, return_exceptions=True)
         for g in gathered:
             if isinstance(g, AnswerResult):
@@ -282,13 +316,37 @@ async def run_monitoring(
             else:
                 logger.warning("监测任务异常: %s", g)
 
-    return _aggregate(brand, questions, competitors, available, results, samples_per_question)
+    return _aggregate(brand, questions, competitors, available, results,
+                      samples_per_question)
 
-async def _one_query(client, pid, cfg, prompt, original_question, brand, competitors, has_rag) -> AnswerResult:
+
+def estimate_cost(question_count: int, platform_count: int,
+                  cost_level: str = "cheap") -> dict:
+    """
+    估算一次监测的 token 消耗和成本。
+    给后台/定价参考用。
+    """
+    calls = question_count * platform_count
+    # 每次调用平均 token（输入+输出）
+    tokens_per_call = 1200
+    total_tokens = calls * tokens_per_call
+    # 每百万token成本（人民币，粗估）
+    price_per_m = {"cheap": 2, "mid": 8, "expensive": 25}.get(cost_level, 8)
+    cost_rmb = round(total_tokens / 1_000_000 * price_per_m, 3)
+    return {
+        "calls": calls,
+        "estimated_tokens": total_tokens,
+        "estimated_cost_rmb": cost_rmb,
+        "cost_level": cost_level,
+        "note": f"{question_count}问 × {platform_count}平台 = {calls}次调用",
+    }
+
+
+async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerResult:
     key = os.getenv(cfg["api_key_env"])
-    res = AnswerResult(platform=pid, question=original_question, answer_text="", is_rag_enhanced=has_rag)
+    res = AnswerResult(platform=pid, question=question, answer_text="")
     try:
-        answer = await _DISPATCH[pid](client, cfg, prompt, key)
+        answer = await _DISPATCH[pid](client, cfg, question, key)
         res.answer_text = answer
         parsed = _analyze_answer(answer, brand, competitors)
         res.brand_mentioned = parsed["brand_mentioned"]
@@ -297,30 +355,39 @@ async def _one_query(client, pid, cfg, prompt, original_question, brand, competi
         res.cited_sources = parsed["cited_sources"]
     except Exception as e:
         res.error = str(e)
-        logger.warning(f"平台 {pid} 查询失败: {e}")
+        logger.warning("平台 %s 查询失败: %s", pid, e)
     return res
 
-def _aggregate(brand, questions, competitors, available, results, samples) -> VisibilityReport:
+
+def _aggregate(brand, questions, competitors, available, results,
+               samples) -> VisibilityReport:
+    """把所有单次结果汇总成商家看到的报告。"""
     ok = [r for r in results if not r.error]
     answered = len(ok)
     mentioned = [r for r in ok if r.brand_mentioned]
+
     mention_rate = round(100 * len(mentioned) / answered, 1) if answered else 0.0
 
+    # 位置分:品牌出现得越靠前,分越高(0-100)
     pos_scores = []
     for r in mentioned:
         if r.brand_position is not None:
+            # 出现在前 200 字 => 满分,越往后越低
             pos_scores.append(max(0, 100 - (r.brand_position / 5)))
     avg_position = round(sum(pos_scores) / len(pos_scores), 1) if pos_scores else 0.0
 
+    # 竞品份额:每个竞品在多少比例的回答里被提到
     comp_share = {}
     for c in competitors:
         hits = sum(1 for r in ok if c in r.competitors_mentioned)
         comp_share[c] = round(100 * hits / answered, 1) if answered else 0.0
 
+    # 引用来源去重
     all_sources = set()
     for r in ok:
         all_sources.update(r.cited_sources)
 
+    # 各平台分别的提及率
     platform_breakdown = {}
     for pid, cfg in available.items():
         p_results = [r for r in ok if r.platform == pid]
@@ -328,6 +395,7 @@ def _aggregate(brand, questions, competitors, available, results, samples) -> Vi
         rate = round(100 * len(p_mentioned) / len(p_results), 1) if p_results else 0.0
         platform_breakdown[cfg["label"]] = rate
 
+    # 缺口诊断:哪些问题完全没提到品牌 => 内容缺口(可一键生成内容修复)
     gaps = []
     miss_by_q = {}
     for r in ok:
@@ -338,27 +406,24 @@ def _aggregate(brand, questions, competitors, available, results, samples) -> Vi
                 "type": "content_gap",
                 "priority": "high",
                 "question": q,
-                "title": f'"{q}" — AI 及其联网检索中未提到你',
+                "title": f'"{q}" — AI 回答里没有提到你',
                 "action": "generate_content",
             })
-            
+    # 竞品压制缺口
     for c, share in comp_share.items():
         if share > mention_rate and share > 20:
             gaps.append({
                 "type": "competitor_gap",
                 "priority": "medium",
                 "competitor": c,
-                "title": f"竞品 {c} 的提及率({share}%)大幅高于你({mention_rate}%)",
+                "title": f"竞品 {c} 的提及率({share}%)高于你({mention_rate}%)",
                 "action": "competitor_analysis",
             })
 
-    # 判断是否触发了联网模式
-    used_rag = any(r.is_rag_enhanced for r in ok)
-    rag_note = "【开启实时联网增强校验】" if used_rag else "【零样本基础模型校验】"
-
     sample_note = (
-        f"{rag_note} 本报告基于 {len(questions)} 个痛点场景 × {len(available)} 个前沿大模型"
-        f" × {samples} 次交叉采样。由于 AI 生成的概率分布特性，数据为高置信度估算值。"
+        f"本报告基于 {len(questions)} 个问题 × {len(available)} 个平台"
+        f" × {samples} 次采样,共 {len(results)} 次真实 AI 查询统计得出。"
+        f"AI 回答存在随机性,数据为采样估计,非绝对精确值。"
     )
 
     return VisibilityReport(
