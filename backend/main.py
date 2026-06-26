@@ -11,13 +11,16 @@ FastAPI 应用。提供注册/登录、品牌管理、监测、报告、内容�
 import os
 import json
 import hashlib
+import hmac
 import secrets
 import asyncio
+import time
 import httpx
+from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException, Header
+from fastapi import FastAPI, Depends, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -26,7 +29,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem)
 from services.monitor import run_monitoring, PLATFORMS
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -48,8 +51,85 @@ def _startup():
 
 # ----------------------------- 鉴权工具 -----------------------------
 
-def _hash_pw(pw: str) -> str:
-    return hashlib.sha256(pw.encode()).hexdigest()
+def _hash_pw(pw: str, salt: str = "") -> str:
+    """
+    加盐哈希。salt为空时退回旧版SHA256（兼容老用户）。
+    新用户用 salt$hash 格式存储。
+    """
+    if not salt:
+        return hashlib.sha256(pw.encode()).hexdigest()
+    # PBKDF2加盐，10万次迭代
+    dk = hashlib.pbkdf2_hmac("sha256", pw.encode(), salt.encode(), 100000)
+    return dk.hex()
+
+
+def _make_pw_hash(pw: str) -> str:
+    """生成新密码存储串：salt$hash"""
+    salt = secrets.token_hex(16)
+    return f"{salt}${_hash_pw(pw, salt)}"
+
+
+def _verify_pw(pw: str, stored: str) -> bool:
+    """
+    校验密码。兼容两种格式：
+    - 新版 salt$hash（加盐）
+    - 旧版 纯SHA256（无$）
+    """
+    if "$" in stored:
+        salt, real_hash = stored.split("$", 1)
+        return hmac.compare_digest(_hash_pw(pw, salt), real_hash)
+    else:
+        # 旧版SHA256
+        return hmac.compare_digest(hashlib.sha256(pw.encode()).hexdigest(), stored)
+
+
+# ----------------------------- 限流器 -----------------------------
+# 内存版限流，防止接口被恶意刷爆（烧API费用/灌数据库）
+_rate_buckets = defaultdict(list)
+
+def _rate_limit(key: str, max_calls: int, window_sec: int):
+    """
+    简单滑动窗口限流。
+    key: 限流标识（如 "simulate:1.2.3.4"）
+    max_calls: 窗口内最多调用次数
+    window_sec: 窗口秒数
+    超限抛 429。
+    """
+    now = time.time()
+    bucket = _rate_buckets[key]
+    # 清理过期记录
+    cutoff = now - window_sec
+    bucket[:] = [t for t in bucket if t > cutoff]
+    if len(bucket) >= max_calls:
+        raise HTTPException(429, "请求过于频繁，请稍后再试")
+    bucket.append(now)
+
+
+def _client_ip(request: Request) -> str:
+    """获取客户端IP（兼容Render代理）"""
+    fwd = request.headers.get("x-forwarded-for", "")
+    if fwd:
+        return fwd.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+# ----------------------------- 分销 -----------------------------
+# 各套餐佣金比例（35%分润）
+COMMISSION_RATE = 0.35
+# 套餐价格（用于算佣金）
+PLAN_PRICES = {
+    "starter_trial": 9.9,
+    "starter": 299,
+    "pro": 899,
+    "business": 2999,
+}
+
+def _gen_invite_code() -> str:
+    """生成6位邀请码"""
+    import string
+    chars = string.ascii_uppercase + string.digits
+    chars = chars.replace("O", "").replace("0", "").replace("I", "").replace("1", "")
+    return "".join(secrets.choice(chars) for _ in range(6))
 
 
 def _make_token(user_id: int) -> str:
@@ -81,6 +161,7 @@ def plan_of(user: User) -> dict:
 class RegisterReq(BaseModel):
     email: str
     password: str
+    invite_code: str = ""   # 邀请码（可选，分销用）
 
 class BrandReq(BaseModel):
     name: str
@@ -100,7 +181,9 @@ class GenContentReq(BaseModel):
 # ----------------------------- 账号接口 -----------------------------
 
 @app.post("/api/register")
-def register(req: RegisterReq, session: Session = Depends(get_session)):
+def register(req: RegisterReq, request: Request, session: Session = Depends(get_session)):
+    # 限流：同一IP每小时最多注册5个账号，防批量注册
+    _rate_limit(f"register:{_client_ip(request)}", max_calls=5, window_sec=3600)
     # 邮箱标准化：去空格、转小写，避免后续登录因大小写/空格不匹配
     email = req.email.strip().lower()
     if not email or "@" not in email:
@@ -110,24 +193,53 @@ def register(req: RegisterReq, session: Session = Depends(get_session)):
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
         raise HTTPException(400, "该邮箱已注册")
+
+    # 处理邀请码：找到推荐人
+    referrer = None
+    if req.invite_code:
+        referrer = session.exec(
+            select(User).where(User.invite_code == req.invite_code.strip())
+        ).first()
+
     user = User(
-        email=email, password_hash=_hash_pw(req.password),
+        email=email, password_hash=_make_pw_hash(req.password),
         plan="trial", trial_ends_at=datetime.utcnow() + timedelta(days=7),
+        invite_code=_gen_invite_code(),
+        referred_by=referrer.id if referrer else 0,
     )
     session.add(user)
     session.commit()
     session.refresh(user)
+
+    # 记录分销关系
+    if referrer:
+        ref = Referral(
+            referrer_id=referrer.id,
+            referred_user_id=user.id,
+            referred_email=email,
+            status="registered",
+        )
+        session.add(ref)
+        session.commit()
+
     return {"token": _make_token(user.id), "plan": user.plan,
             "plan_info": plan_of(user)}
 
 
 @app.post("/api/login")
-def login(req: RegisterReq, session: Session = Depends(get_session)):
+def login(req: RegisterReq, request: Request, session: Session = Depends(get_session)):
+    # 限流：同一IP每5分钟最多10次登录尝试，防暴力破解
+    _rate_limit(f"login:{_client_ip(request)}", max_calls=10, window_sec=300)
     # 邮箱标准化，与注册保持一致
     email = req.email.strip().lower()
     user = session.exec(select(User).where(User.email == email)).first()
-    if not user or user.password_hash != _hash_pw(req.password):
+    if not user or not _verify_pw(req.password, user.password_hash):
         raise HTTPException(401, "邮箱或密码错误")
+    # 旧版SHA256密码，登录成功后自动升级为加盐版
+    if "$" not in user.password_hash:
+        user.password_hash = _make_pw_hash(req.password)
+        session.add(user)
+        session.commit()
     return {"token": _make_token(user.id), "plan": user.plan,
             "plan_info": plan_of(user)}
 
@@ -774,9 +886,21 @@ def industry_stats_public(session: Session = Depends(get_session)):
 async def gen_content(req: GenContentReq, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
     brand = _owned_brand(req.brand_id, user, session)
+    # 融合知识库：把知识库条目拼进品牌资料，让生成内容更准、更像品牌
+    kb_items = session.exec(
+        select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)
+    ).all()
+    kb_text = brand.brand_facts or ""
+    if kb_items:
+        kb_text += "\n\n【品牌知识库】\n"
+        for it in kb_items:
+            cat_label = {"selling_point": "卖点", "faq": "问答",
+                         "fact": "事实", "story": "故事"}.get(it.category, "")
+            kb_text += f"[{cat_label}] {it.title}：{it.content}\n"
+
     result = await generate_content(
         brand.name, req.gap_question, brand.product,
-        content_type=req.content_type, brand_facts=brand.brand_facts,
+        content_type=req.content_type, brand_facts=kb_text,
     )
     gc = GeneratedContent(
         brand_id=brand.id, gap_question=req.gap_question,
@@ -951,6 +1075,260 @@ def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
     return brand
 
 
+# ----------------------------- 分销接口 -----------------------------
+
+@app.get("/api/my-referral")
+def my_referral(user: User = Depends(current_user),
+                session: Session = Depends(get_session)):
+    """我的推广：邀请码、推广链接、已邀请用户、佣金统计"""
+    # 确保有邀请码
+    if not user.invite_code:
+        user.invite_code = _gen_invite_code()
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+
+    # 我推荐的所有记录
+    refs = session.exec(
+        select(Referral).where(Referral.referrer_id == user.id)
+        .order_by(Referral.created_at.desc())
+    ).all()
+
+    total_invited = len(refs)
+    total_paid = sum(1 for r in refs if r.status == "paid")
+    total_commission = sum(r.commission for r in refs)
+    pending_commission = sum(r.commission for r in refs if r.status == "paid")
+
+    base_url = os.getenv("PUBLIC_URL", "https://geo-radar.onrender.com")
+    invite_link = f"{base_url}/?ref={user.invite_code}"
+
+    return {
+        "invite_code": user.invite_code,
+        "invite_link": invite_link,
+        "total_invited": total_invited,
+        "total_paid": total_paid,
+        "total_commission": round(total_commission, 2),
+        "pending_commission": round(pending_commission, 2),
+        "commission_rate": int(COMMISSION_RATE * 100),
+        "referrals": [{
+            "email": _mask_email(r.referred_email),
+            "status": r.status,
+            "status_text": "已付费" if r.status == "paid" else "已注册",
+            "commission": round(r.commission, 2),
+            "plan": r.paid_plan,
+            "date": str(r.created_at)[:10],
+        } for r in refs],
+    }
+
+
+def _mask_email(email: str) -> str:
+    """邮箱脱敏：ab***@qq.com"""
+    if "@" not in email:
+        return email
+    name, domain = email.split("@", 1)
+    if len(name) <= 2:
+        return name[0] + "***@" + domain
+    return name[:2] + "***@" + domain
+
+
+# ----------------------------- 品牌知识库 -----------------------------
+
+class KnowledgeReq(BaseModel):
+    brand_id: int
+    category: str = "fact"
+    title: str = ""
+    content: str
+
+@app.get("/api/brands/{brand_id}/knowledge")
+def list_knowledge(brand_id: int, user: User = Depends(current_user),
+                   session: Session = Depends(get_session)):
+    """获取品牌知识库所有条目"""
+    _owned_brand(brand_id, user, session)
+    items = session.exec(
+        select(KnowledgeItem).where(KnowledgeItem.brand_id == brand_id)
+        .order_by(KnowledgeItem.created_at.desc())
+    ).all()
+    # 按类别分组统计
+    by_cat = {}
+    for it in items:
+        by_cat[it.category] = by_cat.get(it.category, 0) + 1
+    return {
+        "items": [{"id": it.id, "category": it.category, "title": it.title,
+                   "content": it.content, "source": it.source,
+                   "date": str(it.created_at)[:10]} for it in items],
+        "total": len(items),
+        "by_category": by_cat,
+    }
+
+
+@app.post("/api/brands/{brand_id}/knowledge")
+def add_knowledge(brand_id: int, req: KnowledgeReq,
+                  user: User = Depends(current_user),
+                  session: Session = Depends(get_session)):
+    """手动添加知识库条目"""
+    _owned_brand(brand_id, user, session)
+    if not req.content.strip():
+        raise HTTPException(400, "内容不能为空")
+    item = KnowledgeItem(
+        brand_id=brand_id, category=req.category,
+        title=req.title.strip(), content=req.content.strip(),
+        source="manual",
+    )
+    session.add(item)
+    session.commit()
+    session.refresh(item)
+    return {"id": item.id, "message": "已添加到知识库"}
+
+
+@app.delete("/api/brands/{brand_id}/knowledge/{item_id}")
+def delete_knowledge(brand_id: int, item_id: int,
+                     user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """删除知识库条目"""
+    _owned_brand(brand_id, user, session)
+    item = session.get(KnowledgeItem, item_id)
+    if item and item.brand_id == brand_id:
+        session.delete(item)
+        session.commit()
+    return {"message": "已删除"}
+
+
+@app.post("/api/brands/{brand_id}/knowledge/auto-extract")
+async def auto_extract_knowledge(brand_id: int,
+                                 user: User = Depends(current_user),
+                                 session: Session = Depends(get_session)):
+    """
+    自动从品牌官网+已有资料提取知识库条目。
+    帮商家快速建立知识库，降低门槛。
+    """
+    brand = _owned_brand(brand_id, user, session)
+    from services.generator import _chat, _safe_parse_json
+    facts = brand.brand_facts or ""
+    system = "你是品牌信息架构专家，擅长从品牌资料中提炼结构化的知识点。"
+    prompt = f"""
+品牌：{brand.name}
+行业：{brand.industry}
+产品：{brand.product}
+已有资料：{facts[:1500] if facts else '暂无，请基于品牌名和行业推断常见知识点'}
+
+请提炼这个品牌的知识库条目，分为三类：
+1. 品牌卖点（selling_point）：3-5条核心卖点
+2. 常见问答（faq）：5条用户最可能问的问题及答案
+3. 品牌事实（fact）：3-5条关键事实（成立、定位、特色等）
+
+只返回JSON：
+{{"items":[{{"category":"selling_point","title":"卖点标题","content":"详细说明"}},{{"category":"faq","title":"问题","content":"答案"}}]}}
+"""
+    raw = await _chat(prompt, system, json_mode=True)
+    data = _safe_parse_json(raw)
+    if not data or "items" not in data:
+        raise HTTPException(500, "提取失败，请重试")
+
+    # 存入知识库
+    count = 0
+    for it in data["items"]:
+        ki = KnowledgeItem(
+            brand_id=brand_id,
+            category=it.get("category", "fact"),
+            title=it.get("title", "")[:200],
+            content=it.get("content", ""),
+            source="ai",
+        )
+        session.add(ki)
+        count += 1
+    session.commit()
+    return {"message": f"已自动提取 {count} 条知识入库", "count": count}
+
+
+# ----------------------------- 内容工作台 -----------------------------
+
+@app.get("/api/brands/{brand_id}/content-workspace")
+def content_workspace(brand_id: int, user: User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+    """
+    内容工作台：把热搜问题、关键词商机、内容缺口汇集成"选题库"。
+    商家不用自己想写什么，清单列好，按优先级排好。
+    """
+    brand = _owned_brand(brand_id, user, session)
+    topics = []
+
+    # 1. 从最新报告的内容缺口提取选题
+    latest = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).first()
+    if latest:
+        try:
+            gaps = json.loads(latest.gaps_json or "[]")
+            for g in gaps:
+                q = g if isinstance(g, str) else g.get("question", "")
+                if q:
+                    topics.append({
+                        "question": q, "source": "内容缺口",
+                        "priority": "high", "reason": "AI在这个问题上没提到你",
+                    })
+        except Exception:
+            pass
+
+    # 2. 从问题集提取选题
+    try:
+        questions = json.loads(brand.questions_json or "[]")
+        for qobj in questions[:10]:
+            q = qobj.get("question", "") if isinstance(qobj, dict) else str(qobj)
+            if q and not any(t["question"] == q for t in topics):
+                topics.append({
+                    "question": q, "source": "监测问题集",
+                    "priority": "medium", "reason": "用户常向AI问的问题",
+                })
+    except Exception:
+        pass
+
+    # 已创作的内容
+    contents = session.exec(
+        select(GeneratedContent).where(GeneratedContent.brand_id == brand_id)
+        .order_by(GeneratedContent.created_at.desc())
+    ).all()
+    created_questions = {c.gap_question for c in contents}
+
+    # 标记哪些选题已创作
+    for t in topics:
+        t["created"] = t["question"] in created_questions
+
+    # 知识库条目数
+    kb_count = len(session.exec(
+        select(KnowledgeItem).where(KnowledgeItem.brand_id == brand_id)
+    ).all())
+
+    return {
+        "brand_name": brand.name,
+        "topics": topics,
+        "topic_count": len(topics),
+        "created_count": sum(1 for t in topics if t["created"]),
+        "knowledge_count": kb_count,
+        "contents": [{
+            "id": c.id, "question": c.gap_question, "title": c.title,
+            "body": c.body, "content_type": c.content_type,
+            "publish_tip": c.publish_tip, "status": c.status,
+            "date": str(c.created_at)[:10],
+        } for c in contents],
+    }
+
+
+@app.post("/api/brands/{brand_id}/content/{content_id}/mark-published")
+def mark_published(brand_id: int, content_id: int,
+                   user: User = Depends(current_user),
+                   session: Session = Depends(get_session)):
+    """标记内容为已发布"""
+    _owned_brand(brand_id, user, session)
+    c = session.get(GeneratedContent, content_id)
+    if c and c.brand_id == brand_id:
+        c.status = "published" if c.status != "published" else "draft"
+        session.add(c)
+        session.commit()
+        return {"status": c.status}
+    raise HTTPException(404, "内容不存在")
+
+
 @app.get("/simulator")
 def simulator_page():
     """AI推荐模拟器独立页面，无需登录可直接访问"""
@@ -977,10 +1355,12 @@ class SimulateReq(BaseModel):
     mode: str = "outbound"  # outbound=英文查海外AI  domestic=中文查国内AI
 
 @app.post("/api/simulate")
-async def simulate(req: SimulateReq):
+async def simulate(req: SimulateReq, request: Request):
     """
     AI推荐模拟器：无需登录，输入关键词立刻查
+    限流：同一IP每小时最多15次，防止恶意刷爆烧API费用
     """
+    _rate_limit(f"simulate:{_client_ip(request)}", max_calls=15, window_sec=3600)
     try:
         return await _do_simulate(req)
     except HTTPException:
@@ -1201,6 +1581,102 @@ def _check_admin(key: str):
     if key != ADMIN_KEY:
         raise HTTPException(403, "管理员密钥错误")
 
+@app.get("/api/showcase")
+def showcase():
+    """
+    首页案例展示。
+    现在是精选示范案例,等你有真实种子客户后,把这里换成真实数据即可。
+    诚实标注:示范案例需注明,不可冒充真实客户。
+    """
+    return {
+        "stats": {
+            "brands_checked": 1200,      # 已体检品牌数(可随真实增长更新)
+            "platforms": 8,
+            "avg_improvement": 34,        # 平均提及率提升
+        },
+        "cases": [
+            {
+                "industry": "养生茶 · 出海独立站",
+                "before": 8, "after": 42,
+                "days": 21,
+                "story": "补齐了官网FAQ和产品结构化内容后,ChatGPT和Perplexity开始在'养生茶推荐'类问题里提到该品牌。",
+                "quote": "以前问AI根本搜不到我们,现在能被推荐了,独立站咨询明显变多。",
+            },
+            {
+                "industry": "便携充电器 · 跨境电商",
+                "before": 15, "after": 58,
+                "days": 30,
+                "story": "针对竞品对比类问题创作了多篇真实测评向内容,在AI回答中的出现率显著提升。",
+                "quote": "看到竞品被推荐而我们没有,很着急。做了内容优化后,差距追回来了。",
+            },
+            {
+                "industry": "护肤品牌 · 国内DTC",
+                "before": 5, "after": 38,
+                "days": 28,
+                "story": "通过知识库沉淀品牌卖点,批量生成符合DeepSeek、豆包引用偏好的内容。",
+                "quote": "知识库建好后,生成的内容真的像我们自己写的,省了好多事。",
+            },
+        ],
+        "is_demo": True,   # 标注为示范案例
+    }
+
+
+@app.get("/terms")
+def terms_page():
+    """服务条款 + 合规声明页面"""
+    from fastapi.responses import HTMLResponse
+    html = """<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>GEO雷达 · 服务条款与合规声明</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f8faff;color:#16182b;line-height:1.8;padding:20px}
+.wrap{max-width:760px;margin:0 auto;background:#fff;border-radius:14px;padding:32px;box-shadow:0 2px 12px rgba(0,0,0,.05)}
+h1{font-size:24px;color:#4f46e5;margin-bottom:8px}
+.sub{color:#5a5f73;font-size:14px;margin-bottom:24px}
+h2{font-size:17px;margin:24px 0 10px;color:#16182b}
+p{font-size:14px;color:#3a3f54;margin-bottom:10px}
+.box{background:#f0fdf4;border:1px solid #a7f3d0;border-radius:10px;padding:16px;margin:16px 0}
+.box.warn{background:#fffbeb;border-color:#fde68a}
+a{color:#4f46e5}
+.back{display:inline-block;margin-top:24px;color:#4f46e5;text-decoration:none}
+</style></head><body><div class="wrap">
+<h1>服务条款与合规声明</h1>
+<p class="sub">GEO 雷达 · AI 能见度监测与内容优化平台 · 最后更新 2026年6月</p>
+
+<div class="box">
+<p style="font-weight:600;color:#065f46">✅ 我们承诺白帽优化</p>
+<p style="margin:0">GEO 雷达只提供合法、合规的 AI 能见度监测与内容优化建议。我们不做、不教任何"黑帽"操作（如刷量、伪造、操纵 AI 输出、批量灌水）。我们帮助品牌通过<b>真实、优质的内容</b>提升被 AI 引用的概率。</p>
+</div>
+
+<h2>一、服务内容</h2>
+<p>本平台提供:AI 平台能见度监测、品牌提及率分析、内容缺口诊断、内容创作建议、Schema 生成、关键词商机分析、增长追踪等工具。所有功能基于公开可用的 AI 平台数据和品牌自行提供的资料。</p>
+
+<h2>二、效果说明（重要）</h2>
+<div class="box warn">
+<p style="margin:0">我们提供的是<b>优化工具和建议</b>,而非效果保证。AI 是否引用某个品牌取决于内容质量、平台算法、行业竞争等多种因素,<b>任何机构都无法保证"必定被 AI 推荐"</b>。本平台的提及率、月损失流量等数据为基于行业基准的<b>估算参考值</b>,不构成精确承诺。</p>
+</div>
+
+<h2>三、内容合规责任</h2>
+<p>本平台生成的内容均为<b>草稿建议</b>,品牌方应在发布前自行审核,确保:</p>
+<p>· 内容真实,不含虚假宣传<br>· 不使用"第一""最佳"等违反《广告法》的绝对化用语<br>· 食品、保健品、医疗等特殊行业不宣称疗效<br>· 不侵犯他人商标、著作权</p>
+<p>因品牌方发布未经审核的内容产生的法律责任,由品牌方自行承担。</p>
+
+<h2>四、数据与隐私</h2>
+<p>我们仅收集为提供服务所必需的信息。品牌监测数据用于生成报告;行业大盘采用<b>匿名聚合</b>方式,不会泄露任何单个品牌的具体数据。AI 访客追踪仅统计公开的来源信息,不收集访客个人隐私。</p>
+
+<h2>五、费用与退款</h2>
+<p>具体套餐价格以平台展示为准。虚拟服务一经开通即时生效,如对服务有疑问,请联系客服微信 <b>jenly222</b> 协商。</p>
+
+<h2>六、联系我们</h2>
+<p>客服微信:<b>jenly222</b><br>如有任何合规、隐私或服务问题,欢迎随时联系。</p>
+
+<a href="/" class="back">← 返回首页</a>
+</div></body></html>"""
+    return HTMLResponse(content=html)
+
+
 @app.get("/admin")
 def admin_page():
     """手机/电脑都能访问的管理后台页面"""
@@ -1335,6 +1811,26 @@ def admin_upgrade(req: UpgradeReq, session: Session = Depends(get_session)):
     # 升级时重置监测次数
     user.monitor_count = 0
     session.add(user)
+
+    # 分销佣金结算：如果这个用户是被推荐来的，给推荐人算佣金
+    commission_info = ""
+    if user.referred_by and req.plan in PLAN_PRICES:
+        ref = session.exec(
+            select(Referral).where(
+                Referral.referrer_id == user.referred_by,
+                Referral.referred_user_id == user.id,
+            )
+        ).first()
+        if ref and ref.status != "paid":
+            price = PLAN_PRICES.get(req.plan, 0)
+            commission = round(price * COMMISSION_RATE, 2)
+            ref.status = "paid"
+            ref.commission = commission
+            ref.paid_plan = req.plan
+            ref.paid_at = datetime.utcnow()
+            session.add(ref)
+            commission_info = f"，推荐人获得佣金 ¥{commission}"
+
     session.commit()
     return {
         "success": True,
@@ -1342,7 +1838,7 @@ def admin_upgrade(req: UpgradeReq, session: Session = Depends(get_session)):
         "old_plan": old_plan,
         "new_plan": req.plan,
         "plan_name": PLANS[req.plan]["name"],
-        "message": f"✅ {req.email} 已升级为 {PLANS[req.plan]['name']}"
+        "message": f"✅ {req.email} 已升级为 {PLANS[req.plan]['name']}{commission_info}"
     }
 
 
