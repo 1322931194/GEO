@@ -72,7 +72,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 .auth-brand{text-align:center;margin-bottom:28px}
 .auth-brand .logo{justify-content:center;font-size:22px;margin-bottom:12px}
 .auth-brand h1{font-size:26px;font-weight:700;margin-bottom:8px;
-  background:linear-gradient(135deg,#4f46e5,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  background:linear-gradient(135deg,var(--brand),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .auth-brand p{color:var(--ink-soft);font-size:14px;line-height:1.6}
 .auth-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
 .auth-stat{background:#fff;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--line)}
@@ -84,7 +84,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   padding:4px;border-radius:10px;border:1px solid var(--line)}
 .tab-row button{flex:1;padding:9px;background:none;color:var(--ink-soft);border-radius:7px;font-size:14px}
 .tab-row button.on{background:#fff;color:var(--brand);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.trial-badge{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;
+.trial-badge{background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
   text-align:center;border-radius:10px;padding:12px;margin-bottom:20px;font-size:13px}
 .trial-badge b{font-size:15px;display:block;margin-bottom:2px}
 
@@ -125,7 +125,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 .card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px}
 
 /* 历史折线图 */
-.chart-card{background:linear-gradient(135deg,#f8faff,#fff);border:1px solid #e0e7ff;
+.chart-card{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid #e0e7ff;
   border-radius:14px;padding:20px;margin-bottom:20px}
 .chart-card .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .chart-card h3{font-size:15px;font-weight:700;color:var(--brand-ink)}
@@ -136,12 +136,12 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
 /* 报告指标 */
 .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
-.metric{background:linear-gradient(135deg,#f8faff,#fff);border:1px solid var(--line);
+.metric{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid var(--line);
   border-radius:12px;padding:18px;position:relative;overflow:hidden}
 .metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
 .metric.green::before{background:linear-gradient(90deg,#059669,#10b981)}
 .metric.red::before{background:linear-gradient(90deg,#dc2626,#ef4444)}
-.metric.blue::before{background:linear-gradient(90deg,#4f46e5,#7c3aed)}
+.metric.blue::before{background:linear-gradient(90deg,var(--brand),#7c3aed)}
 .metric .lab{font-size:12px;color:var(--ink-soft);margin-bottom:8px;font-weight:500}
 .metric .val{font-size:30px;font-weight:700;line-height:1}
 .metric .delta{font-size:12px;margin-top:6px}
@@ -186,7 +186,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 .task:hover{border-color:#c7d2fe;box-shadow:0 2px 12px rgba(79,70,229,.08)}
 .task-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
 .task-step{width:26px;height:26px;border-radius:50%;
-  background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;
+  background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
   display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0}
 .task-title{font-size:14px;font-weight:600;flex:1}
 .task-pri{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:600}
@@ -210,7 +210,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   color:#166534;border-radius:6px;display:inline-block}
 
 /* 内容输出 */
-.content-out{background:linear-gradient(135deg,#f8faff,#fff);border:1px solid #c7d2fe;
+.content-out{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid #c7d2fe;
   border-radius:12px;padding:20px;margin-top:14px}
 .content-out h3{font-size:15px;font-weight:700;margin-bottom:12px;color:var(--brand-ink)}
 .content-out .body-text{font-size:14px;line-height:1.8;color:var(--ink);white-space:pre-wrap}
@@ -226,7 +226,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 .plan:hover{border-color:var(--brand);box-shadow:0 4px 24px rgba(79,70,229,.12)}
 .plan.popular{border-color:var(--brand);box-shadow:0 4px 24px rgba(79,70,229,.15)}
 .plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;
+  background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
   font-size:12px;padding:4px 14px;border-radius:20px;font-weight:600;white-space:nowrap}
 .plan-name{font-size:16px;font-weight:700;margin-bottom:6px}
 .plan-price{font-size:34px;font-weight:700;color:var(--brand);margin:12px 0}
@@ -247,7 +247,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   padding:2px 8px;border-radius:10px;white-space:nowrap;border:1px solid #c7d2fe;flex-shrink:0}
 
 /* 品牌关键词卡 */
-.kw-card{background:#f8faff;border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px}
+.kw-card{background:var(--bg);border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px}
 .kw-tag{display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;
   padding:3px 10px;font-size:12px;margin:2px;white-space:nowrap}
 .ws-tab{padding:10px 18px;border:1.5px solid var(--line);border-radius:10px;background:#fff;
@@ -277,21 +277,21 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
 <!-- ===== 登录页 ===== -->
 <div id="authView">
-<div style="min-height:100vh;background:#f8faff">
+<div style="min-height:100vh;background:var(--bg)">
 
   <!-- 顶栏 -->
-  <div style="background:#fff;border-bottom:1px solid #e7e8ef;padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:#4f46e5">
-      <span style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0">◎</span>
+  <div style="background:#fff;border-bottom:1px solid var(--line);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)">
+    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:var(--brand)">
+      <span style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--brand),#7c3aed);display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0">◎</span>
       GEO 雷达
     </div>
     <div style="display:flex;align-items:center;gap:8px">
-      <a href="/simulator" style="font-size:13px;color:#4f46e5;font-weight:600;text-decoration:none;
+      <a href="/simulator" style="font-size:13px;color:var(--brand);font-weight:600;text-decoration:none;
         background:#eef2ff;padding:7px 12px;border-radius:8px;border:1px solid #c7d2fe;white-space:nowrap;display:none" id="simLink">
         🔍 模拟器
       </a>
       <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-        style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+        style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
         免费体检 →
       </button>
     </div>
@@ -311,9 +311,9 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
         </div>
 
         <!-- 核心标题 -->
-        <h1 style="font-size:clamp(28px,7vw,54px);font-weight:900;line-height:1.15;color:#0f172a;margin-bottom:14px;letter-spacing:-.5px">
+        <h1 style="font-size:clamp(28px,7vw,54px);font-weight:900;line-height:1.15;color:var(--ink);margin-bottom:14px;letter-spacing:-.5px">
           你的品牌，<br>
-          <span style="background:linear-gradient(135deg,#4f46e5,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
+          <span style="background:linear-gradient(135deg,var(--brand),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
             AI 搜得到吗？
           </span>
         </h1>
@@ -322,7 +322,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
         <p style="font-size:clamp(16px,4.5vw,20px);color:#334155;margin-bottom:10px;line-height:1.6;font-weight:400">
           让 AI 主动推荐你，<br>把客户<b style="color:#059669">送上门</b>，而不是推给<b style="color:#dc2626">对手</b>。
         </p>
-        <p style="font-size:14px;color:#64748b;margin-bottom:28px;line-height:1.7">
+        <p style="font-size:14px;color:var(--ink-soft);margin-bottom:28px;line-height:1.7">
           🔥 你的同行已经在用 AI 抢流量了。58% 的买家改用 AI 找供应商，免费查一查你被推荐了没。
         </p>
 
@@ -332,7 +332,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
             style="display:block;width:100%;max-width:360px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(234,88,12,.35);text-align:center">
             🔍 立即免费体检，看 AI 推没推我 →
           </button>
-          <div style="margin-top:10px;font-size:12px;color:#94a3b8">无需信用卡 · 30秒出结果 · ¥9.9 解锁完整报告</div>
+          <div style="margin-top:10px;font-size:12px;color:var(--ink-faint)">无需信用卡 · 30秒出结果 · ¥9.9 解锁完整报告</div>
         </div>
 
         <!-- 数据墙：横向滑动（手机）/ 两列网格（电脑） -->
@@ -340,30 +340,30 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
           <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px" id="dataGrid">
             <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
               <div style="font-size:34px;font-weight:900;color:#f59e0b;line-height:1">58%</div>
-              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">买家改用<br>AI 找供应商</div>
+              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">买家改用<br>AI 找供应商</div>
               <div style="font-size:11px;color:#92400e;margin-top:4px;font-weight:500">Gartner 2025</div>
             </div>
             <div style="background:#fff;border:1.5px solid #fecaca;border-radius:12px;padding:16px">
               <div style="font-size:34px;font-weight:900;color:#ef4444;line-height:1">25%</div>
-              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">搜索流量<br>正在消失</div>
+              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">搜索流量<br>正在消失</div>
               <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-weight:500">Gartner 2026</div>
             </div>
             <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;padding:16px">
               <div style="font-size:34px;font-weight:900;color:#10b981;line-height:1">0%</div>
-              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">大多数品牌<br>AI 推荐率</div>
+              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">大多数品牌<br>AI 推荐率</div>
               <div style="font-size:11px;color:#065f46;margin-top:4px;font-weight:500">GEO雷达实测</div>
             </div>
             <div style="background:#fff;border:1.5px solid #c7d2fe;border-radius:12px;padding:16px">
-              <div style="font-size:34px;font-weight:900;color:#4f46e5;line-height:1">8大</div>
-              <div style="font-size:12px;color:#0f172a;font-weight:600;margin:5px 0 3px;line-height:1.3">AI 平台<br>同步监测</div>
+              <div style="font-size:34px;font-weight:900;color:var(--brand);line-height:1">8大</div>
+              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">AI 平台<br>同步监测</div>
               <div style="font-size:11px;color:#3730a3;margin-top:4px;font-weight:500">国内外全覆盖</div>
             </div>
           </div>
         </div>
 
         <!-- AI 场景模拟：精简版，手机友好 -->
-        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);margin-bottom:8px">
-          <div style="font-size:11px;color:#94a3b8;margin-bottom:12px;display:flex;align-items:center;gap:5px">
+        <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);margin-bottom:8px">
+          <div style="font-size:11px;color:var(--ink-faint);margin-bottom:12px;display:flex;align-items:center;gap:5px">
             <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
             真实场景 · 你的客户正在发生的事
           </div>
@@ -371,14 +371,14 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
           <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">
             <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">👤</div>
             <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:0 10px 10px 10px;padding:8px 12px;font-size:13px;color:#1e293b;flex:1">
-              推荐出海品牌，<b style="color:#4f46e5">质量好有认证</b>的
+              推荐出海品牌，<b style="color:var(--brand)">质量好有认证</b>的
             </div>
           </div>
           <!-- AI 回答 -->
           <div style="display:flex;gap:8px;align-items:flex-start">
             <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">🤖</div>
             <div style="flex:1">
-              <div style="font-size:10px;color:#94a3b8;margin-bottom:4px">ChatGPT</div>
+              <div style="font-size:10px;color:var(--ink-faint);margin-bottom:4px">ChatGPT</div>
               <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 10px 10px 10px;padding:10px 12px;font-size:13px;color:#1e293b">
                 <span style="color:#059669">✓ Anker · ✓ RavPower · ✓ Baseus</span>
                 <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;margin-top:8px;display:flex;align-items:center;gap:6px">
@@ -402,26 +402,26 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
       <div id="authFormCard" style="position:sticky;top:68px">
 
         <!-- 模拟器卡片 -->
-        <div style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:22px;box-shadow:0 4px 24px rgba(0,0,0,.08);margin-bottom:12px">
-          <div style="font-size:14px;font-weight:700;color:#0f172a;margin-bottom:4px">🔍 AI 推荐模拟器</div>
-          <div style="font-size:12px;color:#64748b;margin-bottom:16px">输入关键词，立刻看 AI 会不会推荐你</div>
+        <div style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 24px rgba(0,0,0,.08);margin-bottom:12px">
+          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">🔍 AI 推荐模拟器</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px">输入关键词，立刻看 AI 会不会推荐你</div>
 
           <!-- 模式切换 -->
           <div style="display:flex;background:#f4f6fb;padding:3px;border-radius:8px;margin-bottom:14px">
             <button onclick="simSetMode('outbound')" id="simTabOut"
-              style="flex:1;padding:7px;background:#fff;color:#4f46e5;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌏 海外</button>
+              style="flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌏 海外</button>
             <button onclick="simSetMode('domestic')" id="simTabDom"
-              style="flex:1;padding:7px;background:none;color:#64748b;border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内</button>
+              style="flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内</button>
           </div>
 
           <!-- 关键词输入 -->
           <div style="display:flex;gap:8px;margin-bottom:10px">
             <input id="simKw" type="text" placeholder="best portable charger"
-              style="flex:1;padding:10px 12px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:13px;color:#0f172a;outline:none;font-family:inherit"
-              onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'"
+              style="flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;color:var(--ink);outline:none;font-family:inherit"
+              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'"
               onkeydown="if(event.key==='Enter')doSimulate()">
             <button onclick="doSimulate()" id="simBtn"
-              style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
+              style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
               查 →
             </button>
           </div>
@@ -436,8 +436,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
           <!-- 加载状态 -->
           <div id="simLoading" style="display:none;text-align:center;padding:16px 0">
-            <div style="width:28px;height:28px;border:2px solid #e7e8ef;border-top-color:#4f46e5;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
-            <div style="font-size:12px;color:#64748b" id="simMsg">正在查询中…</div>
+            <div style="width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
+            <div style="font-size:12px;color:var(--ink-soft)" id="simMsg">正在查询中…</div>
           </div>
 
           <!-- 结果区 -->
@@ -446,44 +446,44 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
           <!-- 引导注册 -->
           <div id="simCta" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;margin-top:12px;text-align:center">
             <div style="font-size:13px;color:#3730a3;font-weight:600;margin-bottom:4px">想做完整品牌报告？</div>
-            <div style="font-size:12px;color:#64748b;margin-bottom:8px">用50个精准问题全面扫描，生成专属提升方案</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">用50个精准问题全面扫描，生成专属提升方案</div>
             <button onclick="document.getElementById('simSection').scrollIntoView({behavior:'smooth'})"
-              style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
+              style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
               免费注册做完整体检 →
             </button>
           </div>
         </div>
 
         <!-- 注册卡片 -->
-        <div id="simSection" style="background:#fff;border:1px solid #e7e8ef;border-radius:18px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-          <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:12px;margin-bottom:18px">
+        <div id="simSection" style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
+          <div style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:12px;margin-bottom:18px">
             <b style="font-size:14px;display:block;margin-bottom:2px">🎁 免费注册做完整品牌体检</b>
             <span style="font-size:12px;opacity:.9">¥9.9 解锁完整报告</span>
           </div>
           <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:16px">
             <button id="tabLogin" onclick="switchTab('login')"
-              style="flex:1;padding:8px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:13px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
+              style="flex:1;padding:8px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:13px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
             <button id="tabReg" onclick="switchTab('reg')"
               style="flex:1;padding:8px;background:none;color:#5a5f73;border-radius:7px;font-size:13px;border:none;cursor:pointer">免费注册</button>
           </div>
           <div style="margin-bottom:12px">
             <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">邮箱地址</label>
             <input id="authEmail" type="email" placeholder="your@brand.com"
-              style="width:100%;padding:10px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
-              onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
+              style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;color:var(--ink);outline:none"
+              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'">
           </div>
           <div style="margin-bottom:16px">
             <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">密码（至少6位）</label>
             <input id="authPw" type="password" placeholder="设置登录密码"
-              style="width:100%;padding:10px 13px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:14px;font-family:inherit;color:#0f172a;outline:none"
-              onfocus="this.style.borderColor='#4f46e5'" onblur="this.style.borderColor='#e7e8ef'">
+              style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;color:var(--ink);outline:none"
+              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'">
           </div>
           <button class="btn-primary" style="width:100%;font-size:15px;padding:12px;border-radius:10px" onclick="doAuth()" id="authBtn">
             免费开始 AI 品牌体检 →
           </button>
           <p id="authErr" style="color:#dc2626;font-size:13px;margin-top:8px;text-align:center;min-height:18px"></p>
-          <div style="text-align:center;margin-top:10px;font-size:12px;color:#94a3b8">
-            客服微信：<b style="color:#4f46e5">jenly222</b>
+          <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-faint)">
+            客服微信：<b style="color:var(--brand)">jenly222</b>
           </div>
         </div>
 
@@ -518,18 +518,48 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   }
 }
 </style>
+  <!-- 如何运作:三步搞定 -->
+  <div style="padding:50px 20px;background:#fff">
+    <div style="max-width:1000px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:40px">
+        <div style="display:inline-block;background:var(--brand-soft);color:var(--brand-ink);padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">⚡ 简单三步</div>
+        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:var(--ink);margin-bottom:10px">不用懂技术,跟着做就行</h2>
+        <p style="font-size:15px;color:var(--ink-soft)">从查清问题到让 AI 推荐你,全程有我们带着走</p>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
+        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
+          <div style="width:56px;height:56px;border-radius:16px;background:var(--brand-grad);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:var(--sh-brand)">🔍</div>
+          <div style="font-size:13px;color:var(--brand);font-weight:700;margin-bottom:6px">第一步</div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:8px">免费体检</div>
+          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">输入品牌,30秒查清 AI 到底推没推你,缺口在哪一目了然</div>
+        </div>
+        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
+          <div style="width:56px;height:56px;border-radius:16px;background:var(--brand-grad);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:var(--sh-brand)">✍️</div>
+          <div style="font-size:13px;color:var(--brand);font-weight:700;margin-bottom:6px">第二步</div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:8px">一键创作</div>
+          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">我基于你的品牌直接写好内容,你复制就能发,不用自己绞尽脑汁</div>
+        </div>
+        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
+          <div style="width:56px;height:56px;border-radius:16px;background:var(--good);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:0 4px 16px rgba(5,150,105,.25)">📈</div>
+          <div style="font-size:13px;color:var(--good);font-weight:700;margin-bottom:6px">第三步</div>
+          <div style="font-size:17px;font-weight:700;margin-bottom:8px">看着增长</div>
+          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">增长看板追踪提及率变化,看 AI 给你带来多少真实访客</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 案例展示模块 -->
-  <div style="background:linear-gradient(180deg,#f8faff,#fff);padding:50px 20px;border-top:1px solid #e7e8ef">
+  <div style="background:linear-gradient(180deg,var(--bg),#fff);padding:50px 20px;border-top:1px solid var(--line)">
     <div style="max-width:1000px;margin:0 auto">
       <div style="text-align:center;margin-bottom:36px">
-        <div style="display:inline-block;background:#ecfdf5;color:#065f46;padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">📈 真实效果</div>
-        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:#0f172a;margin-bottom:10px">他们已经让 AI 开始推荐自己</h2>
-        <p style="font-size:15px;color:#64748b">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:#059669" id="avgImprove">34</b> 个百分点</p>
+        <div style="display:inline-block;background:var(--good-soft);color:#065f46;padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">📈 真实效果</div>
+        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:var(--ink);margin-bottom:10px">他们已经让 AI 开始推荐自己</h2>
+        <p style="font-size:15px;color:var(--ink-soft)">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:var(--good)" id="avgImprove">34</b> 个百分点</p>
       </div>
       <div id="casesContainer" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px"></div>
       <div style="text-align:center;margin-top:30px">
-        <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-          style="background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:12px;padding:15px 36px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(234,88,12,.3)">
+        <button class="btn-action" onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})" style="font-size:16px;padding:15px 36px">
           我也要让 AI 推荐我 →
         </button>
       </div>
@@ -537,13 +567,13 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   </div>
 
   <!-- 合规页脚 -->
-  <div style="text-align:center;padding:30px 20px;border-top:1px solid #e7e8ef;margin-top:30px;background:#fff">
-    <div style="font-size:13px;color:#5a5f73;margin-bottom:10px">
-      <span style="display:inline-block;background:#f0fdf4;color:#065f46;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.6;max-width:90%">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</span>
+  <div style="text-align:center;padding:30px 20px;border-top:1px solid var(--line);margin-top:0;background:#fff">
+    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">
+      <span style="display:inline-block;background:var(--good-soft);color:#065f46;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.6;max-width:90%">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</span>
     </div>
-    <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+    <div style="font-size:12px;color:var(--ink-faint);line-height:1.8">
       GEO 雷达提供 AI 能见度监测与内容优化建议,不保证特定效果,生成内容请发布前自行核实<br>
-      <a href="/terms" style="color:#4f46e5;text-decoration:none">服务条款与合规声明</a> · 客服微信 jenly222
+      <a href="/terms" style="color:var(--brand);text-decoration:none">服务条款与合规声明</a> · 客服微信 jenly222
     </div>
   </div>
 </div>
@@ -750,7 +780,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
       <div class="note" id="repNote"></div>
 
       <!-- 竞品对比入口 -->
-      <div style="background:#f8faff;border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-top:20px">
+      <div style="background:var(--bg);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-top:20px">
         <div style="font-weight:700;font-size:15px;margin-bottom:6px">⚔️ 竞品对比分析</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">输入竞品官网，系统用同样的问题集监测竞品，告诉你对方为什么比你被AI推荐得多</p>
         <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -894,10 +924,10 @@ function switchTab(m){
   const tr=document.getElementById("tabReg");
   if(!tl||!tr) return;
   if(m==="login"){
-    tl.style.cssText="flex:1;padding:9px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
+    tl.style.cssText="flex:1;padding:9px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
     tr.style.cssText="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer";
   } else {
-    tr.style.cssText="flex:1;padding:9px;background:#fff;color:#4f46e5;border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
+    tr.style.cssText="flex:1;padding:9px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
     tl.style.cssText="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer";
   }
   document.getElementById("authBtn").textContent=m==="login"?"已有账号登录 →":"免费开始 AI 品牌体检 →";
@@ -987,7 +1017,7 @@ function renderOnboardStep(){
   const s = ONBOARD_STEPS[onboardIdx];
   const card = document.getElementById("onboardCard");
   const isLast = onboardIdx === ONBOARD_STEPS.length-1;
-  const dots = ONBOARD_STEPS.map((_,i)=>`<span style="width:8px;height:8px;border-radius:50%;background:${i===onboardIdx?'#4f46e5':'#d1d5db'};display:inline-block;margin:0 3px"></span>`).join("");
+  const dots = ONBOARD_STEPS.map((_,i)=>`<span style="width:8px;height:8px;border-radius:50%;background:${i===onboardIdx?'var(--brand)':'#d1d5db'};display:inline-block;margin:0 3px"></span>`).join("");
   card.innerHTML=`
     <div style="font-size:48px;margin-bottom:16px">${s.icon}</div>
     <div style="font-size:20px;font-weight:800;margin-bottom:10px">${s.title}</div>
@@ -1040,9 +1070,9 @@ function showBrandPicker(brands){
   brands.forEach(b=>{
     const hasReport = b.report_count > 0;
     const rateStr = b.latest_rate !== null ? `${b.latest_rate}%` : '未监测';
-    const rateColor = b.latest_rate === null ? '#94a3b8' : (b.latest_rate >= 50 ? '#10b981' : (b.latest_rate >= 20 ? '#f59e0b' : '#ef4444'));
+    const rateColor = b.latest_rate === null ? 'var(--ink-faint)' : (b.latest_rate >= 50 ? '#10b981' : (b.latest_rate >= 20 ? '#f59e0b' : '#ef4444'));
     html += `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#f8faff">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)">
         <div style="flex:1;min-width:0">
           <div style="font-size:15px;font-weight:600;color:var(--ink)">${escHtml(b.name)}</div>
           <div style="font-size:12px;color:var(--ink-soft);margin-top:2px">
@@ -1265,7 +1295,7 @@ async function loadTopicsTab(){
 function renderTopicsTab(d){
   const c=document.getElementById("workspaceContent");
   let html=`
-    <div style="background:#f8faff;border:1px solid #c7d2fe;border-radius:14px;padding:18px;margin-bottom:20px">
+    <div style="background:var(--bg);border:1px solid #c7d2fe;border-radius:14px;padding:18px;margin-bottom:20px">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">📋 选题库（该写什么，都列好了）</div>
       <p style="font-size:13px;color:var(--ink-soft)">这些是用户最常问AI的问题。点"创作"，系统基于你的知识库直接生成内容。已创作 ${d.created_count}/${d.topic_count}</p>
       ${d.knowledge_count===0?'<div style="margin-top:10px;background:#fffbeb;border-radius:8px;padding:10px;font-size:12px;color:#92400e">💡 建议先去①知识库添加资料，生成的内容会更准</div>':''}
@@ -1334,7 +1364,7 @@ function renderContentsTab(d){
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
           <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
-          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:#065f46':'background:#f1f5f9;color:#64748b'}">${pub?'已发布':'草稿'}</span>
+          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:#065f46':'background:#f1f5f9;color:var(--ink-soft)'}">${pub?'已发布':'草稿'}</span>
         </div>
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;max-height:120px;overflow:hidden">${escHtml((ct.body||'').slice(0,300))}${(ct.body||'').length>300?'…':''}</div>
         ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
@@ -1403,7 +1433,7 @@ function renderReferral(d){
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">📨 你的专属邀请链接</div>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分享这个链接，好友通过它注册并付费，你就能获得<b style="color:#d97706">推广奖励</b>，套餐越高奖励越多</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <input id="inviteLink" value="${d.invite_link}" readonly style="flex:1;min-width:200px;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:#f8faff;font-family:inherit">
+        <input id="inviteLink" value="${d.invite_link}" readonly style="flex:1;min-width:200px;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg);font-family:inherit">
         <button class="btn-primary" style="font-size:13px;padding:11px 20px" onclick="copyInviteLink()">📋 复制链接</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:12px;background:#fffbeb;border-radius:8px">
@@ -1428,7 +1458,7 @@ function renderReferral(d){
     html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 邀请记录</div>`;
     d.referrals.forEach(r=>{
-      const statusColor = r.status==='paid'?'#10b981':'#94a3b8';
+      const statusColor = r.status==='paid'?'#10b981':'var(--ink-faint)';
       html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)">
         <div>
           <div style="font-size:14px;font-weight:500">${r.email}</div>
@@ -1505,7 +1535,7 @@ function renderDashboard(d){
   // 环比变化展示
   const changeStr = d.change_vs_prev===null ? '首次监测' :
     (d.change_vs_prev>0?`+${d.change_vs_prev}`:`${d.change_vs_prev}`);
-  const changeColor = d.change_vs_prev>0?'#10b981':(d.change_vs_prev<0?'#ef4444':'#94a3b8');
+  const changeColor = d.change_vs_prev>0?'#10b981':(d.change_vs_prev<0?'#ef4444':'var(--ink-faint)');
 
   let html=`
     <!-- 状态横幅 -->
@@ -1532,7 +1562,7 @@ function renderDashboard(d){
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">监测次数</div>
-        <div style="font-size:36px;font-weight:900;color:#0f172a;line-height:1">${d.monitor_count}</div>
+        <div style="font-size:36px;font-weight:900;color:var(--ink);line-height:1">${d.monitor_count}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">累计监测</div>
       </div>
     </div>
@@ -1544,7 +1574,7 @@ function renderDashboard(d){
         <div style="font-size:14px;font-weight:700;color:var(--brand)">${d.progress_pct}%</div>
       </div>
       <div style="height:12px;background:#f0f0f0;border-radius:6px;overflow:hidden">
-        <div style="height:100%;width:${d.progress_pct}%;background:linear-gradient(90deg,#4f46e5,#7c3aed);border-radius:6px;transition:width .6s"></div>
+        <div style="height:100%;width:${d.progress_pct}%;background:linear-gradient(90deg,var(--brand),#7c3aed);border-radius:6px;transition:width .6s"></div>
       </div>
       <div style="font-size:12px;color:var(--ink-soft);margin-top:8px">${d.current_rate>=d.target?'🎉 已达成目标！继续保持领先':`还差 ${(d.target-d.current_rate).toFixed(1)} 个百分点达成目标`}</div>
     </div>
@@ -1561,14 +1591,14 @@ function renderDashboard(d){
       <div style="font-size:14px;font-weight:600;margin-bottom:16px">📊 各平台当前表现</div>`;
     for(const [pf,rate] of Object.entries(d.platform_now)){
       const chg = d.platform_change?.[pf];
-      const chgStr = chg===undefined?'':(chg>0?` <span style="color:#10b981">↑${chg}</span>`:(chg<0?` <span style="color:#ef4444">↓${Math.abs(chg)}</span>`:' <span style="color:#94a3b8">—</span>'));
+      const chgStr = chg===undefined?'':(chg>0?` <span style="color:#10b981">↑${chg}</span>`:(chg<0?` <span style="color:#ef4444">↓${Math.abs(chg)}</span>`:' <span style="color:var(--ink-faint)">—</span>'));
       html+=`<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
           <span style="font-weight:500">${pf}${chgStr}</span>
           <span style="font-weight:600">${rate}%</span>
         </div>
         <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
+          <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,var(--brand),#7c3aed)"></div>
         </div>
       </div>`;
     }
@@ -1613,7 +1643,7 @@ function renderIndustryBenchmark(b){
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📊 行业大盘排名</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${b.message}</p>
         <div style="height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin-bottom:8px">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#4f46e5,#7c3aed)"></div>
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--brand),#7c3aed)"></div>
         </div>
         <div style="font-size:12px;color:var(--ink-soft)">${b.industry} · 已收集 ${b.sample_count}/${b.needed} 个品牌</div>
       </div>`;
@@ -1629,20 +1659,20 @@ function renderIndustryBenchmark(b){
           <div style="font-size:15px;font-weight:600;color:${rc}">${b.rank_text}</div>
         </div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px">
-          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
             <div style="font-size:26px;font-weight:900;color:var(--brand)">${b.my_rate}%</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">你的提及率</div>
           </div>
-          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
-            <div style="font-size:26px;font-weight:900;color:#64748b">${b.industry_avg}%</div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:var(--ink-soft)">${b.industry_avg}%</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业平均</div>
           </div>
-          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
             <div style="font-size:26px;font-weight:900;color:#10b981">${b.industry_max}%</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业最高</div>
           </div>
-          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
-            <div style="font-size:26px;font-weight:900;color:#0f172a">${b.percentile}%</div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
+            <div style="font-size:26px;font-weight:900;color:var(--ink)">${b.percentile}%</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">超过同行</div>
           </div>
         </div>
@@ -1679,7 +1709,7 @@ function renderAITraffic(t, bid){
   } else {
     // 有数据，展示统计
     const wc = t.week_change;
-    const wcColor = wc>0?'#10b981':(wc<0?'#ef4444':'#94a3b8');
+    const wcColor = wc>0?'#10b981':(wc<0?'#ef4444':'var(--ink-faint)');
     const wcStr = wc>0?`+${wc}`:`${wc}`;
     html = `
       <div style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;border-radius:14px;padding:24px;margin-top:24px">
@@ -1691,12 +1721,12 @@ function renderAITraffic(t, bid){
           </div>
           <div style="background:#fff;border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">近 7 天</div>
-            <div style="font-size:30px;font-weight:900;color:#0f172a">${t.last_7_days}</div>
+            <div style="font-size:30px;font-weight:900;color:var(--ink)">${t.last_7_days}</div>
             <div style="font-size:12px;color:${wcColor};font-weight:600">${wcStr} vs 上周</div>
           </div>
           <div style="background:#fff;border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">主要来源</div>
-            <div style="font-size:18px;font-weight:700;color:#4f46e5;margin-top:6px">${t.by_source[0]?.source||'—'}</div>
+            <div style="font-size:18px;font-weight:700;color:var(--brand);margin-top:6px">${t.by_source[0]?.source||'—'}</div>
           </div>
         </div>`;
     // 各来源分布
@@ -1733,10 +1763,10 @@ async function showTrackingCode(bid){
       <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <h3 style="font-size:18px;font-weight:700">📋 你的 AI 访客追踪代码</h3>
-          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8">×</button>
+          <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink-faint)">×</button>
         </div>
         <p style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px">${d.install_guide}</p>
-        <div style="background:#0f172a;color:#e2e8f0;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;line-height:1.6;margin-bottom:14px" id="trackCode">${d.tracking_code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+        <div style="background:var(--ink);color:#e2e8f0;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;line-height:1.6;margin-bottom:14px" id="trackCode">${d.tracking_code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
         <button class="btn-primary" style="width:100%" onclick="navigator.clipboard.writeText(document.getElementById('trackCode').innerText).then(()=>toast('✅ 追踪代码已复制'))">📋 复制追踪代码</button>
         <div style="background:#f0f4ff;border-radius:8px;padding:12px;margin-top:14px;font-size:12px;color:var(--brand-ink);line-height:1.6">
           💡 安装后，访客从 ChatGPT、Perplexity、DeepSeek 等 AI 平台点链接进入你官网时会被自动记录。回到这个看板就能看到 AI 给你带来了多少真实访客。
@@ -1759,10 +1789,10 @@ function drawTrendChart(trend){
       datasets:[{
         label:"AI 提及率 %",
         data: trend.map(t=>t.mention_rate),
-        borderColor:"#4f46e5",
+        borderColor:"var(--brand)",
         backgroundColor:"rgba(79,70,229,.1)",
         fill:true,tension:.3,
-        pointRadius:4,pointBackgroundColor:"#4f46e5",
+        pointRadius:4,pointBackgroundColor:"var(--brand)",
       }]
     },
     options:{
@@ -2035,11 +2065,11 @@ async function loadHistoryChart(){
         datasets:[{
           label:"AI 推荐率 %",
           data:vals,
-          borderColor:"#4f46e5",
+          borderColor:"var(--brand)",
           backgroundColor:"rgba(79,70,229,.08)",
           borderWidth:2.5,
           pointRadius:5,
-          pointBackgroundColor:"#4f46e5",
+          pointBackgroundColor:"var(--brand)",
           tension:.3,
           fill:true,
         }]
@@ -2126,7 +2156,7 @@ async function loadImprovePlan(){
     const d=data.diagnosis;
     const curPct=d.max_potential>0?Math.round(d.current_score/d.max_potential*100):0;
     diagBox.innerHTML=`
-      <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#f8faff,#faf5ff);border:1px solid #e0e7ff;border-radius:12px;padding:18px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,var(--bg),#faf5ff);border:1px solid #e0e7ff;border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="text-align:center;min-width:60px"><div style="font-size:26px;font-weight:700;color:var(--warn)">${d.current_score}%</div><div style="font-size:11px;color:var(--ink-soft)">现在</div></div>
         <div style="flex:1;height:12px;background:#e5e7eb;border-radius:6px;overflow:hidden;position:relative">
           <div style="position:absolute;left:0;top:0;height:100%;width:100%;background:linear-gradient(90deg,#d1fae5,#a7f3d0);border-radius:6px"></div>
@@ -2244,11 +2274,11 @@ async function loadKeywordOpp(){
           <div style="font-size:11px;color:var(--ink-soft)">黄金词</div>
         </div>
         <div style="flex:1;min-width:100px;background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:24px;font-weight:800;color:#4f46e5">${stats.blue_ocean_count||0}</div>
+          <div style="font-size:24px;font-weight:800;color:var(--brand)">${stats.blue_ocean_count||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">蓝海机会</div>
         </div>
-        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #e7e8ef;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:24px;font-weight:800;color:#0f172a">${stats.avg_opportunity||0}</div>
+        <div style="flex:1;min-width:100px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center">
+          <div style="font-size:24px;font-weight:800;color:var(--ink)">${stats.avg_opportunity||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">平均商机分</div>
         </div>
       </div>`;
@@ -2257,13 +2287,13 @@ async function loadKeywordOpp(){
       html+=`<div style="background:#fff;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e">💡 ${data.top_advice}</div>`;
     }
     // 关键词卡片
-    const gradeColors={gold:'#f59e0b',green:'#10b981',gray:'#94a3b8',red:'#ef4444'};
+    const gradeColors={gold:'#f59e0b',green:'#10b981',gray:'var(--ink-faint)',red:'#ef4444'};
     kws.forEach((k,i)=>{
-      const gc = gradeColors[k.grade_color]||'#94a3b8';
+      const gc = gradeColors[k.grade_color]||'var(--ink-faint)';
       html+=`
         <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
-            <div style="font-size:14px;font-weight:600;color:#0f172a;flex:1;min-width:160px">${i+1}. ${escHtml(k.keyword||'')}</div>
+            <div style="font-size:14px;font-weight:600;color:var(--ink);flex:1;min-width:160px">${i+1}. ${escHtml(k.keyword||'')}</div>
             <span style="background:${gc}1a;color:${gc};border:1px solid ${gc}55;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${k.grade||''} · ${k.opportunity_score||0}分</span>
           </div>
           <div style="font-size:11px;color:var(--ink-soft);margin-bottom:8px">${k.tag||''} · ${k.intent||''}</div>
@@ -2277,7 +2307,7 @@ async function loadKeywordOpp(){
               <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.competition||0}%;background:#ef4444"></div></div>
             </div>
           </div>
-          ${k.content_direction?`<div style="background:#f8faff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:4px">✍️ 内容方向：${escHtml(k.content_direction)}</div>`:''}
+          ${k.content_direction?`<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:4px">✍️ 内容方向：${escHtml(k.content_direction)}</div>`:''}
           ${k.reason?`<div style="font-size:12px;color:var(--ink-soft);line-height:1.5">💭 ${escHtml(k.reason)}</div>`:''}
         </div>`;
     });
@@ -2335,7 +2365,7 @@ async function doCompare(){
     result.innerHTML=`
       <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:14px">
-          <div style="text-align:center;background:#f8faff;border-radius:10px;padding:14px">
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
             <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">你的品牌</div>
             <div style="font-size:28px;font-weight:800;color:${myColor}">${myRate}%</div>
             <div style="font-size:12px;color:var(--ink-soft)">AI 推荐率</div>
@@ -2382,7 +2412,7 @@ async function genSchemaFaq(){
         ${faqHtml}
         <div style="margin-top:16px">
           <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#065f46">🏗️ JSON-LD Schema 代码（复制到网站 &lt;head&gt; 里）</div>
-          <pre style="background:#0f172a;color:#e2e8f0;border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre-wrap;line-height:1.6">${(data.schema_code||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
+          <pre style="background:var(--ink);color:#e2e8f0;border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre-wrap;line-height:1.6">${(data.schema_code||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
         </div>
         ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:#065f46;margin-top:10px">💡 ${data.publish_tip}</div>`:''}
         <div style="margin-top:12px;display:flex;gap:8px">
@@ -2436,8 +2466,8 @@ function simSetMode(mode){
   simMode=mode;
   const out=document.getElementById('simTabOut'),dom=document.getElementById('simTabDom');
   if(!out||!dom)return;
-  const onStyle='flex:1;padding:7px;background:#fff;color:#4f46e5;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)';
-  const offStyle='flex:1;padding:7px;background:none;color:#64748b;border-radius:6px;font-size:12px;border:none;cursor:pointer';
+  const onStyle='flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+  const offStyle='flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer';
   out.style.cssText=mode==='outbound'?onStyle:offStyle;
   dom.style.cssText=mode==='domestic'?onStyle:offStyle;
   const kw=document.getElementById('simKw');
@@ -2451,7 +2481,7 @@ function simSetMode(mode){
 async function doSimulate(){
   const kwEl=document.getElementById('simKw');
   const kw=(kwEl?.value||'').trim();
-  if(!kw){if(kwEl){kwEl.style.borderColor='#ef4444';setTimeout(()=>kwEl.style.borderColor='#e7e8ef',2000);}return;}
+  if(!kw){if(kwEl){kwEl.style.borderColor='#ef4444';setTimeout(()=>kwEl.style.borderColor='var(--line)',2000);}return;}
   const btn=document.getElementById('simBtn'),loading=document.getElementById('simLoading');
   const resEl=document.getElementById('simResults'),ctaEl=document.getElementById('simCta');
   btn.disabled=true;btn.textContent='…';
@@ -2478,7 +2508,7 @@ function renderSimResults(data){
   let html=`<div style="background:${good?'#f0fdf4':'#fef2f2'};border:1px solid ${good?'#bbf7d0':'#fecaca'};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:${good?'#065f46':'#991b1b'};font-weight:600">${good?'✅':'❌'} ${s.verdict}</div>`;
   (data.results||[]).filter(r=>!r.error).forEach(r=>{
     const icons={chatgpt:'🤖',deepseek:'🔵',perplexity:'🔍',qwen:'☁️',kimi:'🌙',doubao:'📦'};
-    html+=`<div style="background:#f8faff;border:1px solid #e7e8ef;border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:#0f172a;margin-bottom:5px">${icons[r.pid]||'🤖'} ${r.platform}</div><div style="font-size:12px;color:#475569;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${(r.answer_snippet||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div></div>`;
+    html+=`<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${icons[r.pid]||'🤖'} ${r.platform}</div><div style="font-size:12px;color:#475569;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${(r.answer_snippet||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div></div>`;
   });
   resEl.innerHTML=html;resEl.style.display='block';ctaEl.style.display='block';
 }
@@ -2493,21 +2523,21 @@ if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;lo
     const container = document.getElementById("casesContainer");
     if(!container || !d.cases) return;
     container.innerHTML = d.cases.map(c=>`
-      <div style="background:#fff;border:1px solid #e7e8ef;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.04)">
-        <div style="font-size:13px;color:#64748b;font-weight:600;margin-bottom:16px">${c.industry}</div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.04)">
+        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;margin-bottom:16px">${c.industry}</div>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
           <div style="text-align:center;flex:1">
-            <div style="font-size:13px;color:#94a3b8;margin-bottom:2px">优化前</div>
+            <div style="font-size:13px;color:var(--ink-faint);margin-bottom:2px">优化前</div>
             <div style="font-size:28px;font-weight:900;color:#ef4444">${c.before}%</div>
           </div>
           <div style="font-size:24px;color:#059669">→</div>
           <div style="text-align:center;flex:1">
-            <div style="font-size:13px;color:#94a3b8;margin-bottom:2px">${c.days}天后</div>
+            <div style="font-size:13px;color:var(--ink-faint);margin-bottom:2px">${c.days}天后</div>
             <div style="font-size:28px;font-weight:900;color:#059669">${c.after}%</div>
           </div>
         </div>
-        <div style="background:#f8faff;border-radius:8px;padding:12px;font-size:13px;color:#475569;line-height:1.6;margin-bottom:12px">${c.story}</div>
-        <div style="font-size:13px;color:#0f172a;font-style:italic;line-height:1.6">"${c.quote}"</div>
+        <div style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;color:#475569;line-height:1.6;margin-bottom:12px">${c.story}</div>
+        <div style="font-size:13px;color:var(--ink);font-style:italic;line-height:1.6">"${c.quote}"</div>
       </div>
     `).join("");
     // 示范案例诚实标注
