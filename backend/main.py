@@ -113,6 +113,16 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def _jload(s, default=None):
+    """安全解析JSON：数据异常时返回默认值，不抛错导致接口500"""
+    if default is None:
+        default = {}
+    try:
+        return json.loads(s) if s else default
+    except (json.JSONDecodeError, TypeError):
+        return default
+
+
 # ----------------------------- 分销 -----------------------------
 # 各套餐佣金比例（35%分润）
 COMMISSION_RATE = 0.35
@@ -414,14 +424,14 @@ def reports(brand_id: int, user: User = Depends(current_user),
     for r in recs:
         item = {"id": r.id, "generated_at": r.generated_at,
                 "mention_rate": r.mention_rate,
-                "gaps": json.loads(r.gaps_json),
-                "platform_breakdown": json.loads(r.platform_breakdown_json),
-                "competitor_share": json.loads(r.competitor_share_json),
+                "gaps": _jload(r.gaps_json, []),
+                "platform_breakdown": _jload(r.platform_breakdown_json, []),
+                "competitor_share": _jload(r.competitor_share_json, []),
                 "source_count": r.source_count,
                 "sample_note": r.sample_note}
         # 附带完整报告数据，供前端恢复展示
         try:
-            item["full"] = json.loads(r.full_json)
+            item["full"] = _jload(r.full_json, {})
         except Exception:
             item["full"] = None
         result.append(item)
@@ -483,7 +493,7 @@ def improve_plan(brand_id: int, user: User = Depends(current_user),
     if not latest:
         raise HTTPException(400, "请先完成一次监测,再查看提升方案")
 
-    report = json.loads(latest.full_json)
+    report = _jload(latest.full_json, {})
     diagnosis = diagnose_score(report)
     tasks = build_action_plan(report, diagnosis, brand.name)
     return {"diagnosis": diagnosis, "tasks": tasks,
@@ -503,8 +513,8 @@ def progress(brand_id: int, user: User = Depends(current_user),
     if len(recs) < 2:
         return {"has_comparison": False,
                 "message": "完成第二次监测后,这里会显示你的提升对比。"}
-    after = json.loads(recs[0].full_json)
-    before = json.loads(recs[1].full_json)
+    after = _jload(recs[0].full_json, {})
+    before = _jload(recs[1].full_json, {})
     result = compare_reports(before, after)
     result["has_comparison"] = True
     result["before_at"] = recs[1].generated_at
@@ -681,7 +691,7 @@ def get_tracking_code(brand_id: int, user: User = Depends(current_user),
 
 
 @app.get("/api/track")
-def track_visit(tid: str, ref: str = "", page: str = "",
+def track_visit(tid: str, request: Request, ref: str = "", page: str = "",
                 user_agent: str = Header(None),
                 session: Session = Depends(get_session)):
     """
@@ -691,6 +701,12 @@ def track_visit(tid: str, ref: str = "", page: str = "",
     """
     if not tid:
         return {"ok": False}
+    # 限流：同一IP每分钟最多30次上报，防恶意刷假访客污染数据
+    try:
+        _rate_limit(f"track:{_client_ip(request)}", max_calls=30, window_sec=60)
+    except HTTPException:
+        # 超限静默丢弃，不报错（避免影响商家页面）
+        return {"ok": True, "tracked": False}
     # 识别是否AI来源
     source = _detect_ai_source(ref)
     if not source:
@@ -1772,10 +1788,15 @@ def _simulate_demo(keyword, website, mode):
 # 用法：在浏览器访问 /admin?key=你设置的ADMIN_KEY
 # 或用 POST /api/admin/upgrade 升级用户套餐
 
-ADMIN_KEY = os.getenv("ADMIN_KEY", "geo-admin-2026")
+# 安全：必须在 Render 环境变量设置 ADMIN_KEY，否则管理功能禁用
+ADMIN_KEY = os.getenv("ADMIN_KEY", "")
 
 def _check_admin(key: str):
-    if key != ADMIN_KEY:
+    # 未配置 ADMIN_KEY 时，管理功能完全禁用（防止弱默认密钥被猜中）
+    if not ADMIN_KEY:
+        raise HTTPException(503, "管理功能未启用：请先在服务器配置 ADMIN_KEY 环境变量")
+    # 用 hmac.compare_digest 防时序攻击
+    if not hmac.compare_digest(key or "", ADMIN_KEY):
         raise HTTPException(403, "管理员密钥错误")
 
 
