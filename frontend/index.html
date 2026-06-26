@@ -5,896 +5,849 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GEO 雷达 — AI 能见度平台</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-<script>
-// 全局变量，页面加载即可用，登录页模拟器也能访问
-const API = location.origin.includes("file") ? "http://localhost:8000" : "";
-</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
+  /* 暗黑科技底色 */
+  --bg:#05070a;--bg-2:#0a0e14;--bg-3:#0f1520;
+  --panel:rgba(255,255,255,.03);--panel-2:rgba(255,255,255,.05);
+  --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
   /* 文字 */
-  --ink:#0f172a;--ink-soft:#64748b;--ink-faint:#94a3b8;
-  /* 边框背景 */
-  --line:#e8ecf3;--line-soft:#f1f5f9;--bg:#f6f8fc;--card:#fff;
-  /* 品牌色(信任的靛蓝) */
-  --brand:#4f46e5;--brand-soft:#eef2ff;--brand-ink:#3730a3;--brand-grad:linear-gradient(135deg,#4f46e5,#7c3aed);
-  /* 行动色(促购的橙) */
-  --action:#ea580c;--action-soft:#ffedd5;--action-grad:linear-gradient(135deg,#f59e0b,#ea580c);
-  /* 语义色 */
-  --good:#059669;--good-soft:#d1fae5;--warn:#d97706;--warn-soft:#fef3c7;
-  --bad:#dc2626;--bad-soft:#fee2e2;
-  --domestic:#0ea5e9;--domestic-soft:#e0f2fe;--domestic-ink:#0369a1;
-  /* 统一圆角 */
-  --r-sm:8px;--r-md:12px;--r-lg:16px;--r-xl:20px;
-  /* 统一阴影(柔和分层) */
-  --sh-sm:0 1px 3px rgba(15,23,42,.06);
-  --sh-md:0 2px 12px rgba(15,23,42,.06);
-  --sh-lg:0 8px 28px rgba(15,23,42,.10);
-  --sh-brand:0 4px 16px rgba(79,70,229,.25);
-  --sh-action:0 4px 16px rgba(234,88,12,.28);
+  --ink:#eef4fb;--ink-soft:#9aa7b8;--ink-faint:#5e6b7d;
+  /* 霓虹强调 */
+  --cyan:#00f5ff;--cyan-soft:rgba(0,245,255,.12);--cyan-glow:rgba(0,245,255,.35);
+  --lime:#deff9a;--lime-ink:#b6f04e;
+  --brand:#00f5ff;--brand-grad:linear-gradient(135deg,#00f5ff,#4f8bff);
+  --action:#deff9a;--action-grad:linear-gradient(135deg,#deff9a,#8fe34a);
+  /* 语义 */
+  --good:#3ddc84;--good-soft:rgba(61,220,132,.12);
+  --warn:#ffc24b;--warn-soft:rgba(255,194,75,.12);
+  --bad:#ff5d6c;--bad-soft:rgba(255,93,108,.12);
+  --domestic:#41d4ff;--domestic-soft:rgba(65,212,255,.12);--domestic-ink:#9be4ff;
+  /* 圆角 */
+  --r-sm:10px;--r-md:14px;--r-lg:18px;--r-xl:24px;
+  /* 阴影/光晕 */
+  --sh-sm:0 2px 8px rgba(0,0,0,.4);
+  --sh-md:0 8px 28px rgba(0,0,0,.45);
+  --sh-lg:0 18px 50px rgba(0,0,0,.55);
+  --glow-cyan:0 0 0 1px rgba(0,245,255,.25),0 8px 32px rgba(0,245,255,.18);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  background:var(--bg);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth}
+body{
+  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+/* 全局背景光晕(Mesh Gradient) */
+body::before{
+  content:"";position:fixed;inset:0;z-index:-2;
+  background:
+    radial-gradient(60vw 50vh at 12% 8%, rgba(0,245,255,.10), transparent 60%),
+    radial-gradient(50vw 40vh at 88% 0%, rgba(79,139,255,.12), transparent 55%),
+    radial-gradient(50vw 50vh at 80% 90%, rgba(222,255,154,.06), transparent 60%),
+    var(--bg);
+}
+body::after{
+  content:"";position:fixed;inset:0;z-index:-1;opacity:.4;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000,transparent 75%);
+}
 .hidden{display:none!important}
-button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--r-sm);font-size:14px;transition:.18s;font-weight:600}
-.btn-primary{background:var(--brand);color:#fff;padding:11px 22px;border-radius:var(--r-sm)}
-.btn-primary:hover{background:#4338ca;transform:translateY(-1px);box-shadow:var(--sh-brand)}
-.btn-primary:disabled{opacity:.6;cursor:default;transform:none}
-.btn-action{background:var(--action-grad);color:#fff;padding:13px 26px;border-radius:var(--r-md);font-weight:700;box-shadow:var(--sh-action)}
-.btn-action:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(234,88,12,.38)}
-.btn-ghost{background:#fff;color:var(--ink);border:1px solid var(--line);padding:9px 18px;border-radius:var(--r-sm)}
-.btn-ghost:hover{border-color:var(--brand);color:var(--brand)}
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md)}
-input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:11px 13px;
-  border:1.5px solid var(--line);border-radius:var(--r-sm);background:#fff;color:var(--ink);transition:.15s}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
-label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-weight:500}
+
+/* 滚动条 */
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:10px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+
+/* 通用按钮 */
+button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--r-sm);
+  font-size:14px;font-weight:600;transition:.2s;color:var(--ink)}
+.btn-primary{background:var(--cyan-soft);color:var(--cyan);padding:11px 22px;
+  border:1px solid rgba(0,245,255,.3)}
+.btn-primary:hover{background:rgba(0,245,255,.18);box-shadow:var(--glow-cyan);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.45;cursor:default;transform:none;box-shadow:none}
+.btn-action{background:var(--action-grad);color:#0a1400;padding:13px 26px;
+  border-radius:var(--r-md);font-weight:800;box-shadow:0 6px 24px rgba(222,255,154,.25)}
+.btn-action:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(222,255,154,.4)}
+.btn-ghost{background:var(--panel);color:var(--ink-soft);border:1px solid var(--line);padding:9px 18px}
+.btn-ghost:hover{border-color:var(--line-2);color:var(--ink);background:var(--panel-2)}
+.btn-cyan{background:var(--brand-grad);color:#021016;padding:13px 26px;border-radius:var(--r-md);font-weight:800;
+  box-shadow:0 6px 24px rgba(0,245,255,.3)}
+.btn-cyan:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,245,255,.45)}
+
+/* 玻璃卡片 */
+.glass{background:var(--panel);backdrop-filter:blur(18px) saturate(1.2);
+  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md)}
+.glass-2{background:var(--panel-2);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:var(--r-md)}
+
+/* 表单 */
+input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:12px 14px;
+  border:1px solid var(--line);border-radius:var(--r-sm);
+  background:rgba(255,255,255,.04);color:var(--ink);transition:.18s}
+input::placeholder,textarea::placeholder{color:var(--ink-faint)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(0,245,255,.5);
+  box-shadow:0 0 0 3px rgba(0,245,255,.12);background:rgba(255,255,255,.06)}
+select option{background:var(--bg-3);color:var(--ink)}
+label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-weight:500}
 .field{margin-bottom:16px}
 
-/* 顶栏 */
-.topbar{background:rgba(255,255,255,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line);padding:0 28px;
-  display:flex;align-items:center;justify-content:space-between;height:60px;
-  position:sticky;top:0;z-index:50;box-shadow:var(--sh-sm)}
-.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px;color:var(--brand)}
-.logo .dot{width:32px;height:32px;border-radius:9px;
-  background:var(--brand-grad);color:#fff;
-  display:grid;place-items:center;font-size:16px;box-shadow:var(--sh-brand)}
-.plan-tag{font-size:12px;background:var(--brand-soft);color:var(--brand-ink);
-  padding:5px 12px;border-radius:20px;font-weight:600;border:1px solid #c7d2fe}
-.mode-badge{font-size:12px;padding:5px 12px;border-radius:20px;font-weight:600}
-.mode-badge.outbound{background:#fef3c7;color:#92400e;border:1px solid #fde68a}
-.mode-badge.domestic{background:var(--domestic-soft);color:var(--domestic-ink);border:1px solid #bae6fd}
+/* eyebrow标签 */
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);
+  background:var(--cyan-soft);border:1px solid rgba(0,245,255,.22);
+  padding:6px 14px;border-radius:30px}
 
-/* 登录页 */
-.auth-page{min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:linear-gradient(135deg,#f0f4ff 0%,#faf5ff 50%,#f0fdf4 100%);padding:20px}
-.auth-wrap{width:100%;max-width:460px}
-.auth-brand{text-align:center;margin-bottom:28px}
-.auth-brand .logo{justify-content:center;font-size:22px;margin-bottom:12px}
-.auth-brand h1{font-size:26px;font-weight:700;margin-bottom:8px;
-  background:linear-gradient(135deg,var(--brand),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.auth-brand p{color:var(--ink-soft);font-size:14px;line-height:1.6}
-.auth-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:24px}
-.auth-stat{background:#fff;border-radius:12px;padding:14px;text-align:center;border:1px solid var(--line)}
-.auth-stat .n{font-size:20px;font-weight:700;color:var(--brand)}
-.auth-stat .l{font-size:12px;color:var(--ink-soft);margin-top:2px}
-.auth-card{background:#fff;border:1px solid var(--line);border-radius:16px;
-  padding:32px;box-shadow:0 4px 24px rgba(0,0,0,.06)}
-.tab-row{display:flex;gap:0;margin-bottom:24px;background:var(--bg);
-  padding:4px;border-radius:10px;border:1px solid var(--line)}
-.tab-row button{flex:1;padding:9px;background:none;color:var(--ink-soft);border-radius:7px;font-size:14px}
-.tab-row button.on{background:#fff;color:var(--brand);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.08)}
-.trial-badge{background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
-  text-align:center;border-radius:10px;padding:12px;margin-bottom:20px;font-size:13px}
-.trial-badge b{font-size:15px;display:block;margin-bottom:2px}
+/* 通用区块标题 */
+.sec-title{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15}
+.sec-sub{font-size:15px;color:var(--ink-soft);margin-top:12px}
 
-/* 模式选择（第1步核心） */
-.mode-select{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:22px}
-.mode-btn{border:2px solid var(--line);border-radius:14px;padding:18px 14px;
-  text-align:center;cursor:pointer;transition:.2s;background:#fff}
-.mode-btn:hover{border-color:var(--brand);box-shadow:0 4px 16px rgba(79,70,229,.1)}
-.mode-btn.selected-outbound{border-color:#f59e0b;background:#fffbeb;box-shadow:0 4px 16px rgba(245,158,11,.15)}
-.mode-btn.selected-domestic{border-color:var(--domestic);background:var(--domestic-soft);box-shadow:0 4px 16px rgba(14,165,233,.15)}
-.mode-btn .icon{font-size:28px;margin-bottom:8px}
-.mode-btn .title{font-size:15px;font-weight:700;margin-bottom:4px}
-.mode-btn .desc{font-size:12px;color:var(--ink-soft);line-height:1.5}
-.mode-btn .platforms{margin-top:8px;font-size:11px;padding:4px 8px;border-radius:6px;font-weight:500}
-.mode-btn.selected-outbound .platforms{background:#fef3c7;color:#92400e}
-.mode-btn.selected-domestic .platforms{background:#bae6fd;color:#0369a1}
+/* ============ 加载动画 ============ */
+.spinner{width:36px;height:36px;border:3px solid rgba(0,245,255,.15);
+  border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading{text-align:center;color:var(--ink-soft)}
+.loading p{margin-top:14px;font-size:14px}
+
+/* toast */
+#toastBox{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:3000;
+  display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none}
+.toast-item{background:rgba(10,16,24,.95);backdrop-filter:blur(10px);
+  border:1px solid var(--line-2);color:var(--ink);padding:12px 22px;border-radius:var(--r-md);
+  font-size:14px;box-shadow:var(--sh-lg);animation:toastIn .3s}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+
+/* ====================================================================
+   1. 营销官网 #landingView
+   ==================================================================== */
+.lp-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:68px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,60px);
+  background:rgba(5,7,10,.6);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.lp-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.01em}
+.lp-logo .mark{width:34px;height:34px;border-radius:10px;background:var(--brand-grad);
+  display:grid;place-items:center;font-size:17px;color:#021016;
+  box-shadow:0 0 20px rgba(0,245,255,.4)}
+.lp-nav-links{display:flex;align-items:center;gap:22px}
+.lp-nav-links a{color:var(--ink-soft);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
+.lp-nav-links a:hover{color:var(--ink)}
+
+.lp-hero{position:relative;padding:140px clamp(20px,5vw,60px) 80px;max-width:1280px;margin:0 auto;
+  display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
+.lp-hero h1{font-size:clamp(34px,5.5vw,60px);font-weight:850;line-height:1.05;letter-spacing:-.03em}
+.lp-hero h1 .hl{background:linear-gradient(120deg,var(--cyan),#7cc4ff 60%,var(--lime));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lp-hero .lead{font-size:clamp(16px,2.2vw,19px);color:var(--ink-soft);margin:24px 0 14px;max-width:520px;line-height:1.6}
+.lp-hero .urgent{font-size:14px;color:var(--lime-ink);margin-bottom:32px;display:flex;align-items:center;gap:8px}
+.lp-cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.lp-cta-note{font-size:13px;color:var(--ink-faint);margin-top:16px}
+
+/* AI 模拟聊天框(signature element) */
+.ai-chat{position:relative}
+.ai-chat-glow{position:absolute;inset:-40px;z-index:0;
+  background:radial-gradient(circle at 50% 30%,rgba(0,245,255,.18),transparent 65%);filter:blur(20px)}
+.ai-chat-win{position:relative;z-index:1;background:linear-gradient(180deg,rgba(15,21,32,.92),rgba(10,14,20,.92));
+  backdrop-filter:blur(20px);border:1px solid var(--line-2);border-radius:var(--r-xl);
+  box-shadow:var(--sh-lg),0 0 60px rgba(0,245,255,.1);overflow:hidden}
+.ai-chat-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.ai-chat-bar .dot{width:11px;height:11px;border-radius:50%}
+.ai-chat-bar .d1{background:#ff5f57}.ai-chat-bar .d2{background:#febc2e}.ai-chat-bar .d3{background:#28c840}
+.ai-chat-bar .name{margin-left:8px;font-size:13px;color:var(--ink-soft);font-weight:600}
+.ai-chat-body{padding:22px 20px;min-height:280px;display:flex;flex-direction:column;gap:16px}
+.chat-q{align-self:flex-end;max-width:80%;background:var(--cyan-soft);border:1px solid rgba(0,245,255,.25);
+  color:var(--ink);padding:11px 15px;border-radius:14px 14px 4px 14px;font-size:14px}
+.chat-a{align-self:flex-start;max-width:88%;background:rgba(255,255,255,.04);border:1px solid var(--line);
+  padding:13px 16px;border-radius:14px 14px 14px 4px;font-size:13.5px;color:var(--ink-soft);line-height:1.7}
+.chat-a .comp{color:var(--cyan);font-weight:600}
+.chat-a .miss{color:var(--bad);font-weight:600}
+.chat-typing{align-self:flex-start;display:flex;gap:5px;padding:8px 4px}
+.chat-typing span{width:7px;height:7px;border-radius:50%;background:var(--ink-faint);animation:typing 1.4s infinite}
+.chat-typing span:nth-child(2){animation-delay:.2s}.chat-typing span:nth-child(3){animation-delay:.4s}
+@keyframes typing{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-4px)}}
+.chat-alert{margin-top:6px;background:var(--bad-soft);border:1px solid rgba(255,93,108,.3);
+  border-radius:10px;padding:12px 14px;font-size:13px;color:#ffb3bb;display:flex;gap:9px;align-items:flex-start}
+
+/* logo 信任墙 */
+.lp-trust{max-width:1280px;margin:0 auto;padding:40px clamp(20px,5vw,60px);
+  border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.lp-trust .label{text-align:center;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-faint);margin-bottom:24px}
+.lp-logos{display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(20px,4vw,52px);align-items:center}
+.lp-logos .lg{font-size:clamp(15px,2vw,19px);font-weight:700;color:var(--ink-faint);
+  opacity:.6;filter:grayscale(1);transition:.3s;letter-spacing:-.01em}
+.lp-logos .lg:hover{opacity:1;filter:grayscale(0);color:var(--ink-soft)}
+
+/* 数据指标条 */
+.lp-stats{max-width:1280px;margin:0 auto;padding:56px clamp(20px,5vw,60px);
+  display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.lp-stat{padding:26px;border-radius:var(--r-lg)}
+.lp-stat .num{font-size:clamp(30px,4vw,46px);font-weight:850;line-height:1;
+  background:linear-gradient(120deg,var(--cyan),var(--lime));-webkit-background-clip:text;
+  background-clip:text;-webkit-text-fill-color:transparent}
+.lp-stat .desc{font-size:13.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
+.lp-stat .src{font-size:11px;color:var(--ink-faint);margin-top:8px}
+
+/* 通用 section */
+.lp-section{max-width:1280px;margin:0 auto;padding:80px clamp(20px,5vw,60px)}
+.lp-section-head{text-align:center;max-width:680px;margin:0 auto 52px}
+
+/* 三步流程 */
+.flow-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+.flow-card{padding:32px 26px;border-radius:var(--r-lg);position:relative}
+.flow-card .step-n{position:absolute;top:24px;right:26px;font-size:13px;font-weight:800;color:var(--cyan);opacity:.5}
+.flow-card .ic{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;font-size:25px;margin-bottom:20px;
+  background:var(--cyan-soft);border:1px solid rgba(0,245,255,.2)}
+.flow-card h3{font-size:18px;font-weight:700;margin-bottom:10px}
+.flow-card p{font-size:14px;color:var(--ink-soft);line-height:1.65}
+
+/* 案例 */
+.case-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:22px}
+.case-card{padding:26px;border-radius:var(--r-lg)}
+.case-card .ind{font-size:13px;color:var(--ink-faint);font-weight:600;margin-bottom:18px}
+.case-prog{display:flex;align-items:center;gap:14px;margin-bottom:18px}
+.case-prog .col{text-align:center;flex:1}
+.case-prog .lbl{font-size:12px;color:var(--ink-faint);margin-bottom:4px}
+.case-prog .bf{font-size:28px;font-weight:850;color:var(--bad)}
+.case-prog .af{font-size:28px;font-weight:850;color:var(--good)}
+.case-prog .arrow{font-size:22px;color:var(--cyan)}
+.case-card .story{background:rgba(255,255,255,.03);border-radius:10px;padding:13px;
+  font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px}
+.case-card .quote{font-size:13px;color:var(--ink);font-style:italic;line-height:1.6}
+
+/* 营销页脚 */
+.lp-footer{border-top:1px solid var(--line);padding:40px clamp(20px,5vw,60px);text-align:center}
+.lp-footer .badge{display:inline-block;background:var(--good-soft);color:var(--good);
+  border:1px solid rgba(61,220,132,.25);padding:6px 16px;border-radius:20px;font-size:12px;font-weight:600;margin-bottom:14px}
+.lp-footer .fine{font-size:12px;color:var(--ink-faint);line-height:1.8}
+.lp-footer a{color:var(--cyan);text-decoration:none}
+
+/* ====================================================================
+   2. 登录/注册 #authView
+   ==================================================================== */
+.auth-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
+.auth-visual{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;
+  padding:48px;background:linear-gradient(160deg,#0a1420,#05070a)}
+.auth-visual::before{content:"";position:absolute;inset:0;z-index:0;
+  background:radial-gradient(60% 50% at 30% 20%,rgba(0,245,255,.18),transparent 60%),
+    radial-gradient(50% 50% at 80% 80%,rgba(79,139,255,.16),transparent 60%)}
+.auth-visual::after{content:"";position:absolute;inset:0;z-index:0;opacity:.5;
+  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;
+  mask-image:radial-gradient(ellipse 70% 70% at 40% 40%,#000,transparent)}
+.auth-visual .av-top,.auth-visual .av-mid,.auth-visual .av-bot{position:relative;z-index:1}
+.auth-visual .av-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:20px}
+.auth-visual .av-logo .mark{width:36px;height:36px;border-radius:10px;background:var(--brand-grad);
+  display:grid;place-items:center;color:#021016;box-shadow:0 0 24px rgba(0,245,255,.45)}
+.auth-visual .av-quote{font-size:clamp(26px,3vw,38px);font-weight:800;line-height:1.2;letter-spacing:-.02em;max-width:440px}
+.auth-visual .av-quote .hl{color:var(--cyan)}
+.auth-visual .av-desc{font-size:15px;color:var(--ink-soft);margin-top:20px;max-width:400px;line-height:1.7}
+.auth-visual .av-metrics{display:flex;gap:32px;margin-top:8px}
+.auth-visual .av-metric .n{font-size:28px;font-weight:850;color:var(--lime)}
+.auth-visual .av-metric .l{font-size:12px;color:var(--ink-soft);margin-top:4px}
+
+.auth-form-side{display:flex;align-items:center;justify-content:center;padding:40px 24px;position:relative}
+.auth-card{width:100%;max-width:400px;padding:38px 34px;border-radius:var(--r-xl)}
+.auth-back{position:absolute;top:28px;left:28px;font-size:13px;color:var(--ink-soft);
+  background:none;border:none;cursor:pointer}
+.auth-back:hover{color:var(--ink)}
+.auth-card h2{font-size:25px;font-weight:800;margin-bottom:6px}
+.auth-card .sub{font-size:14px;color:var(--ink-soft);margin-bottom:26px}
+.auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,.04);padding:5px;border-radius:12px;margin-bottom:24px}
+.auth-tab{flex:1;padding:10px;border-radius:8px;font-size:14px;font-weight:600;text-align:center;
+  background:none;color:var(--ink-soft);transition:.2s}
+.auth-tab.active{background:var(--cyan-soft);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(0,245,255,.25)}
+.auth-err{font-size:13px;color:var(--bad);margin-bottom:14px;min-height:18px}
+
+/* ====================================================================
+   3. 专业工作台 #appView  (Sidebar + Main)
+   ==================================================================== */
+.app-shell{display:flex;min-height:100vh}
+.sidebar{width:248px;flex-shrink:0;background:rgba(8,12,18,.7);backdrop-filter:blur(16px);
+  border-right:1px solid var(--line);display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;padding:22px 16px}
+.sb-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:18px;padding:6px 10px 24px}
+.sb-logo .mark{width:32px;height:32px;border-radius:9px;background:var(--brand-grad);
+  display:grid;place-items:center;color:#021016;font-size:15px;box-shadow:0 0 18px rgba(0,245,255,.4)}
+.sb-nav{display:flex;flex-direction:column;gap:4px;flex:1}
+.sb-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-sm);
+  font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.18s;border:1px solid transparent}
+.sb-item:hover{background:var(--panel-2);color:var(--ink)}
+.sb-item.active{background:var(--cyan-soft);color:var(--cyan);border-color:rgba(0,245,255,.22)}
+.sb-item .ic{font-size:17px}
+.sb-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
+.sb-plan{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
+  background:var(--panel);border-radius:var(--r-sm);font-size:12px;color:var(--ink-soft)}
+.sb-plan .tag{color:var(--lime);font-weight:700}
+
+.main-area{flex:1;min-width:0;display:flex;flex-direction:column}
+.main-topbar{height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:0 clamp(20px,3vw,36px);border-bottom:1px solid var(--line);
+  background:rgba(5,7,10,.5);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
+.main-crumb{font-size:15px;font-weight:700}
+.main-crumb .sub{font-size:13px;color:var(--ink-faint);font-weight:400;margin-left:10px}
+.main-actions{display:flex;align-items:center;gap:12px}
+.user-chip{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--panel);
+  border:1px solid var(--line);border-radius:30px;font-size:13px;color:var(--ink-soft)}
+.user-chip .av{width:26px;height:26px;border-radius:50%;background:var(--brand-grad);
+  display:grid;place-items:center;color:#021016;font-size:12px;font-weight:800}
+.main-content{flex:1;padding:clamp(20px,3vw,36px);max-width:1200px;width:100%;margin:0 auto}
+
+/* 工作流卡片 */
+.wf-card{padding:28px;border-radius:var(--r-lg);margin-bottom:22px}
+.wf-progress{display:flex;align-items:center;gap:0;margin-bottom:28px}
+.wf-step{display:flex;align-items:center;gap:10px;flex:1}
+.wf-step .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  font-size:14px;font-weight:700;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-faint);flex-shrink:0}
+.wf-step.active .num{background:var(--cyan-soft);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 16px rgba(0,245,255,.3)}
+.wf-step.done .num{background:var(--good-soft);border-color:var(--good);color:var(--good)}
+.wf-step .lbl{font-size:13px;color:var(--ink-soft);font-weight:600;white-space:nowrap}
+.wf-step.active .lbl{color:var(--ink)}
+.wf-step .bar{flex:1;height:2px;background:var(--line);margin:0 12px;border-radius:2px}
+.wf-step.done .bar{background:var(--good)}
+
+/* 指标四宫格(深色) */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+.metric{padding:20px;border-radius:var(--r-md)}
+.metric .mv{font-size:30px;font-weight:850;line-height:1}
+.metric .ml{font-size:12px;color:var(--ink-soft);margin-top:8px}
+
+/* 模式选择卡 */
+.mode-select{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mode-card{padding:24px;border-radius:var(--r-lg);cursor:pointer;border:1px solid var(--line);
+  background:var(--panel);transition:.2s}
+.mode-card:hover{border-color:var(--line-2);background:var(--panel-2)}
+.mode-card.sel{border-color:var(--cyan);box-shadow:var(--glow-cyan);background:var(--cyan-soft)}
+.mode-card .mi{font-size:30px;margin-bottom:12px}
+.mode-card h4{font-size:17px;font-weight:700;margin-bottom:6px}
+.mode-card p{font-size:13px;color:var(--ink-soft);line-height:1.5}
+
+/* 平台标签 */
+.kw-tag{display:inline-block;background:var(--cyan-soft);border:1px solid rgba(0,245,255,.2);
+  color:var(--cyan);border-radius:7px;padding:4px 11px;font-size:12px;margin:3px;white-space:nowrap}
+.ws-tab{padding:10px 18px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);
+  font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.2s}
+.ws-tab:hover{color:var(--ink);border-color:var(--line-2)}
+.ws-tab.active{background:var(--cyan-soft);color:var(--cyan);border-color:rgba(0,245,255,.3)}
+
+/* 套餐卡(深色) */
+.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.plan{padding:30px 26px;border-radius:var(--r-lg);position:relative;border:1px solid var(--line);background:var(--panel)}
+.plan.popular{border-color:var(--cyan);box-shadow:var(--glow-cyan)}
+.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  background:var(--action-grad);color:#0a1400;font-size:12px;font-weight:800;padding:5px 16px;border-radius:20px}
+.plan-name{font-size:17px;font-weight:700;margin-bottom:8px}
+.plan-price{font-size:38px;font-weight:850;color:var(--cyan)}
+.plan-price span{font-size:15px;color:var(--ink-faint);font-weight:500}
+.plan-desc{font-size:13px;color:var(--ink-soft);margin:8px 0 18px;min-height:36px}
+.plan-features{list-style:none;margin-bottom:22px}
+.plan-features li{font-size:13.5px;color:var(--ink-soft);padding:7px 0;padding-left:24px;position:relative}
+.plan-features li::before{content:"✓";position:absolute;left:0;color:var(--good);font-weight:800}
+
+/* report/dashboard 通用 */
+.shell{max-width:1100px;margin:0 auto}
+.section-card{padding:24px;border-radius:var(--r-lg);margin-bottom:20px;
+  background:var(--panel);border:1px solid var(--line)}
+
+/* ============ JS依赖的兼容class(暗黑适配) ============ */
+.card{background:var(--panel);backdrop-filter:blur(16px);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:28px;box-shadow:var(--sh-md);margin-bottom:20px}
+.card.hidden{display:none!important}
+.card h2{font-size:21px;font-weight:800;margin-bottom:8px}
+.card .sub{font-size:14px;color:var(--ink-soft);margin-bottom:22px}
+.card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:18px}
 
 /* 步骤条 */
-.steps{display:flex;margin-bottom:24px;background:#fff;border:1px solid var(--line);
-  border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-.step{flex:1;padding:13px 10px;text-align:center;font-size:12px;color:var(--ink-soft);
-  border-right:1px solid var(--line);transition:.2s;cursor:pointer}
-.step:last-child{border-right:none}
-.step:hover{background:var(--bg)}
-.step.on{background:linear-gradient(135deg,#eef2ff,#faf5ff);color:var(--brand-ink);font-weight:600}
-.step.done{color:var(--good)}
-.step .n{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;
-  background:var(--line);color:var(--ink-soft);font-size:11px;margin-right:4px;vertical-align:-4px;font-weight:600}
-.step.on .n{background:var(--brand);color:#fff}
-.step.done .n{background:var(--good);color:#fff}
+.steps{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
+.step{display:flex;align-items:center;gap:8px;padding:10px 16px;border-radius:30px;
+  font-size:13px;font-weight:600;color:var(--ink-faint);background:var(--panel);
+  border:1px solid var(--line);cursor:pointer;transition:.2s;white-space:nowrap}
+.step:hover{color:var(--ink-soft);border-color:var(--line-2)}
+.step .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  font-size:12px;background:var(--panel-2);border:1px solid var(--line)}
+.step.on{color:var(--cyan);background:var(--cyan-soft);border-color:rgba(0,245,255,.3)}
+.step.on .n{background:var(--cyan);color:#021016;border-color:var(--cyan)}
 
-/* 卡片 */
-.shell{max-width:1000px;margin:0 auto;padding:24px 20px 80px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;
-  padding:26px;margin-bottom:18px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
-.card h2{font-size:18px;font-weight:700;margin-bottom:6px}
-.card .sub{color:var(--ink-soft);font-size:14px;margin-bottom:20px;line-height:1.6}
-.card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;gap:12px}
+/* 模式选择按钮(JS用mode-btn/selected-*) */
+.mode-btn{padding:24px;border-radius:var(--r-lg);cursor:pointer;border:1px solid var(--line);
+  background:var(--panel);transition:.2s;text-align:center}
+.mode-btn:hover{border-color:var(--line-2);background:var(--panel-2)}
+.mode-btn.selected-outbound,.mode-btn.selected-domestic{
+  border-color:var(--cyan);box-shadow:var(--glow-cyan);background:var(--cyan-soft)}
+.mode-btn .icon{font-size:32px;margin-bottom:12px}
+.mode-btn .title{font-size:17px;font-weight:700;margin-bottom:8px}
+.mode-btn .desc{font-size:13px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px}
+.mode-btn .platforms{font-size:11px;color:var(--cyan);font-weight:500}
 
-/* 历史折线图 */
-.chart-card{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid #e0e7ff;
-  border-radius:14px;padding:20px;margin-bottom:20px}
-.chart-card .chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
-.chart-card h3{font-size:15px;font-weight:700;color:var(--brand-ink)}
-.trend-badge{font-size:13px;font-weight:600;padding:5px 12px;border-radius:20px}
+/* 模式徽章 */
+.mode-badge.outbound{background:var(--warn-soft);color:var(--warn);border:1px solid rgba(255,194,75,.25)}
+.mode-badge.domestic{background:var(--domestic-soft);color:var(--domestic-ink);border:1px solid rgba(65,212,255,.25)}
+
+/* 关键词卡 */
+.kw-card{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:16px;margin-bottom:16px}
+.kw-card.hidden{display:none!important}
+
+/* 图表卡(深色) */
+.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:22px;margin-bottom:20px}
+.chart-card.hidden{display:none!important}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.chart-header h3{font-size:16px;font-weight:700}
+.trend-badge{font-size:12px;padding:5px 12px;border-radius:20px;font-weight:600;
+  background:var(--panel-2);color:var(--ink-soft);border:1px solid var(--line)}
 .trend-badge.up{background:var(--good-soft);color:var(--good)}
 .trend-badge.down{background:var(--bad-soft);color:var(--bad)}
-.trend-badge.flat{background:var(--bg);color:var(--ink-soft)}
+.trend-badge.flat{background:var(--panel-2);color:var(--ink-soft)}
 
-/* 报告指标 */
-.metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:22px}
-.metric{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid var(--line);
-  border-radius:12px;padding:18px;position:relative;overflow:hidden}
-.metric::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.metric.green::before{background:linear-gradient(90deg,#059669,#10b981)}
-.metric.red::before{background:linear-gradient(90deg,#dc2626,#ef4444)}
-.metric.blue::before{background:linear-gradient(90deg,var(--brand),#7c3aed)}
-.metric .lab{font-size:12px;color:var(--ink-soft);margin-bottom:8px;font-weight:500}
-.metric .val{font-size:30px;font-weight:700;line-height:1}
-.metric .delta{font-size:12px;margin-top:6px}
+/* section标题 */
+.section-title{font-size:15px;font-weight:700;margin:24px 0 14px;color:var(--ink)}
 
-/* 平台卡片 */
-.platforms{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:22px}
-.pf{border:1px solid var(--line);border-radius:12px;padding:14px;background:#fff}
-.pf .nm{font-size:13px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
-.pf-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:500}
-.bar{height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
-.bar i{display:block;height:100%;border-radius:4px;transition:width 1s ease}
-.pf .rt{font-size:12px;color:var(--ink-soft);margin-top:7px}
+/* note */
+.note{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md);
+  padding:14px;font-size:13px;color:var(--ink-soft);margin-top:16px;line-height:1.6}
 
-/* 缺口 */
-.gap{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-  padding:14px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;
-  background:#fff;transition:.15s}
-.gap:hover{border-color:var(--brand);box-shadow:0 2px 8px rgba(79,70,229,.08)}
-.gap .dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:5px}
-.gap .info{min-width:0;flex:1}
-.gap .ti{font-size:13px;font-weight:600;margin-bottom:3px}
-.gap .meta{font-size:12px;color:var(--ink-soft)}
-.gap button{flex-shrink:0;font-size:12px;padding:7px 12px;
-  background:var(--brand-soft);color:var(--brand-ink);border:1px solid #c7d2fe;border-radius:7px;white-space:nowrap}
-.gap button:hover{background:var(--brand);color:#fff}
+/* platforms网格 */
+.platforms{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-bottom:8px}
 
-/* 短板卡片 */
-.factor{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;overflow:hidden}
-.factor-head{display:flex;justify-content:space-between;align-items:center;padding:13px 16px;background:#fff}
-.factor-body{padding:0 16px 14px;background:#fff}
-.factor .fn{font-size:13px;font-weight:600}
-.factor .fw{font-size:12px;color:var(--ink-soft);line-height:1.6;margin-bottom:8px}
-.factor .fp{font-size:14px;font-weight:700;color:var(--bad);flex-shrink:0}
-.logic-box{margin-bottom:8px;padding:10px 12px;background:#f0f4ff;border-radius:8px;border-left:3px solid var(--brand)}
-.logic-box .lh{font-size:11px;font-weight:600;color:var(--brand-ink);margin-bottom:4px}
-.logic-box .lt{font-size:12px;color:var(--ink-soft);line-height:1.6}
-.guide-box{padding:10px 12px;background:#f0fdf4;border-radius:8px;border-left:3px solid var(--good)}
-.guide-box .gt{font-size:12px;color:#065f46;line-height:1.6}
+/* 套餐页容器 */
+.pricing-page{max-width:1000px;margin:0 auto;padding:60px clamp(20px,4vw,40px)}
+.pricing-page h1{font-size:clamp(26px,4vw,38px);font-weight:850;text-align:center;letter-spacing:-.02em}
+.pricing-page .sub{text-align:center;font-size:15px;color:var(--ink-soft);margin:12px 0 44px}
 
-/* 任务卡 */
-.task{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;background:#fff;transition:.15s}
-.task:hover{border-color:#c7d2fe;box-shadow:0 2px 12px rgba(79,70,229,.08)}
-.task-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.task-step{width:26px;height:26px;border-radius:50%;
-  background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
-  display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0}
-.task-title{font-size:14px;font-weight:600;flex:1}
-.task-pri{font-size:11px;padding:3px 9px;border-radius:10px;font-weight:600}
-.task-pri.high{background:var(--bad-soft);color:var(--bad)}
-.task-pri.medium{background:var(--warn-soft);color:var(--warn)}
-.task-lever{display:inline-block;font-size:11px;color:var(--brand-ink);
-  background:var(--brand-soft);padding:3px 9px;border-radius:10px;border:1px solid #c7d2fe;margin-bottom:8px}
-.task-why{font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:8px}
-.task-lift{font-size:13px;color:var(--good);font-weight:600;margin-bottom:10px}
-.task-lift::before{content:"📈 "}
+/* toast(JS用#toast) */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:3000;
+  background:rgba(10,16,24,.96);backdrop-filter:blur(10px);border:1px solid var(--line-2);
+  color:var(--ink);padding:13px 24px;border-radius:var(--r-md);font-size:14px;
+  box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:.3s;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
-/* 行动工单 */
-.action-order{background:linear-gradient(135deg,#f0fdf4,#fff);border:1px solid #a7f3d0;
-  border-radius:12px;padding:16px;margin-bottom:12px}
-.action-order .ao-title{font-weight:600;font-size:13px;color:#065f46;margin-bottom:10px}
-.ao-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.ao-item{background:#fff;border:1px solid #d1fae5;border-radius:8px;padding:10px 12px}
-.ao-item .ai-platform{font-weight:600;font-size:13px;color:#065f46;margin-bottom:4px}
-.ao-item .ai-tip{font-size:12px;color:var(--ink-soft);line-height:1.5}
-.ao-item .ai-kw{margin-top:6px;font-size:11px;padding:3px 8px;background:#dcfce7;
-  color:#166534;border-radius:6px;display:inline-block}
-
-/* 内容输出 */
-.content-out{background:linear-gradient(135deg,var(--bg),#fff);border:1px solid #c7d2fe;
-  border-radius:12px;padding:20px;margin-top:14px}
-.content-out h3{font-size:15px;font-weight:700;margin-bottom:12px;color:var(--brand-ink)}
-.content-out .body-text{font-size:14px;line-height:1.8;color:var(--ink);white-space:pre-wrap}
-.content-out .tip{margin-top:14px;padding:10px 14px;background:var(--brand-soft);
-  border-radius:8px;font-size:13px;color:var(--brand-ink);border-left:3px solid var(--brand)}
-
-/* 套餐页 */
-.pricing-page{max-width:880px;margin:0 auto;padding:40px 20px 80px}
-.pricing-page h1{text-align:center;font-size:26px;font-weight:700;margin-bottom:8px}
-.pricing-page .sub{text-align:center;color:var(--ink-soft);margin-bottom:32px;font-size:14px}
-.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
-.plan{background:#fff;border:2px solid var(--line);border-radius:16px;padding:26px;position:relative;transition:.2s}
-.plan:hover{border-color:var(--brand);box-shadow:0 4px 24px rgba(79,70,229,.12)}
-.plan.popular{border-color:var(--brand);box-shadow:0 4px 24px rgba(79,70,229,.15)}
-.plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);
-  background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;
-  font-size:12px;padding:4px 14px;border-radius:20px;font-weight:600;white-space:nowrap}
-.plan-name{font-size:16px;font-weight:700;margin-bottom:6px}
-.plan-price{font-size:34px;font-weight:700;color:var(--brand);margin:12px 0}
-.plan-price span{font-size:14px;color:var(--ink-soft);font-weight:400}
-.plan-desc{font-size:13px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5}
-.plan-features{list-style:none;margin-bottom:22px}
-.plan-features li{font-size:13px;padding:5px 0;border-bottom:1px solid var(--bg);
-  display:flex;align-items:center;gap:8px}
-.plan-features li::before{content:"✓";color:var(--good);font-weight:700;flex-shrink:0}
-
-/* 问题列表 */
-.qitem{display:flex;align-items:flex-start;gap:10px;padding:10px 0;
-  border-bottom:1px solid var(--line);font-size:14px}
-.qitem input[type=checkbox]{width:auto;margin-top:3px;accent-color:var(--brand)}
-.q-en{font-weight:500;margin-bottom:2px}
-.q-cn{font-size:12px;color:var(--ink-soft);margin-top:2px}
-.cat{font-size:11px;color:var(--brand-ink);background:var(--brand-soft);
-  padding:2px 8px;border-radius:10px;white-space:nowrap;border:1px solid #c7d2fe;flex-shrink:0}
-
-/* 品牌关键词卡 */
-.kw-card{background:var(--bg);border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px}
-.kw-tag{display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;
-  padding:3px 10px;font-size:12px;margin:2px;white-space:nowrap}
-.ws-tab{padding:10px 18px;border:1.5px solid var(--line);border-radius:10px;background:#fff;
-  font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
-.ws-tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
-
-/* 加载 */
-.loading{text-align:center;padding:48px;color:var(--ink-soft)}
-.spinner{width:36px;height:36px;border:3px solid var(--line);
-  border-top-color:var(--brand);border-radius:50%;
-  animation:spin .8s linear infinite;margin:0 auto 16px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
-  background:var(--ink);color:#fff;padding:12px 24px;border-radius:10px;
-  font-size:14px;z-index:99;opacity:0;transition:.3s;pointer-events:none;
-  box-shadow:0 4px 20px rgba(0,0,0,.2)}
-.toast.show{opacity:1}
-.note{font-size:12px;color:var(--ink-soft);background:var(--bg);padding:12px 16px;
-  border-radius:8px;margin-top:18px;line-height:1.7;border:1px solid var(--line)}
-.section-title{font-weight:700;font-size:15px;margin:24px 0 12px;display:flex;align-items:center;gap:8px}
-@media(max-width:640px){.metrics,.platforms,.plans,.ao-grid,.mode-select{grid-template-columns:1fr}
-  .auth-stats{grid-template-columns:repeat(2,1fr)}
-  .steps{flex-wrap:wrap}.step{flex:1 1 50%}}
+/* 响应式 */
+@media(max-width:960px){
+  .lp-hero{grid-template-columns:1fr;gap:40px;padding-top:110px}
+  .auth-wrap{grid-template-columns:1fr}
+  .auth-visual{display:none}
+  .lp-stats{grid-template-columns:repeat(2,1fr)}
+  .sidebar{display:none}
+}
+@media(max-width:640px){
+  .flow-grid,.plans,.mode-select,.metrics{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .lp-stats{grid-template-columns:repeat(2,1fr)}
+  .wf-step .lbl{display:none}
+  .lp-nav-links{gap:12px}
+}
 </style>
 </head>
 <body>
 
-<!-- ===== 登录页 ===== -->
-<div id="authView">
-<div style="min-height:100vh;background:var(--bg)">
-
-  <!-- 顶栏 -->
-  <div style="background:#fff;border-bottom:1px solid var(--line);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 1px 4px rgba(0,0,0,.06)">
-    <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:var(--brand)">
-      <span style="width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--brand),#7c3aed);display:grid;place-items:center;font-size:14px;color:#fff;flex-shrink:0">◎</span>
-      GEO 雷达
+<!-- ====================================================================
+     1. 营销官网 #landingView
+     ==================================================================== -->
+<div id="landingView">
+  <!-- 顶部导航 -->
+  <nav class="lp-nav">
+    <div class="lp-logo"><span class="mark">◎</span>GEO 雷达</div>
+    <div class="lp-nav-links">
+      <a href="#how">如何运作</a>
+      <a href="#cases">成功案例</a>
+      <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
+      <button class="btn-cyan" style="padding:9px 20px" onclick="gotoAuth('reg')">免费体验</button>
     </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <a href="/simulator" style="font-size:13px;color:var(--brand);font-weight:600;text-decoration:none;
-        background:#eef2ff;padding:7px 12px;border-radius:8px;border:1px solid #c7d2fe;white-space:nowrap;display:none" id="simLink">
-        🔍 模拟器
-      </a>
-      <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-        style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
-        免费体检 →
-      </button>
+  </nav>
+
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div>
+      <div class="eyebrow" style="margin-bottom:24px">● 每天 2.4 亿+ 次 AI 品牌推荐查询</div>
+      <h1>你的品牌，<br><span class="hl">AI 搜得到吗？</span></h1>
+      <p class="lead">让 AI 主动推荐你，把客户送上门，而不是把订单推给对手。8 大 AI 平台实时监测，看清你在 AI 时代的真实位置。</p>
+      <p class="urgent">🔥 你的同行已经在用 AI 抢流量了 — 58% 的买家改用 AI 找供应商</p>
+      <div class="lp-cta-row">
+        <button class="btn-action" onclick="gotoAuth('reg')">立即免费体检 →</button>
+        <button class="btn-ghost" style="padding:13px 24px" onclick="gotoAuth('login')">已有账号登录</button>
+      </div>
+      <div class="lp-cta-note">无需信用卡 · 30 秒出结果 · ¥9.9 解锁完整报告</div>
+    </div>
+
+    <!-- signature: AI 模拟聊天框 -->
+    <div class="ai-chat">
+      <div class="ai-chat-glow"></div>
+      <div class="ai-chat-win">
+        <div class="ai-chat-bar">
+          <span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span>
+          <span class="name">ChatGPT · 你的客户正在搜索</span>
+        </div>
+        <div class="ai-chat-body">
+          <div class="chat-q">推荐几个质量好、有认证的出海充电宝品牌</div>
+          <div class="chat-typing"><span></span><span></span><span></span></div>
+          <div class="chat-a">
+            根据口碑和评测，推荐这几个品牌：<br>
+            <span class="comp">✓ Anker</span> · <span class="comp">✓ RavPower</span> · <span class="comp">✓ Baseus</span>
+            <div class="chat-alert">
+              <span>🔴</span>
+              <div><b style="color:#ff8b96">你的品牌：没有出现</b><br>客户直接点击了竞品的链接下单</div>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:12px;color:var(--ink-faint);margin-top:4px">
+            ⚡ 这样的对话每天数百万次，你出现了几次？
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 信任 logo 墙 -->
+  <div class="lp-trust">
+    <div class="label">同步监测 8 大主流 AI 平台</div>
+    <div class="lp-logos">
+      <span class="lg">ChatGPT</span><span class="lg">Gemini</span><span class="lg">Claude</span>
+      <span class="lg">Perplexity</span><span class="lg">DeepSeek</span><span class="lg">通义千问</span>
+      <span class="lg">Kimi</span><span class="lg">豆包</span>
     </div>
   </div>
 
-  <!-- 手机端：单列布局 / 电脑端：左右分栏 -->
-  <div style="max-width:1100px;margin:0 auto;padding:40px 20px 60px">
-    <div id="landingGrid" style="display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start">
+  <!-- 数据指标 -->
+  <div class="lp-stats">
+    <div class="lp-stat glass"><div class="num">58%</div><div class="desc">买家改用 AI 找供应商</div><div class="src">Gartner 2025</div></div>
+    <div class="lp-stat glass"><div class="num">25%</div><div class="desc">传统搜索流量正在消失</div><div class="src">Gartner 2026</div></div>
+    <div class="lp-stat glass"><div class="num">8 大</div><div class="desc">AI 平台同步监测覆盖</div><div class="src">国内外全覆盖</div></div>
+    <div class="lp-stat glass"><div class="num">30 秒</div><div class="desc">出体检结果</div><div class="src">即时反馈</div></div>
+  </div>
 
-      <!-- 左侧/手机端主内容 -->
-      <div>
+  <!-- 三步流程 -->
+  <section class="lp-section" id="how">
+    <div class="lp-section-head">
+      <div class="eyebrow" style="margin-bottom:14px">⚡ 简单三步</div>
+      <h2 class="sec-title">不用懂技术，跟着做就行</h2>
+      <p class="sec-sub">从查清问题到让 AI 推荐你，全程有我们带着走</p>
+    </div>
+    <div class="flow-grid">
+      <div class="flow-card glass"><span class="step-n">01</span><div class="ic">🔍</div><h3>免费体检</h3><p>输入品牌，30 秒查清 AI 到底推没推你，缺口在哪一目了然。</p></div>
+      <div class="flow-card glass"><span class="step-n">02</span><div class="ic">✍️</div><h3>一键创作</h3><p>我基于你的品牌直接写好内容，你复制就能发，不用自己绞尽脑汁。</p></div>
+      <div class="flow-card glass"><span class="step-n">03</span><div class="ic">📈</div><h3>看着增长</h3><p>增长看板追踪提及率变化，看 AI 给你带来多少真实访客。</p></div>
+    </div>
+  </section>
 
-        <!-- 顶部标签：横排，固定一行 -->
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:20px;overflow:hidden">
-          <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1.5s infinite;flex-shrink:0"></span>
-          <span style="font-size:12px;color:#dc2626;font-weight:600;white-space:nowrap">每天 <b>2.4亿+</b> 次 AI 品牌推荐查询正在发生</span>
+  <!-- 案例 -->
+  <section class="lp-section" id="cases" style="padding-top:0">
+    <div class="lp-section-head">
+      <div class="eyebrow" style="margin-bottom:14px">📈 真实效果</div>
+      <h2 class="sec-title">他们已经让 AI 开始推荐自己</h2>
+      <p class="sec-sub">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:var(--lime-ink)" id="avgImprove">34</b> 个百分点</p>
+    </div>
+    <div class="case-grid" id="casesContainer"></div>
+    <div style="text-align:center;margin-top:36px">
+      <button class="btn-action" onclick="gotoAuth('reg')">我也要让 AI 推荐我 →</button>
+    </div>
+  </section>
+
+  <!-- 页脚 -->
+  <div class="lp-footer">
+    <div class="badge">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</div>
+    <div class="fine">
+      GEO 雷达提供 AI 能见度监测与内容优化建议，不保证特定效果，生成内容请发布前自行核实<br>
+      <a href="/terms">服务条款与合规声明</a> · 客服微信 jenly222
+    </div>
+  </div>
+</div>
+
+<!-- ====================================================================
+     2. 登录/注册 #authView
+     ==================================================================== -->
+<div id="authView" class="hidden">
+  <div class="auth-wrap">
+    <!-- 左：科技视觉 -->
+    <div class="auth-visual">
+      <div class="av-top">
+        <div class="av-logo"><span class="mark">◎</span>GEO 雷达</div>
+      </div>
+      <div class="av-mid">
+        <div class="av-quote">在 AI 决定<span class="hl">谁被推荐</span>的时代，<br>先看清你的位置。</div>
+        <p class="av-desc">8 大 AI 平台实时监测，把"AI 推不推你"这件看不见的事，变成你能看懂、能行动的数据。</p>
+      </div>
+      <div class="av-bot">
+        <div class="av-metrics">
+          <div class="av-metric"><div class="n">8</div><div class="l">AI 平台监测</div></div>
+          <div class="av-metric"><div class="n">2.4亿+</div><div class="l">日查询量</div></div>
+          <div class="av-metric"><div class="n">30秒</div><div class="l">出结果</div></div>
         </div>
+      </div>
+    </div>
 
-        <!-- 核心标题 -->
-        <h1 style="font-size:clamp(28px,7vw,54px);font-weight:900;line-height:1.15;color:var(--ink);margin-bottom:14px;letter-spacing:-.5px">
-          你的品牌，<br>
-          <span style="background:linear-gradient(135deg,var(--brand),#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent">
-            AI 搜得到吗？
-          </span>
-        </h1>
-
-        <!-- 副标题 -->
-        <p style="font-size:clamp(16px,4.5vw,20px);color:#334155;margin-bottom:10px;line-height:1.6;font-weight:400">
-          让 AI 主动推荐你，<br>把客户<b style="color:#059669">送上门</b>，而不是推给<b style="color:#dc2626">对手</b>。
-        </p>
-        <p style="font-size:14px;color:var(--ink-soft);margin-bottom:28px;line-height:1.7">
-          🔥 你的同行已经在用 AI 抢流量了。58% 的买家改用 AI 找供应商，免费查一查你被推荐了没。
-        </p>
-
-        <!-- CTA 按钮 -->
-        <div style="margin-bottom:36px">
-          <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-            style="display:block;width:100%;max-width:360px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(234,88,12,.35);text-align:center">
-            🔍 立即免费体检，看 AI 推没推我 →
-          </button>
-          <div style="margin-top:10px;font-size:12px;color:var(--ink-faint)">无需信用卡 · 30秒出结果 · ¥9.9 解锁完整报告</div>
+    <!-- 右：表单 -->
+    <div class="auth-form-side">
+      <button class="auth-back" onclick="gotoLanding()">← 返回首页</button>
+      <div class="auth-card glass">
+        <h2>开始 AI 品牌体检</h2>
+        <div class="sub">免费注册，¥9.9 解锁完整报告</div>
+        <div class="auth-tabs">
+          <button id="tabLogin" class="auth-tab" onclick="switchTab('login')">已有账号</button>
+          <button id="tabReg" class="auth-tab active" onclick="switchTab('reg')">免费注册</button>
         </div>
+        <div class="field">
+          <label>邮箱地址</label>
+          <input id="authEmail" type="email" placeholder="your@brand.com">
+        </div>
+        <div class="field">
+          <label>密码（至少 6 位）</label>
+          <input id="authPw" type="password" placeholder="设置登录密码" onkeydown="if(event.key==='Enter')doAuth()">
+        </div>
+        <button class="btn-cyan" style="width:100%;padding:13px" onclick="doAuth()" id="authBtn">免费开始 AI 品牌体检 →</button>
+        <p id="authErr" class="auth-err" style="margin-top:12px"></p>
+        <div style="text-align:center;font-size:12px;color:var(--ink-faint)">客服微信：<b style="color:var(--cyan)">jenly222</b></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-        <!-- 数据墙：横向滑动（手机）/ 两列网格（电脑） -->
-        <div style="margin-bottom:28px">
-          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px" id="dataGrid">
-            <div style="background:#fff;border:1.5px solid #fde68a;border-radius:12px;padding:16px">
-              <div style="font-size:34px;font-weight:900;color:#f59e0b;line-height:1">58%</div>
-              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">买家改用<br>AI 找供应商</div>
-              <div style="font-size:11px;color:#92400e;margin-top:4px;font-weight:500">Gartner 2025</div>
+<!-- ====================================================================
+     3. 专业工作台 #appView
+     ==================================================================== -->
+<div id="appView" class="hidden">
+  <div class="app-shell">
+    <!-- 左侧边栏 -->
+    <aside class="sidebar">
+      <div class="sb-logo"><span class="mark">◎</span>GEO 雷达</div>
+      <nav class="sb-nav">
+        <div class="sb-item active" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
+        <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
+        <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
+        <div class="sb-item" id="navRef" onclick="navTo('ref')"><span class="ic">🎁</span>我的推广</div>
+        <div class="sb-item" id="navPrice" onclick="navTo('price')"><span class="ic">✨</span>升级套餐</div>
+      </nav>
+      <div class="sb-foot">
+        <div class="sb-plan" style="margin-bottom:10px">
+          <span>当前套餐</span><span class="tag" id="planTag">试用版</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn-ghost" style="flex:1;padding:8px;font-size:12px" onclick="reopenOnboarding()">❓ 引导</button>
+          <button class="btn-ghost" style="flex:1;padding:8px;font-size:12px" onclick="logout()">退出</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- 右侧主区 -->
+    <div class="main-area">
+      <div class="main-topbar">
+        <div class="main-crumb" id="mainCrumb">AI 监测<span class="sub" id="mainCrumbSub">查清 AI 推不推你</span></div>
+        <div class="main-actions">
+          <span class="mode-badge outbound hidden" id="modeBadge">🌏 出海模式</span>
+          <div class="user-chip"><span class="av">G</span><span id="userEmail">已登录</span></div>
+        </div>
+      </div>
+
+      <div class="main-content">
+
+        <!-- ===== 内容工作台 ===== -->
+        <div id="workspaceView" class="hidden">
+          <div class="shell">
+            <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+              <button class="ws-tab active" id="wsTab1" onclick="switchWsTab(1)">① 品牌知识库</button>
+              <button class="ws-tab" id="wsTab2" onclick="switchWsTab(2)">② 选题库</button>
+              <button class="ws-tab" id="wsTab3" onclick="switchWsTab(3)">③ 我的内容</button>
             </div>
-            <div style="background:#fff;border:1.5px solid #fecaca;border-radius:12px;padding:16px">
-              <div style="font-size:34px;font-weight:900;color:#ef4444;line-height:1">25%</div>
-              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">搜索流量<br>正在消失</div>
-              <div style="font-size:11px;color:#b91c1c;margin-top:4px;font-weight:500">Gartner 2026</div>
-            </div>
-            <div style="background:#fff;border:1.5px solid #bbf7d0;border-radius:12px;padding:16px">
-              <div style="font-size:34px;font-weight:900;color:#10b981;line-height:1">0%</div>
-              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">大多数品牌<br>AI 推荐率</div>
-              <div style="font-size:11px;color:#065f46;margin-top:4px;font-weight:500">GEO雷达实测</div>
-            </div>
-            <div style="background:#fff;border:1.5px solid #c7d2fe;border-radius:12px;padding:16px">
-              <div style="font-size:34px;font-weight:900;color:var(--brand);line-height:1">8大</div>
-              <div style="font-size:12px;color:var(--ink);font-weight:600;margin:5px 0 3px;line-height:1.3">AI 平台<br>同步监测</div>
-              <div style="font-size:11px;color:#3730a3;margin-top:4px;font-weight:500">国内外全覆盖</div>
-            </div>
+            <div id="workspaceContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div></div>
           </div>
         </div>
 
-        <!-- AI 场景模拟：精简版，手机友好 -->
-        <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px;box-shadow:0 1px 4px rgba(0,0,0,.04);margin-bottom:8px">
-          <div style="font-size:11px;color:var(--ink-faint);margin-bottom:12px;display:flex;align-items:center;gap:5px">
-            <span style="width:6px;height:6px;border-radius:50%;background:#10b981;flex-shrink:0"></span>
-            真实场景 · 你的客户正在发生的事
+        <!-- ===== 我的推广 ===== -->
+        <div id="referralView" class="hidden">
+          <div class="shell">
+            <div id="referralContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div></div>
           </div>
-          <!-- 用户问 -->
-          <div style="display:flex;gap:8px;margin-bottom:10px;align-items:flex-start">
-            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">👤</div>
-            <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:0 10px 10px 10px;padding:8px 12px;font-size:13px;color:#1e293b;flex:1">
-              推荐出海品牌，<b style="color:var(--brand)">质量好有认证</b>的
+        </div>
+
+        <!-- ===== 增长看板 ===== -->
+        <div id="dashboardView" class="hidden">
+          <div class="shell">
+            <p style="font-size:14px;color:var(--ink-soft);margin-bottom:20px" id="dashSubtitle">追踪你的品牌 AI 能见度变化</p>
+            <div id="dashContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div></div>
+          </div>
+        </div>
+
+        <!-- ===== 监测主流程 ===== -->
+        <div id="mainFlow">
+          <div class="shell">
+            <!-- 进度条 -->
+            <div class="steps">
+              <div class="step on" id="s1" onclick="jumpStep(1)"><span class="n">1</span>选模式·填品牌</div>
+              <div class="step" id="s2" onclick="jumpStep(2)"><span class="n">2</span>问题确认</div>
+              <div class="step" id="s3" onclick="jumpStep(3)"><span class="n">3</span>AI 监测中</div>
+              <div class="step" id="s4" onclick="jumpStep(4)"><span class="n">4</span>报告·行动工单</div>
             </div>
-          </div>
-          <!-- AI 回答 -->
-          <div style="display:flex;gap:8px;align-items:flex-start">
-            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#10b981,#059669);display:grid;place-items:center;flex-shrink:0;font-size:12px;color:#fff">🤖</div>
-            <div style="flex:1">
-              <div style="font-size:10px;color:var(--ink-faint);margin-bottom:4px">ChatGPT</div>
-              <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:0 10px 10px 10px;padding:10px 12px;font-size:13px;color:#1e293b">
-                <span style="color:#059669">✓ Anker · ✓ RavPower · ✓ Baseus</span>
-                <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:6px;padding:7px 10px;margin-top:8px;display:flex;align-items:center;gap:6px">
-                  <span style="font-size:12px">🔴</span>
+
+            <!-- 第1步 -->
+            <div class="card" id="panel1">
+              <h2>第 1 步 · 选择你的市场阵地</h2>
+              <p class="sub">不同市场的 AI 生态完全不同，选对阵地才能监测到真正有价值的数据。</p>
+              <div class="mode-select" style="margin-bottom:18px">
+                <div class="mode-btn" id="btn-outbound" onclick="selectMode('outbound')">
+                  <div class="icon">🌏</div><div class="title">主攻海外市场</div>
+                  <div class="desc">跨境电商独立站、出海品牌<br>海外客户用 ChatGPT/Gemini 找产品</div>
+                  <div class="platforms">ChatGPT · Gemini · Claude · Perplexity</div>
+                </div>
+                <div class="mode-btn" id="btn-domestic" onclick="selectMode('domestic')">
+                  <div class="icon">🇨🇳</div><div class="title">主攻国内市场</div>
+                  <div class="desc">国内品牌、连锁门店、本地服务<br>国内用户用 DeepSeek/豆包问问题</div>
+                  <div class="platforms">DeepSeek · 豆包 · 通义千问 · Kimi · 文心</div>
+                </div>
+              </div>
+              <div id="modeHint" style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px">👆 请先选择你的市场，系统会自动切换对应的 AI 平台</div>
+              <div id="brandForm" class="hidden">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                  <div class="field"><label>品牌名 <span style="color:var(--bad)">*</span></label><input id="bName" placeholder="如 优品茶叶"></div>
+                  <div class="field"><label>所属行业 <span style="color:var(--bad)">*</span></label><input id="bIndustry" placeholder="如 茶叶/餐饮/电商"></div>
+                </div>
+                <button type="button" onclick="toggleExtra()" id="extraBtn" style="background:none;border:none;color:var(--cyan);font-size:13px;cursor:pointer;padding:0;margin-bottom:16px">+ 填写更多信息（官网、竞品、主营产品，可提升问题精准度）</button>
+                <div id="extraFields" style="display:none">
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+                    <div class="field"><label>官网链接</label><input id="bSite" placeholder="yoursite.com"></div>
+                    <div class="field"><label>主营产品</label><input id="bProduct" placeholder="如 有机绿茶、普洱茶"></div>
+                    <div class="field"><label>主要竞品</label><input id="bComp" placeholder="逗号分隔，如 竞品A, 竞品B"></div>
+                    <div class="field"><label>目标市场</label><select id="bMarket"><option>海外</option><option>北美</option><option>欧洲</option><option>东南亚</option><option>国内</option><option>全国</option></select></div>
+                  </div>
+                </div>
+                <button class="btn-cyan" style="font-size:15px;padding:13px 28px" onclick="createBrand()" id="createBtn">开始监测 →</button>
+              </div>
+            </div>
+
+            <!-- 第2步 -->
+            <div class="card hidden" id="panel2">
+              <div class="card-header">
+                <div><h2>第 2 步 · 确认问题集</h2><p class="sub" style="margin-bottom:0">基于你的品牌特征生成，勾选你关心的问题</p></div>
+                <button class="btn-ghost" style="font-size:13px;flex-shrink:0" onclick="loadQuestions()">🔄 重新生成</button>
+              </div>
+              <div id="keywordsCard" class="kw-card hidden"></div>
+              <div id="qList"></div>
+              <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+                <p style="font-size:13px;color:var(--ink-soft)" id="qCount"></p>
+                <button class="btn-cyan" style="font-size:15px;padding:13px 28px" onclick="goMonitor()">开始 AI 监测 →</button>
+              </div>
+            </div>
+
+            <!-- 第3步 -->
+            <div class="card hidden" id="panel3">
+              <div class="loading" style="padding:40px 0">
+                <div class="spinner"></div>
+                <p style="font-size:16px;font-weight:600;margin:16px 0 8px" id="monMsg">正在向 AI 发送查询，采集品牌提及…</p>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">后台正在向 AI 发送真实查询，约需 1-3 分钟</p>
+                <div id="monPlatforms" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
+              </div>
+            </div>
+
+            <!-- 第4步 报告 -->
+            <div class="card hidden" id="panel4">
+              <div class="card-header">
+                <div><h2>第 4 步 · AI 能见度报告</h2><p style="font-size:13px;color:var(--ink-soft);margin-top:4px" id="repDate"></p></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn-ghost" style="font-size:13px" onclick="reMonitor()">🔁 重新监测</button>
+                  <button class="btn-ghost" style="font-size:13px" onclick="resetFlow()">+ 新品牌</button>
+                </div>
+              </div>
+              <div id="historyChart" class="chart-card hidden">
+                <div class="chart-header"><h3>📈 AI 推荐率历史战报</h3><span class="trend-badge flat" id="trendBadge">首次监测</span></div>
+                <canvas id="lineChart" height="80"></canvas>
+                <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
+              </div>
+              <div class="metrics" id="repMetrics"></div>
+              <div id="monthlyLossCard" style="display:none;background:var(--bad-soft);border:1px solid rgba(255,93,108,.3);border-radius:14px;padding:20px;margin-bottom:20px">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
                   <div>
-                    <div style="font-size:12px;color:#dc2626;font-weight:600">你的品牌：没有出现</div>
-                    <div style="font-size:11px;color:#ef4444">客户直接点击竞品链接</div>
+                    <div style="font-size:12px;color:var(--bad);font-weight:600;margin-bottom:4px">📉 你每月预计损失的 AI 推荐曝光</div>
+                    <div style="font-size:32px;font-weight:900;color:var(--bad)" id="monthlyLossNum">—</div>
+                    <div style="font-size:12px;color:var(--warn);margin-top:4px" id="monthlyLossNote">次/月</div>
+                  </div>
+                  <div style="text-align:right">
+                    <div style="font-size:13px;color:var(--warn);margin-bottom:8px" id="monthlyLossVerdict"></div>
+                    <button class="btn-action" style="font-size:13px;padding:10px 18px" onclick="reMonitor()">立即开始优化 →</button>
                   </div>
                 </div>
               </div>
-            </div>
-          </div>
-          <div style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:9px 12px;font-size:12px;color:#c2410c">
-            ⚡ 这样的对话每天 <b>数百万次</b>，你出现了多少次？
-          </div>
-        </div>
-
-      </div>
-
-      <!-- 右侧：模拟器 + 注册二合一 -->
-      <div id="authFormCard" style="position:sticky;top:68px">
-
-        <!-- 模拟器卡片 -->
-        <div style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px;box-shadow:0 4px 24px rgba(0,0,0,.08);margin-bottom:12px">
-          <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">🔍 AI 推荐模拟器</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px">输入关键词，立刻看 AI 会不会推荐你</div>
-
-          <!-- 模式切换 -->
-          <div style="display:flex;background:#f4f6fb;padding:3px;border-radius:8px;margin-bottom:14px">
-            <button onclick="simSetMode('outbound')" id="simTabOut"
-              style="flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌏 海外</button>
-            <button onclick="simSetMode('domestic')" id="simTabDom"
-              style="flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内</button>
-          </div>
-
-          <!-- 关键词输入 -->
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <input id="simKw" type="text" placeholder="best portable charger"
-              style="flex:1;padding:10px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;color:var(--ink);outline:none;font-family:inherit"
-              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'"
-              onkeydown="if(event.key==='Enter')doSimulate()">
-            <button onclick="doSimulate()" id="simBtn"
-              style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:8px;padding:10px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
-              查 →
-            </button>
-          </div>
-
-          <!-- 示例标签 -->
-          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px" id="simExamples">
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">best charger</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">herbal tea</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">skincare brand</span>
-            <span onclick="document.getElementById('simKw').value=this.textContent" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">CRM tools</span>
-          </div>
-
-          <!-- 加载状态 -->
-          <div id="simLoading" style="display:none;text-align:center;padding:16px 0">
-            <div style="width:28px;height:28px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
-            <div style="font-size:12px;color:var(--ink-soft)" id="simMsg">正在查询中…</div>
-          </div>
-
-          <!-- 结果区 -->
-          <div id="simResults" style="display:none"></div>
-
-          <!-- 引导注册 -->
-          <div id="simCta" style="display:none;background:#f0f4ff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;margin-top:12px;text-align:center">
-            <div style="font-size:13px;color:#3730a3;font-weight:600;margin-bottom:4px">想做完整品牌报告？</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">用50个精准问题全面扫描，生成专属提升方案</div>
-            <button onclick="document.getElementById('simSection').scrollIntoView({behavior:'smooth'})"
-              style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;border:none;border-radius:7px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer">
-              免费注册做完整体检 →
-            </button>
-          </div>
-        </div>
-
-        <!-- 注册卡片 -->
-        <div id="simSection" style="background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)">
-          <div style="background:linear-gradient(135deg,var(--brand),#7c3aed);color:#fff;text-align:center;border-radius:10px;padding:12px;margin-bottom:18px">
-            <b style="font-size:14px;display:block;margin-bottom:2px">🎁 免费注册做完整品牌体检</b>
-            <span style="font-size:12px;opacity:.9">¥9.9 解锁完整报告</span>
-          </div>
-          <div style="display:flex;background:#f4f6fb;padding:4px;border-radius:10px;margin-bottom:16px">
-            <button id="tabLogin" onclick="switchTab('login')"
-              style="flex:1;padding:8px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:13px;border:none;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.08)">已有账号</button>
-            <button id="tabReg" onclick="switchTab('reg')"
-              style="flex:1;padding:8px;background:none;color:#5a5f73;border-radius:7px;font-size:13px;border:none;cursor:pointer">免费注册</button>
-          </div>
-          <div style="margin-bottom:12px">
-            <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">邮箱地址</label>
-            <input id="authEmail" type="email" placeholder="your@brand.com"
-              style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;color:var(--ink);outline:none"
-              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'">
-          </div>
-          <div style="margin-bottom:16px">
-            <label style="font-size:12px;color:#5a5f73;display:block;margin-bottom:5px;font-weight:500">密码（至少6位）</label>
-            <input id="authPw" type="password" placeholder="设置登录密码"
-              style="width:100%;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;color:var(--ink);outline:none"
-              onfocus="this.style.borderColor='var(--brand)'" onblur="this.style.borderColor='var(--line)'">
-          </div>
-          <button class="btn-primary" style="width:100%;font-size:15px;padding:12px;border-radius:10px" onclick="doAuth()" id="authBtn">
-            免费开始 AI 品牌体检 →
-          </button>
-          <p id="authErr" style="color:#dc2626;font-size:13px;margin-top:8px;text-align:center;min-height:18px"></p>
-          <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--ink-faint)">
-            客服微信：<b style="color:var(--brand)">jenly222</b>
-          </div>
-        </div>
-
-        <!-- 用户证言 -->
-        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:12px;margin-top:12px">
-          <div style="font-size:12px;color:#92400e;line-height:1.6;margin-bottom:4px">
-            💬 <i>"DeepSeek 里竞品出现了6次，我们完全没有。这个数据太直接了。"</i>
-          </div>
-          <div style="font-size:11px;color:#b45309">—— 某出海茶叶品牌主</div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-<style>
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-@media(max-width:768px){
-  #landingGrid{
-    grid-template-columns:1fr!important;
-    gap:0!important;
-    padding:0!important;
-  }
-  #authFormCard{
-    position:static!important;
-    margin-top:32px;
-    padding:0 0 40px;
-  }
-  #authFormCard > div:first-child{
-    border-radius:16px!important;
-  }
-}
-</style>
-  <!-- 如何运作:三步搞定 -->
-  <div style="padding:50px 20px;background:#fff">
-    <div style="max-width:1000px;margin:0 auto">
-      <div style="text-align:center;margin-bottom:40px">
-        <div style="display:inline-block;background:var(--brand-soft);color:var(--brand-ink);padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">⚡ 简单三步</div>
-        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:var(--ink);margin-bottom:10px">不用懂技术,跟着做就行</h2>
-        <p style="font-size:15px;color:var(--ink-soft)">从查清问题到让 AI 推荐你,全程有我们带着走</p>
-      </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px">
-        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
-          <div style="width:56px;height:56px;border-radius:16px;background:var(--brand-grad);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:var(--sh-brand)">🔍</div>
-          <div style="font-size:13px;color:var(--brand);font-weight:700;margin-bottom:6px">第一步</div>
-          <div style="font-size:17px;font-weight:700;margin-bottom:8px">免费体检</div>
-          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">输入品牌,30秒查清 AI 到底推没推你,缺口在哪一目了然</div>
-        </div>
-        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
-          <div style="width:56px;height:56px;border-radius:16px;background:var(--brand-grad);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:var(--sh-brand)">✍️</div>
-          <div style="font-size:13px;color:var(--brand);font-weight:700;margin-bottom:6px">第二步</div>
-          <div style="font-size:17px;font-weight:700;margin-bottom:8px">一键创作</div>
-          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">我基于你的品牌直接写好内容,你复制就能发,不用自己绞尽脑汁</div>
-        </div>
-        <div style="text-align:center;padding:28px 20px;background:var(--bg);border-radius:var(--r-lg)">
-          <div style="width:56px;height:56px;border-radius:16px;background:var(--good);color:#fff;display:grid;place-items:center;font-size:24px;margin:0 auto 16px;box-shadow:0 4px 16px rgba(5,150,105,.25)">📈</div>
-          <div style="font-size:13px;color:var(--good);font-weight:700;margin-bottom:6px">第三步</div>
-          <div style="font-size:17px;font-weight:700;margin-bottom:8px">看着增长</div>
-          <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">增长看板追踪提及率变化,看 AI 给你带来多少真实访客</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- 案例展示模块 -->
-  <div style="background:linear-gradient(180deg,var(--bg),#fff);padding:50px 20px;border-top:1px solid var(--line)">
-    <div style="max-width:1000px;margin:0 auto">
-      <div style="text-align:center;margin-bottom:36px">
-        <div style="display:inline-block;background:var(--good-soft);color:#065f46;padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">📈 真实效果</div>
-        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:var(--ink);margin-bottom:10px">他们已经让 AI 开始推荐自己</h2>
-        <p style="font-size:15px;color:var(--ink-soft)">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:var(--good)" id="avgImprove">34</b> 个百分点</p>
-      </div>
-      <div id="casesContainer" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px"></div>
-      <div style="text-align:center;margin-top:30px">
-        <button class="btn-action" onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})" style="font-size:16px;padding:15px 36px">
-          我也要让 AI 推荐我 →
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 合规页脚 -->
-  <div style="text-align:center;padding:30px 20px;border-top:1px solid var(--line);margin-top:0;background:#fff">
-    <div style="font-size:13px;color:var(--ink-soft);margin-bottom:10px">
-      <span style="display:inline-block;background:var(--good-soft);color:#065f46;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.6;max-width:90%">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</span>
-    </div>
-    <div style="font-size:12px;color:var(--ink-faint);line-height:1.8">
-      GEO 雷达提供 AI 能见度监测与内容优化建议,不保证特定效果,生成内容请发布前自行核实<br>
-      <a href="/terms" style="color:var(--brand);text-decoration:none">服务条款与合规声明</a> · 客服微信 jenly222
-    </div>
-  </div>
-</div>
-
-<!-- ===== 主应用 ===== -->
-<div id="appView" class="hidden">
-  <div class="topbar">
-    <div class="logo"><span class="dot">◎</span>GEO 雷达</div>
-    <div style="display:flex;align-items:center;gap:10px">
-      <span class="mode-badge outbound hidden" id="modeBadge">🌏 出海模式</span>
-      <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showDashboard()" id="dashBtn">📊 增长看板</button>
-      <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showWorkspace()" id="wsBtn">✍️ 内容工作台</button>
-      <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showReferral()" id="refBtn">🎁 我的推广</button>
-      <span class="plan-tag" id="planTag">试用版</span>
-      <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showPricing()">升级套餐 ✨</button>
-      <button class="btn-ghost" style="padding:7px 12px;font-size:13px" onclick="reopenOnboarding()" title="新手引导">❓</button>
-      <button class="btn-ghost" style="padding:7px 12px;font-size:13px" onclick="logout()">退出</button>
-    </div>
-  </div>
-
-  <!-- ===== 内容工作台视图 ===== -->
-  <div id="workspaceView" class="hidden">
-    <div class="shell">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
-        <div>
-          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">✍️ 内容工作台</h2>
-          <p style="font-size:14px;color:var(--ink-soft)">跟着三步走：建知识库 → 选题 → 一键创作</p>
-        </div>
-        <button class="btn-ghost" onclick="backFromWorkspace()">← 返回</button>
-      </div>
-      <!-- 步骤导航 -->
-      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
-        <button class="ws-tab active" id="wsTab1" onclick="switchWsTab(1)">① 品牌知识库</button>
-        <button class="ws-tab" id="wsTab2" onclick="switchWsTab(2)">② 选题库</button>
-        <button class="ws-tab" id="wsTab3" onclick="switchWsTab(3)">③ 我的内容</button>
-      </div>
-      <div id="workspaceContent">
-        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== 我的推广视图 ===== -->
-  <div id="referralView" class="hidden">
-    <div class="shell">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-        <div>
-          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">🎁 我的推广</h2>
-          <p style="font-size:14px;color:var(--ink-soft)">分享给同行，他付费你赚佣金</p>
-        </div>
-        <button class="btn-ghost" onclick="backFromReferral()">← 返回</button>
-      </div>
-      <div id="referralContent">
-        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== 增长看板视图 ===== -->
-  <div id="dashboardView" class="hidden">
-    <div class="shell">
-      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
-        <div>
-          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">📊 增长看板</h2>
-          <p style="font-size:14px;color:var(--ink-soft)" id="dashSubtitle">追踪你的品牌 AI 能见度变化</p>
-        </div>
-        <button class="btn-ghost" onclick="backToFlow()">← 返回监测流程</button>
-      </div>
-      <div id="dashContent">
-        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div>
-      </div>
-    </div>
-  </div>
-
-  <div id="mainFlow">
-  <div class="shell">
-    <div class="steps">
-      <div class="step on" id="s1" onclick="jumpStep(1)"><span class="n">1</span>选模式·填品牌</div>
-      <div class="step" id="s2" onclick="jumpStep(2)"><span class="n">2</span>问题确认</div>
-      <div class="step" id="s3" onclick="jumpStep(3)"><span class="n">3</span>AI 监测中</div>
-      <div class="step" id="s4" onclick="jumpStep(4)"><span class="n">4</span>报告·行动工单</div>
-    </div>
-
-    <!-- 第1步：选模式 + 填品牌 -->
-    <div class="card" id="panel1">
-      <h2>第 1 步 · 选择你的市场阵地</h2>
-      <p class="sub">不同市场的 AI 生态完全不同，选对阵地才能监测到真正有价值的数据。</p>
-
-      <div class="mode-select">
-        <div class="mode-btn" id="btn-outbound" onclick="selectMode('outbound')">
-          <div class="icon">🌏</div>
-          <div class="title">主攻海外市场</div>
-          <div class="desc">跨境电商独立站、出海品牌<br>海外客户用 ChatGPT/Gemini 找产品</div>
-          <div class="platforms">ChatGPT · Gemini · Claude · Perplexity</div>
-        </div>
-        <div class="mode-btn" id="btn-domestic" onclick="selectMode('domestic')">
-          <div class="icon">🇨🇳</div>
-          <div class="title">主攻国内市场</div>
-          <div class="desc">国内品牌、连锁门店、本地服务<br>国内用户用 DeepSeek/豆包问问题</div>
-          <div class="platforms">DeepSeek · 豆包 · 通义千问 · Kimi · 文心</div>
-        </div>
-      </div>
-
-      <div id="modeHint" style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px">
-        👆 请先选择你的市场，系统会自动切换对应的 AI 平台
-      </div>
-
-      <div id="brandForm" class="hidden">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-          <div class="field"><label>品牌名 <span style="color:var(--bad)">*</span></label><input id="bName" placeholder="如 优品茶叶"></div>
-          <div class="field"><label>所属行业 <span style="color:var(--bad)">*</span></label><input id="bIndustry" placeholder="如 茶叶/餐饮/电商"></div>
-        </div>
-        <button type="button" onclick="toggleExtra()" id="extraBtn"
-          style="background:none;border:none;color:var(--brand);font-size:13px;cursor:pointer;padding:0;margin-bottom:16px">
-          + 填写更多信息（官网、竞品、主营产品，可提升问题精准度）
-        </button>
-        <div id="extraFields" style="display:none">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <div class="field"><label>官网链接</label><input id="bSite" placeholder="yoursite.com"></div>
-            <div class="field"><label>主营产品</label><input id="bProduct" placeholder="如 有机绿茶、普洱茶"></div>
-            <div class="field"><label>主要竞品</label><input id="bComp" placeholder="逗号分隔，如 竞品A, 竞品B"></div>
-            <div class="field"><label>目标市场</label>
-              <select id="bMarket"><option>海外</option><option>北美</option><option>欧洲</option><option>东南亚</option><option>国内</option><option>全国</option></select>
+              <div class="section-title">📊 各 AI 平台表现</div>
+              <div class="platforms" id="repPlatforms"></div>
+              <div class="section-title">🔍 发现的内容缺口</div>
+              <div id="repGaps"></div>
+              <div id="contentArea"></div>
+              <div class="note" id="repNote"></div>
+              <div class="section-card" style="margin-top:20px">
+                <div style="font-weight:700;font-size:15px;margin-bottom:6px">⚔️ 竞品对比分析</div>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">输入竞品官网，系统用同样的问题集监测竞品，告诉你对方为什么比你被AI推荐得多</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                  <input id="compUrl" placeholder="竞品官网，如 anker.com" style="flex:1;min-width:200px">
+                  <input id="compName" placeholder="竞品名称（可选）" style="width:140px">
+                  <button class="btn-primary" style="font-size:13px;padding:11px 18px" onclick="doCompare()" id="compareBtn">开始对比</button>
+                </div>
+                <div id="compareResult" style="margin-top:14px"></div>
+              </div>
+              <div class="section-card" style="margin-top:16px">
+                <div style="font-weight:700;font-size:15px;margin-bottom:6px">💰 关键词商机分析</div>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分析你这个行业里，哪些关键词在 AI 时代值得抢占——高需求、低竞争的"蓝海词"就是你的机会</p>
+                <button class="btn-action" style="font-size:13px;padding:11px 20px" onclick="loadKeywordOpp()" id="kwOppBtn">📊 分析行业关键词商机</button>
+                <div id="kwOppResult" style="margin-top:14px"></div>
+              </div>
+              <div class="section-card" style="margin-top:16px">
+                <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">生成可直接复制到网站的 JSON-LD Schema 代码 + FAQ 问答，让 AI 更容易引用你的页面</p>
+                <button class="btn-primary" style="font-size:13px;padding:11px 20px" onclick="genSchemaFaq()" id="schemaBtn">🔧 生成 Schema + FAQ 代码</button>
+                <div id="schemaResult" style="margin-top:14px"></div>
+              </div>
+              <div style="border-top:1px solid var(--line);padding-top:26px;margin-top:28px">
+                <div class="section-title" style="font-size:17px">🚀 专属提升方案</div>
+                <p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px">基于第一性原理分析你的短板，告诉你做哪几件事能让 AI 开始推荐你</p>
+                <div id="diagnosisBox"></div>
+                <div class="section-title">📋 行动工单 · 按优先级排好，照着执行</div>
+                <div id="taskList"></div>
+                <div id="taskContentArea"></div>
+              </div>
+              <div id="progressSection" style="margin-top:24px"></div>
+              <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn-cyan" onclick="reMonitor()">🔁 复测看提升</button>
+                <button class="btn-ghost" onclick="resetFlow()">+ 监测新品牌</button>
+              </div>
             </div>
           </div>
         </div>
-        <button class="btn-primary" style="font-size:15px;padding:12px 28px" onclick="createBrand()" id="createBtn">开始监测 →</button>
-      </div>
-    </div>
 
-    <!-- 第2步：问题确认 -->
-    <div class="card hidden" id="panel2">
-      <div class="card-header">
-        <div>
-          <h2>第 2 步 · 确认问题集</h2>
-          <p class="sub" style="margin-bottom:0">基于你的品牌特征生成，勾选你关心的问题</p>
-        </div>
-        <button class="btn-ghost" style="font-size:13px;flex-shrink:0" onclick="loadQuestions()">🔄 重新生成</button>
-      </div>
-      <div id="keywordsCard" class="kw-card hidden"></div>
-      <div id="qList"></div>
-      <div style="margin-top:18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-        <p style="font-size:13px;color:var(--ink-soft)" id="qCount"></p>
-        <button class="btn-primary" style="font-size:15px;padding:12px 28px" onclick="goMonitor()">开始 AI 监测 →</button>
-      </div>
-    </div>
-
-    <!-- 第3步：监测中 -->
-    <div class="card hidden" id="panel3">
-      <div class="loading">
-        <div class="spinner"></div>
-        <p style="font-size:16px;font-weight:600;margin-bottom:8px" id="monMsg">正在向 AI 发送查询，采集品牌提及…</p>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">后台正在向 AI 发送真实查询，约需 1-3 分钟</p>
-        <div id="monPlatforms" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
-      </div>
-    </div>
-
-    <!-- 第4步：报告 -->
-    <div class="card hidden" id="panel4">
-      <div class="card-header">
-        <div>
-          <h2>第 4 步 · AI 能见度报告</h2>
-          <p style="font-size:13px;color:var(--ink-soft);margin-top:4px" id="repDate"></p>
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-ghost" style="font-size:13px" onclick="reMonitor()">🔁 重新监测</button>
-          <button class="btn-ghost" style="font-size:13px" onclick="resetFlow()">+ 新品牌</button>
-        </div>
-      </div>
-
-      <!-- 历史折线图（续费的核心理由）-->
-      <div id="historyChart" class="chart-card hidden">
-        <div class="chart-header">
-          <h3>📈 AI 推荐率历史战报</h3>
-          <span class="trend-badge flat" id="trendBadge">首次监测</span>
-        </div>
-        <canvas id="lineChart" height="80"></canvas>
-        <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
-      </div>
-
-      <div class="metrics" id="repMetrics"></div>
-
-      <!-- 月损失AI流量（商业化表达核心） -->
-      <div id="monthlyLossCard" style="display:none;background:linear-gradient(135deg,#fef2f2,#fff7ed);border:1px solid #fecaca;border-radius:14px;padding:20px;margin-bottom:20px">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div>
-            <div style="font-size:12px;color:#dc2626;font-weight:600;margin-bottom:4px">📉 你每月预计损失的 AI 推荐曝光</div>
-            <div style="font-size:32px;font-weight:900;color:#dc2626" id="monthlyLossNum">—</div>
-            <div style="font-size:12px;color:#b45309;margin-top:4px" id="monthlyLossNote">次/月</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:13px;color:#92400e;margin-bottom:8px" id="monthlyLossVerdict"></div>
-            <button class="btn-primary" style="font-size:13px;padding:9px 18px;background:linear-gradient(135deg,#dc2626,#b91c1c)"
-              onclick="reMonitor()">立即开始优化 →</button>
+        <!-- ===== 套餐页 ===== -->
+        <div id="pricingView" class="hidden">
+          <div class="pricing-page" style="padding-top:0">
+            <h1>选择适合你的套餐</h1>
+            <p class="sub">国内出海双引擎，7 天免费试用，随时取消</p>
+            <div class="plans">
+              <div class="plan">
+                <div class="plan-name">¥9.9 体验版</div>
+                <div class="plan-price">¥9.9<span>/次</span></div>
+                <div class="plan-desc">首次体验，看清你的品牌 AI 能见度现状</div>
+                <ul class="plan-features"><li>1 次完整监测</li><li>1 个品牌</li><li>30 个问题场景</li><li>国内/出海双引擎</li><li>完整能见度报告</li><li>缺口诊断+提升方案</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('starter_trial')">立即开通 ¥9.9</button>
+              </div>
+              <div class="plan popular">
+                <div class="plan-badge">🔥 最受欢迎</div>
+                <div class="plan-name">基础版</div>
+                <div class="plan-price">¥299<span>/月</span></div>
+                <div class="plan-desc">持续监测，看到真实提升曲线</div>
+                <ul class="plan-features"><li>2 个品牌</li><li>50 个问题场景</li><li>国内/出海双引擎</li><li>每月 4 次监测</li><li>历史折线战报</li><li>一键生成内容+行动工单</li><li>中文客服支持</li></ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('starter')">立即升级</button>
+              </div>
+              <div class="plan">
+                <div class="plan-name">专业版</div>
+                <div class="plan-price">¥899<span>/月</span></div>
+                <div class="plan-desc">多品牌监测，适合代运营机构</div>
+                <ul class="plan-features"><li>5 个品牌</li><li>150 个问题场景</li><li>国内/出海双引擎</li><li>不限监测次数</li><li>竞品深度对比</li><li>API 接口</li><li>专属顾问服务</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('pro')">立即升级</button>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div class="section-title">📊 各 AI 平台表现</div>
-      <div class="platforms" id="repPlatforms"></div>
-      <div class="section-title">🔍 发现的内容缺口</div>
-      <div id="repGaps"></div>
-      <div id="contentArea"></div>
-      <div class="note" id="repNote"></div>
-
-      <!-- 竞品对比入口 -->
-      <div style="background:var(--bg);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-top:20px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:6px">⚔️ 竞品对比分析</div>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">输入竞品官网，系统用同样的问题集监测竞品，告诉你对方为什么比你被AI推荐得多</p>
-        <div style="display:flex;gap:10px;flex-wrap:wrap">
-          <input id="compUrl" placeholder="竞品官网，如 anker.com" style="flex:1;min-width:200px;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
-          <input id="compName" placeholder="竞品名称（可选）" style="width:140px;padding:10px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit">
-          <button class="btn-primary" style="font-size:13px;padding:10px 18px" onclick="doCompare()" id="compareBtn">开始对比</button>
-        </div>
-        <div id="compareResult" style="margin-top:14px"></div>
-      </div>
-
-      <!-- 关键词商机分析 -->
-      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:20px;margin-top:16px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:6px">💰 关键词商机分析</div>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分析你这个行业里，哪些关键词在 AI 时代值得抢占——高需求、低竞争的"蓝海词"就是你的机会</p>
-        <button class="btn-primary" style="font-size:13px;padding:10px 20px;background:linear-gradient(135deg,#f59e0b,#d97706)" onclick="loadKeywordOpp()" id="kwOppBtn">
-          📊 分析行业关键词商机
-        </button>
-        <div id="kwOppResult" style="margin-top:14px"></div>
-      </div>
-
-      <!-- Schema/FAQ 生成 -->
-      <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-top:16px">
-        <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
-        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">生成可直接复制到网站的 JSON-LD Schema 代码 + FAQ 问答，让 AI 更容易引用你的页面</p>
-        <button class="btn-primary" style="font-size:13px;padding:10px 20px;background:linear-gradient(135deg,#059669,#047857)" onclick="genSchemaFaq()" id="schemaBtn">
-          🔧 生成 Schema + FAQ 代码
-        </button>
-        <div id="schemaResult" style="margin-top:14px"></div>
-      </div>
-
-      <!-- 提升方案 -->
-      <div style="border-top:2px solid var(--line);padding-top:26px;margin-top:28px">
-        <div class="section-title" style="font-size:17px">🚀 专属提升方案</div>
-        <p style="font-size:14px;color:var(--ink-soft);margin-bottom:18px">基于第一性原理分析你的短板，告诉你做哪几件事能让 AI 开始推荐你</p>
-        <div id="diagnosisBox"></div>
-        <div class="section-title">📋 行动工单 · 按优先级排好，照着执行</div>
-        <div id="taskList"></div>
-        <div id="taskContentArea"></div>
-      </div>
-
-      <div id="progressSection" style="margin-top:24px"></div>
-
-      <div style="margin-top:24px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn-primary" onclick="reMonitor()">🔁 复测看提升</button>
-        <button class="btn-ghost" onclick="resetFlow()">+ 监测新品牌</button>
-        <button class="btn-ghost" onclick="showPricing()" style="color:var(--brand);border-color:var(--brand)">✨ 升级解锁更多</button>
-      </div>
-    </div>
-  </div>
-  </div>
-
-  <!-- 套餐页 -->
-  <div id="pricingView" class="hidden">
-    <div class="pricing-page">
-      <h1>选择适合你的套餐</h1>
-      <p class="sub">国内出海双引擎，7 天免费试用，随时取消</p>
-      <div class="plans">
-        <div class="plan">
-          <div class="plan-name">¥9.9 体验版</div>
-          <div class="plan-price">¥9.9<span>/次</span></div>
-          <div class="plan-desc">首次体验，看清你的品牌 AI 能见度现状</div>
-          <ul class="plan-features">
-            <li>1 次完整监测</li>
-            <li>1 个品牌</li>
-            <li>30 个问题场景</li>
-            <li>国内/出海双引擎</li>
-            <li>完整能见度报告</li>
-            <li>缺口诊断+提升方案</li>
-          </ul>
-          <button class="btn-ghost" style="width:100%;padding:11px"
-            onclick="toast('联系客服开通：微信 jenly222')">联系客服开通</button>
-        </div>
-        <div class="plan popular">
-          <div class="plan-badge">🔥 最受欢迎</div>
-          <div class="plan-name">基础版</div>
-          <div class="plan-price">¥299<span>/月</span></div>
-          <div class="plan-desc">持续监测，看到真实提升曲线</div>
-          <ul class="plan-features">
-            <li>2 个品牌</li>
-            <li>50 个问题场景</li>
-            <li>国内/出海双引擎</li>
-            <li>每月 4 次监测</li>
-            <li>历史折线战报</li>
-            <li>一键生成内容+行动工单</li>
-            <li>中文客服支持</li>
-          </ul>
-          <button class="btn-primary" style="width:100%;padding:11px"
-            onclick="toast('联系客服开通：微信 jenly222')">立即升级</button>
-        </div>
-        <div class="plan">
-          <div class="plan-name">专业版</div>
-          <div class="plan-price">¥899<span>/月</span></div>
-          <div class="plan-desc">多品牌监测，适合代运营机构</div>
-          <ul class="plan-features">
-            <li>5 个品牌</li>
-            <li>150 个问题场景</li>
-            <li>国内/出海双引擎</li>
-            <li>不限监测次数</li>
-            <li>竞品深度对比</li>
-            <li>API 接口</li>
-            <li>专属顾问服务</li>
-          </ul>
-          <button class="btn-ghost" style="width:100%;padding:11px"
-            onclick="toast('联系客服洽谈：微信 jenly222')">联系我们</button>
-        </div>
-      </div>
-      <div style="text-align:center;margin-top:28px">
-        <button class="btn-ghost" onclick="hidePricing()">← 返回</button>
       </div>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div id="toast"></div>
 
 <script>
 let token = localStorage.getItem("geo_token") || null;
@@ -924,13 +877,13 @@ function switchTab(m){
   const tr=document.getElementById("tabReg");
   if(!tl||!tr) return;
   if(m==="login"){
-    tl.style.cssText="flex:1;padding:9px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
-    tr.style.cssText="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer";
+    tl.className="auth-tab active";
+    tr.className="auth-tab";
   } else {
-    tr.style.cssText="flex:1;padding:9px;background:#fff;color:var(--brand);border-radius:7px;font-weight:600;font-size:14px;box-shadow:0 1px 4px rgba(0,0,0,.08);border:none;cursor:pointer";
-    tl.style.cssText="flex:1;padding:9px;background:none;color:#5a5f73;border-radius:7px;font-size:14px;border:none;cursor:pointer";
+    tr.className="auth-tab active";
+    tl.className="auth-tab";
   }
-  document.getElementById("authBtn").textContent=m==="login"?"已有账号登录 →":"免费开始 AI 品牌体检 →";
+  document.getElementById("authBtn").textContent=m==="login"?"登录 →":"免费开始 AI 品牌体检 →";
 }
 async function api(path,opts={}){
   opts.headers={...(opts.headers||{}),"Content-Type":"application/json"};
@@ -978,6 +931,7 @@ async function doAuth(){
   finally{btn.textContent=btnText;btn.disabled=false}
 }
 function enterApp(planInfo){
+  document.getElementById("landingView").classList.add("hidden");
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
@@ -985,6 +939,51 @@ function enterApp(planInfo){
   loadMyBrands();
   // 首次进入显示新手引导
   maybeShowOnboarding();
+}
+
+// 显示登录页（从营销页进入）
+function gotoAuth(mode){
+  document.getElementById("landingView").classList.add("hidden");
+  document.getElementById("authView").classList.remove("hidden");
+  if(mode) switchTab(mode);
+}
+// 返回营销页
+function gotoLanding(){
+  document.getElementById("authView").classList.add("hidden");
+  document.getElementById("appView").classList.add("hidden");
+  document.getElementById("landingView").classList.remove("hidden");
+}
+
+// ===== 侧边栏导航 =====
+const NAV_VIEWS = {
+  flow:  {view:"mainFlow",       crumb:"AI 监测",     sub:"查清 AI 推不推你",  nav:"navFlow"},
+  dash:  {view:"dashboardView",  crumb:"增长看板",     sub:"追踪能见度变化",    nav:"navDash"},
+  ws:    {view:"workspaceView",  crumb:"内容工作台",   sub:"建库·选题·创作",    nav:"navWs"},
+  ref:   {view:"referralView",   crumb:"我的推广",     sub:"分享赚奖励",        nav:"navRef"},
+  price: {view:"pricingView",    crumb:"升级套餐",     sub:"选择适合的方案",    nav:"navPrice"},
+};
+function navTo(key){
+  const cfg = NAV_VIEWS[key];
+  if(!cfg) return;
+  // 隐藏所有主视图
+  ["mainFlow","dashboardView","workspaceView","referralView","pricingView"].forEach(v=>{
+    const el=document.getElementById(v); if(el) el.classList.add("hidden");
+  });
+  // 显示目标
+  const target=document.getElementById(cfg.view);
+  if(target) target.classList.remove("hidden");
+  // 侧边栏高亮
+  ["navFlow","navDash","navWs","navRef","navPrice"].forEach(n=>{
+    const el=document.getElementById(n); if(el) el.classList.remove("active");
+  });
+  const navEl=document.getElementById(cfg.nav); if(navEl) navEl.classList.add("active");
+  // 面包屑
+  const cr=document.getElementById("mainCrumb");
+  if(cr) cr.innerHTML=cfg.crumb+'<span class="sub">'+cfg.sub+'</span>';
+  // 触发各视图的数据加载
+  if(key==="dash" && typeof showDashboard==="function") showDashboard();
+  if(key==="ws" && typeof showWorkspace==="function") showWorkspace();
+  if(key==="ref" && typeof showReferral==="function") showReferral();
 }
 
 // ===== 新手引导 =====
@@ -2456,6 +2455,99 @@ function resetFlow(){
 }
 
 function showPricing(){document.getElementById("mainFlow").classList.add("hidden");document.getElementById("pricingView").classList.remove("hidden")}
+
+// ===== 支付 =====
+let payPollTimer = null;
+
+async function startPay(plan){
+  if(!token){ toast("请先登录"); return; }
+  let method = "wxpay";
+  // 让用户选支付方式
+  const modal = document.createElement("div");
+  modal.id = "payModal";
+  modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.innerHTML=`<div style="background:#fff;border-radius:var(--r-xl);padding:28px;max-width:380px;width:100%;text-align:center" id="payCard" onclick="event.stopPropagation()">
+    <div class="loading" style="padding:20px"><div class="spinner"></div><p>正在创建订单…</p></div>
+  </div>`;
+  modal.onclick=()=>closePayModal();
+  document.body.appendChild(modal);
+
+  try{
+    const d = await api("/api/order/create",{method:"POST",body:JSON.stringify({plan,pay_method:method})});
+    if(!d.pay_enabled){
+      // 支付未配置,降级联系客服
+      document.getElementById("payCard").innerHTML=`
+        <div style="font-size:40px;margin-bottom:14px">💬</div>
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px">${d.plan_name} · ¥${d.amount}</div>
+        <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:20px">${d.message}</div>
+        <div style="background:var(--bg);border-radius:var(--r-md);padding:14px;margin-bottom:16px">
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">订单号</div>
+          <div style="font-size:14px;font-weight:600;font-family:monospace">${d.order_no}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin:10px 0 4px">客服微信</div>
+          <div style="font-size:16px;font-weight:700;color:var(--brand)">${d.service_wechat}</div>
+        </div>
+        <button class="btn-ghost" style="width:100%" onclick="closePayModal()">关闭</button>`;
+      return;
+    }
+    // 显示支付二维码
+    renderPayQR(d, plan);
+  }catch(e){
+    document.getElementById("payCard").innerHTML=`
+      <p style="color:var(--bad);padding:20px">下单失败：${e.message}</p>
+      <button class="btn-ghost" onclick="closePayModal()">关闭</button>`;
+  }
+}
+
+function renderPayQR(d, plan){
+  const card = document.getElementById("payCard");
+  card.innerHTML=`
+    <div style="font-size:18px;font-weight:700;margin-bottom:4px">${d.plan_name}</div>
+    <div style="font-size:32px;font-weight:900;color:var(--action);margin-bottom:16px">¥${d.amount}</div>
+    <div id="payQRBox" style="display:flex;justify-content:center;margin-bottom:14px"></div>
+    <div style="font-size:14px;color:var(--ink-soft);margin-bottom:6px">
+      ${d.pay_method==='wxpay'?'请用微信扫码支付':'请用支付宝扫码支付'}
+    </div>
+    <div style="font-size:12px;color:var(--ink-faint);margin-bottom:16px">支付成功后自动开通，无需刷新</div>
+    <div id="payStatus" style="font-size:13px;color:var(--warn);margin-bottom:14px">⏳ 等待支付…</div>
+    <button class="btn-ghost" style="width:100%" onclick="closePayModal()">取消</button>`;
+  // 生成二维码
+  const box = document.getElementById("payQRBox");
+  box.innerHTML="";
+  if(window.QRCode && d.qr_content){
+    new QRCode(box, {text:d.qr_content, width:180, height:180});
+  }else{
+    box.innerHTML=`<div style="padding:20px;color:var(--ink-soft);font-size:13px">二维码生成失败,请重试</div>`;
+  }
+  // 开始轮询订单状态
+  startPayPolling(d.order_no);
+}
+
+function startPayPolling(orderNo){
+  if(payPollTimer) clearInterval(payPollTimer);
+  let count = 0;
+  payPollTimer = setInterval(async ()=>{
+    count++;
+    if(count > 120){ clearInterval(payPollTimer); return; }  // 最多轮询10分钟
+    try{
+      const s = await api(`/api/order/${orderNo}/status`);
+      if(s.status === "paid"){
+        clearInterval(payPollTimer);
+        const ps = document.getElementById("payStatus");
+        if(ps) ps.innerHTML='✅ 支付成功！正在开通…';
+        toast("✅ 支付成功，套餐已开通！");
+        // 更新套餐标签
+        if(s.plan_info) document.getElementById("planTag").textContent=s.plan_info.name+"版";
+        setTimeout(()=>{ closePayModal(); hidePricing(); location.reload(); }, 1500);
+      }
+    }catch(e){}
+  }, 5000);  // 每5秒查一次
+}
+
+function closePayModal(){
+  if(payPollTimer) clearInterval(payPollTimer);
+  const m = document.getElementById("payModal");
+  if(m) m.remove();
+}
 function hidePricing(){document.getElementById("pricingView").classList.add("hidden");document.getElementById("mainFlow").classList.remove("hidden")}
 
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!document.getElementById("authView").classList.contains("hidden"))doAuth()});
@@ -2523,21 +2615,15 @@ if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;lo
     const container = document.getElementById("casesContainer");
     if(!container || !d.cases) return;
     container.innerHTML = d.cases.map(c=>`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.04)">
-        <div style="font-size:13px;color:var(--ink-soft);font-weight:600;margin-bottom:16px">${c.industry}</div>
-        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
-          <div style="text-align:center;flex:1">
-            <div style="font-size:13px;color:var(--ink-faint);margin-bottom:2px">优化前</div>
-            <div style="font-size:28px;font-weight:900;color:#ef4444">${c.before}%</div>
-          </div>
-          <div style="font-size:24px;color:#059669">→</div>
-          <div style="text-align:center;flex:1">
-            <div style="font-size:13px;color:var(--ink-faint);margin-bottom:2px">${c.days}天后</div>
-            <div style="font-size:28px;font-weight:900;color:#059669">${c.after}%</div>
-          </div>
+      <div class="case-card glass">
+        <div class="ind">${c.industry}</div>
+        <div class="case-prog">
+          <div class="col"><div class="lbl">优化前</div><div class="bf">${c.before}%</div></div>
+          <div class="arrow">→</div>
+          <div class="col"><div class="lbl">${c.days}天后</div><div class="af">${c.after}%</div></div>
         </div>
-        <div style="background:var(--bg);border-radius:8px;padding:12px;font-size:13px;color:#475569;line-height:1.6;margin-bottom:12px">${c.story}</div>
-        <div style="font-size:13px;color:var(--ink);font-style:italic;line-height:1.6">"${c.quote}"</div>
+        <div class="story">${c.story}</div>
+        <div class="quote">"${c.quote}"</div>
       </div>
     `).join("");
     // 示范案例诚实标注
