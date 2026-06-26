@@ -287,17 +287,27 @@ async def run_monitoring(
             "没有任何 AI 平台密钥可用。请在环境变量中配置至少一个密钥。"
         )
 
-    # 成本优化：经济模式下，按成本排序(便宜优先)，限制平台数
+    # 成本优化 + 准确性平衡：
+    # - 国内模式：国产模型(本就便宜又准确)
+    # - 海外模式：必须包含主流海外平台(ChatGPT/Gemini)，准确性优先
     cost_order = {"cheap": 0, "mid": 1, "expensive": 2}
-    if economy:
+    if economy and mode == "domestic":
+        # 国内经济模式：按成本排序，国产模型本就便宜又准
         sorted_pids = sorted(
             available.keys(),
             key=lambda p: cost_order.get(available[p].get("cost", "mid"), 1)
         )
-        # 只取最便宜的 max_platforms 个
         available = {p: available[p] for p in sorted_pids[:max_platforms]}
+    elif mode != "domestic":
+        # 海外模式：准确性优先，必须保证主流海外平台在内
+        # 优先级：先放主流海外(chatgpt/gemini/perplexity)，再用便宜的补足
+        priority = ["chatgpt", "gemini", "perplexity", "deepseek", "qwen", "claude"]
+        ordered = [p for p in priority if p in available]
+        # 加上其他没列到的
+        ordered += [p for p in available if p not in ordered]
+        available = {p: available[p] for p in ordered[:max_platforms]}
     else:
-        # 完整模式也限制最大平台数，防止token爆炸
+        # 国内非经济模式：限制平台数防token爆炸
         if len(available) > max_platforms:
             available = dict(list(available.items())[:max_platforms])
 
