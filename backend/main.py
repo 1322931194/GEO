@@ -304,6 +304,23 @@ def list_brands(user: User = Depends(current_user),
     return result
 
 
+@app.delete("/api/brands/{brand_id}")
+def delete_brand(brand_id: int, user: User = Depends(current_user),
+                 session: Session = Depends(get_session)):
+    """删除品牌，连带删除其报告、内容、知识库、追踪记录"""
+    brand = session.get(Brand, brand_id)
+    if not brand or brand.user_id != user.id:
+        raise HTTPException(404, "品牌不存在")
+    # 删除关联数据
+    for model in (Report, GeneratedContent, KnowledgeItem, AIVisit):
+        rows = session.exec(select(model).where(model.brand_id == brand_id)).all()
+        for r in rows:
+            session.delete(r)
+    session.delete(brand)
+    session.commit()
+    return {"message": "已删除", "brand_id": brand_id}
+
+
 @app.get("/api/brands/{brand_id}/keywords")
 async def brand_keywords(brand_id: int, user: User = Depends(current_user),
                          session: Session = Depends(get_session)):
