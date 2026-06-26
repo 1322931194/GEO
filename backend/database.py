@@ -55,6 +55,8 @@ class User(SQLModel, table=True):
     plan: str = Field(default="trial")
     monitor_count: int = Field(default=0)   # 累计监测次数（试用版限制用）
     is_admin: bool = Field(default=False)   # 管理员标记
+    invite_code: str = Field(default="", index=True)  # 自己的专属邀请码
+    referred_by: int = Field(default=0)     # 被谁推荐（推荐人用户ID，0=无）
     created_at: datetime = Field(default_factory=datetime.utcnow)
     trial_ends_at: Optional[datetime] = None
 
@@ -72,6 +74,33 @@ class Brand(SQLModel, table=True):
     brand_facts: str = ""            # 知识库抓取的事实
     questions_json: str = "[]"       # 问题集
     track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Referral(SQLModel, table=True):
+    """分销记录：谁通过谁的邀请码注册/付费"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    referrer_id: int = Field(index=True)       # 推广者用户ID
+    referred_user_id: int = Field(index=True)  # 被推荐的新用户ID
+    referred_email: str = ""                    # 被推荐用户邮箱
+    status: str = "registered"                  # registered=已注册 paid=已付费
+    commission: float = 0.0                     # 佣金金额
+    paid_plan: str = ""                          # 付费的套餐
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    paid_at: Optional[datetime] = None
+
+
+class KnowledgeItem(SQLModel, table=True):
+    """
+    品牌知识库条目：商家存的品牌资料。
+    这是产品护城河——存得越多，生成内容越准，迁移成本越高。
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    brand_id: int = Field(index=True)
+    category: str = "fact"        # fact=品牌事实 selling_point=卖点 faq=常见问答 story=品牌故事
+    title: str = ""               # 标题/问题
+    content: str = ""             # 内容/答案
+    source: str = "manual"        # manual=手动添加 crawled=官网抓取 ai=AI生成
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
