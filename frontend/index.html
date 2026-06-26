@@ -232,6 +232,9 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 .kw-card{background:#f8faff;border:1px solid #c7d2fe;border-radius:12px;padding:16px;margin-bottom:18px}
 .kw-tag{display:inline-block;background:#fff;border:1px solid #c7d2fe;border-radius:6px;
   padding:3px 10px;font-size:12px;margin:2px;white-space:nowrap}
+.ws-tab{padding:10px 18px;border:1.5px solid var(--line);border-radius:10px;background:#fff;
+  font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;font-family:inherit;white-space:nowrap}
+.ws-tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 
 /* 加载 */
 .loading{text-align:center;padding:48px;color:var(--ink-soft)}
@@ -248,6 +251,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   border-radius:8px;margin-top:18px;line-height:1.7;border:1px solid var(--line)}
 .section-title{font-weight:700;font-size:15px;margin:24px 0 12px;display:flex;align-items:center;gap:8px}
 @media(max-width:640px){.metrics,.platforms,.plans,.ao-grid,.mode-select{grid-template-columns:1fr}
+  .auth-stats{grid-template-columns:repeat(2,1fr)}
   .steps{flex-wrap:wrap}.step{flex:1 1 50%}}
 </style>
 </head>
@@ -298,19 +302,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
         <!-- 副标题 -->
         <p style="font-size:clamp(16px,4.5vw,20px);color:#334155;margin-bottom:10px;line-height:1.6;font-weight:400">
-          免费查一查，AI 到底在推你，<br>还是推你的<b style="color:#dc2626">对手</b>。
+          让 AI 主动推荐你，<br>把客户<b style="color:#059669">送上门</b>，而不是推给<b style="color:#dc2626">对手</b>。
         </p>
         <p style="font-size:14px;color:#64748b;margin-bottom:28px;line-height:1.7">
-          58% 的买家已改用 AI 找供应商。30 分钟出完整报告。
+          🔥 你的同行已经在用 AI 抢流量了。58% 的买家改用 AI 找供应商，免费查一查你被推荐了没。
         </p>
 
         <!-- CTA 按钮 -->
         <div style="margin-bottom:36px">
           <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
-            style="display:block;width:100%;max-width:360px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(79,70,229,.3);text-align:center">
-            立即免费体检 →
+            style="display:block;width:100%;max-width:360px;background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:12px;padding:16px;font-size:17px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(234,88,12,.35);text-align:center">
+            🔍 立即免费体检，看 AI 推没推我 →
           </button>
-          <div style="margin-top:10px;font-size:12px;color:#94a3b8">无需信用卡 · ¥9.9 解锁完整报告 · 客服微信 jenly222</div>
+          <div style="margin-top:10px;font-size:12px;color:#94a3b8">无需信用卡 · 30秒出结果 · ¥9.9 解锁完整报告</div>
         </div>
 
         <!-- 数据墙：横向滑动（手机）/ 两列网格（电脑） -->
@@ -496,6 +500,34 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
   }
 }
 </style>
+  <!-- 案例展示模块 -->
+  <div style="background:linear-gradient(180deg,#f8faff,#fff);padding:50px 20px;border-top:1px solid #e7e8ef">
+    <div style="max-width:1000px;margin:0 auto">
+      <div style="text-align:center;margin-bottom:36px">
+        <div style="display:inline-block;background:#ecfdf5;color:#065f46;padding:5px 14px;border-radius:14px;font-size:13px;font-weight:600;margin-bottom:12px">📈 真实效果</div>
+        <h2 style="font-size:clamp(22px,5vw,32px);font-weight:900;color:#0f172a;margin-bottom:10px">他们已经让 AI 开始推荐自己</h2>
+        <p style="font-size:15px;color:#64748b">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:#059669" id="avgImprove">34</b> 个百分点</p>
+      </div>
+      <div id="casesContainer" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px"></div>
+      <div style="text-align:center;margin-top:30px">
+        <button onclick="document.getElementById('authFormCard').scrollIntoView({behavior:'smooth'})"
+          style="background:linear-gradient(135deg,#f59e0b,#ea580c);color:#fff;border:none;border-radius:12px;padding:15px 36px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(234,88,12,.3)">
+          我也要让 AI 推荐我 →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 合规页脚 -->
+  <div style="text-align:center;padding:30px 20px;border-top:1px solid #e7e8ef;margin-top:30px;background:#fff">
+    <div style="font-size:13px;color:#5a5f73;margin-bottom:10px">
+      <span style="display:inline-block;background:#f0fdf4;color:#065f46;padding:5px 14px;border-radius:12px;font-size:12px;font-weight:600;line-height:1.6;max-width:90%">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</span>
+    </div>
+    <div style="font-size:12px;color:#94a3b8;line-height:1.8">
+      GEO 雷达提供 AI 能见度监测与内容优化建议,不保证特定效果,生成内容请发布前自行核实<br>
+      <a href="/terms" style="color:#4f46e5;text-decoration:none">服务条款与合规声明</a> · 客服微信 jenly222
+    </div>
+  </div>
 </div>
 
 <!-- ===== 主应用 ===== -->
@@ -505,9 +537,50 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
     <div style="display:flex;align-items:center;gap:10px">
       <span class="mode-badge outbound hidden" id="modeBadge">🌏 出海模式</span>
       <button class="btn-ghost" style="padding:7px 14px;font-size:13px;color:var(--brand);border-color:var(--brand)" onclick="showDashboard()" id="dashBtn">📊 增长看板</button>
+      <button class="btn-ghost" style="padding:7px 14px;font-size:13px;color:#059669;border-color:#34d399" onclick="showWorkspace()" id="wsBtn">✍️ 内容工作台</button>
+      <button class="btn-ghost" style="padding:7px 14px;font-size:13px;color:#d97706;border-color:#fbbf24" onclick="showReferral()" id="refBtn">🎁 我的推广</button>
       <span class="plan-tag" id="planTag">试用版</span>
       <button class="btn-ghost" style="padding:7px 14px;font-size:13px" onclick="showPricing()">升级套餐 ✨</button>
+      <button class="btn-ghost" style="padding:7px 12px;font-size:13px" onclick="reopenOnboarding()" title="新手引导">❓</button>
       <button class="btn-ghost" style="padding:7px 12px;font-size:13px" onclick="logout()">退出</button>
+    </div>
+  </div>
+
+  <!-- ===== 内容工作台视图 ===== -->
+  <div id="workspaceView" class="hidden">
+    <div class="shell">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">✍️ 内容工作台</h2>
+          <p style="font-size:14px;color:var(--ink-soft)">跟着三步走：建知识库 → 选题 → 一键创作</p>
+        </div>
+        <button class="btn-ghost" onclick="backFromWorkspace()">← 返回</button>
+      </div>
+      <!-- 步骤导航 -->
+      <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+        <button class="ws-tab active" id="wsTab1" onclick="switchWsTab(1)">① 品牌知识库</button>
+        <button class="ws-tab" id="wsTab2" onclick="switchWsTab(2)">② 选题库</button>
+        <button class="ws-tab" id="wsTab3" onclick="switchWsTab(3)">③ 我的内容</button>
+      </div>
+      <div id="workspaceContent">
+        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 我的推广视图 ===== -->
+  <div id="referralView" class="hidden">
+    <div class="shell">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:20px">
+        <div>
+          <h2 style="font-size:22px;font-weight:800;color:var(--ink)">🎁 我的推广</h2>
+          <p style="font-size:14px;color:var(--ink-soft)">分享给同行，他付费你赚佣金</p>
+        </div>
+        <button class="btn-ghost" onclick="backFromReferral()">← 返回</button>
+      </div>
+      <div id="referralContent">
+        <div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div>
+      </div>
     </div>
   </div>
 
@@ -777,6 +850,16 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:6px;font-
 
 <script>
 let token = localStorage.getItem("geo_token") || null;
+
+// 从URL读取邀请码并保存（用户可能先看落地页再注册）
+function getInviteCode(){
+  const url = new URLSearchParams(location.search);
+  const ref = url.get("ref");
+  if(ref){ localStorage.setItem("geo_ref", ref); return ref; }
+  return localStorage.getItem("geo_ref") || "";
+}
+// 页面加载时如果有ref参数，存下来
+getInviteCode();
 let authMode = "login";
 let currentBrandId = null;
 let currentMode = null; // "outbound" | "domestic"
@@ -824,7 +907,7 @@ async function doAuth(){
   btn.textContent="请稍候…";btn.disabled=true;
   try{
     const data=await api("/api/"+(authMode==="login"?"login":"register"),
-      {method:"POST",body:JSON.stringify({email,password})});
+      {method:"POST",body:JSON.stringify({email,password,invite_code:getInviteCode()})});
     token=data.token;localStorage.setItem("geo_token",token);
     if(authMode!=="login"){
       toast("✅ 注册成功，欢迎使用 GEO 雷达！");
@@ -852,7 +935,62 @@ function enterApp(planInfo){
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
   // 登录后自动加载历史品牌
   loadMyBrands();
+  // 首次进入显示新手引导
+  maybeShowOnboarding();
 }
+
+// ===== 新手引导 =====
+function maybeShowOnboarding(){
+  if(localStorage.getItem("geo_onboarded")) return;
+  setTimeout(showOnboarding, 600);
+}
+
+const ONBOARD_STEPS = [
+  {icon:"👋", title:"欢迎来到 GEO 雷达", desc:"我帮你查清楚:AI 到底在推你,还是推你的对手。跟着这几步走,5 分钟上手。"},
+  {icon:"🔍", title:"第一步 · 监测你的品牌", desc:"填入品牌信息,我会去 8 大 AI 平台(ChatGPT、DeepSeek、豆包等)查一遍,看 AI 会不会推荐你。"},
+  {icon:"🧠", title:"第二步 · 建品牌知识库", desc:"在「内容工作台」点 AI 自动提取,10 秒建好你的品牌大脑。之后所有内容都基于它生成,越用越懂你。"},
+  {icon:"✍️", title:"第三步 · 一键创作内容", desc:"我把该写的选题都列好了,你点「创作」,我基于知识库直接写出来,你复制就能发布。"},
+  {icon:"📊", title:"第四步 · 看增长", desc:"在「增长看板」看你的提及率变化、AI 给你带来的真实访客。做了优化,回来看涨了没。"},
+  {icon:"✅", title:"我们坚持白帽优化", desc:"我们只用真实优质内容帮你提升,不做刷量、伪造等违规操作。生成的内容请发布前自行核实。"},
+];
+let onboardIdx = 0;
+
+function showOnboarding(){
+  onboardIdx = 0;
+  const modal = document.createElement("div");
+  modal.id = "onboardModal";
+  modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.innerHTML=`<div style="background:#fff;border-radius:18px;padding:32px;max-width:420px;width:100%;text-align:center" id="onboardCard"></div>`;
+  document.body.appendChild(modal);
+  renderOnboardStep();
+}
+
+function renderOnboardStep(){
+  const s = ONBOARD_STEPS[onboardIdx];
+  const card = document.getElementById("onboardCard");
+  const isLast = onboardIdx === ONBOARD_STEPS.length-1;
+  const dots = ONBOARD_STEPS.map((_,i)=>`<span style="width:8px;height:8px;border-radius:50%;background:${i===onboardIdx?'#4f46e5':'#d1d5db'};display:inline-block;margin:0 3px"></span>`).join("");
+  card.innerHTML=`
+    <div style="font-size:48px;margin-bottom:16px">${s.icon}</div>
+    <div style="font-size:20px;font-weight:800;margin-bottom:10px">${s.title}</div>
+    <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:24px">${s.desc}</div>
+    <div style="margin-bottom:20px">${dots}</div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      ${onboardIdx>0?`<button class="btn-ghost" style="font-size:14px;padding:10px 20px" onclick="onboardPrev()">上一步</button>`:''}
+      <button class="btn-primary" style="font-size:14px;padding:10px 24px" onclick="${isLast?'finishOnboard()':'onboardNext()'}">${isLast?'开始使用 →':'下一步'}</button>
+    </div>
+    ${!isLast?`<div style="margin-top:14px"><a onclick="finishOnboard()" style="font-size:13px;color:var(--ink-soft);cursor:pointer">跳过引导</a></div>`:''}`;
+}
+
+function onboardNext(){ if(onboardIdx<ONBOARD_STEPS.length-1){onboardIdx++;renderOnboardStep();} }
+function onboardPrev(){ if(onboardIdx>0){onboardIdx--;renderOnboardStep();} }
+function finishOnboard(){
+  localStorage.setItem("geo_onboarded","1");
+  const m=document.getElementById("onboardModal");
+  if(m) m.remove();
+}
+// 让用户能从顶栏重新打开引导
+function reopenOnboarding(){ showOnboarding(); }
 
 // ===== 加载用户历史品牌 =====
 async function loadMyBrands(){
@@ -966,6 +1104,343 @@ async function loadLatestReport(brandId){
 
 // ===== 增长看板 =====
 let lastBrandIdForDash = null;
+
+// ===== 内容工作台 =====
+let wsCurrentTab = 1;
+let wsData = null;
+let wsKnowledge = null;
+
+async function showWorkspace(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){
+    try{ const bs = await api("/api/brands"); if(bs&&bs.length){bid=bs[0].id;currentBrandId=bid;lastBrandIdForDash=bid;} }catch(e){}
+  }
+  if(!bid){ toast("请先创建品牌"); return; }
+  document.getElementById("mainFlow").classList.add("hidden");
+  document.getElementById("dashboardView").classList.add("hidden");
+  document.getElementById("referralView").classList.add("hidden");
+  document.getElementById("workspaceView").classList.remove("hidden");
+  switchWsTab(1);
+}
+
+function backFromWorkspace(){
+  document.getElementById("workspaceView").classList.add("hidden");
+  document.getElementById("mainFlow").classList.remove("hidden");
+}
+
+function switchWsTab(n){
+  wsCurrentTab = n;
+  for(let i=1;i<=3;i++){
+    document.getElementById("wsTab"+i).classList.toggle("active", i===n);
+  }
+  if(n===1) loadKnowledgeTab();
+  else if(n===2) loadTopicsTab();
+  else loadContentsTab();
+}
+
+// ---- Tab1: 知识库 ----
+async function loadKnowledgeTab(){
+  const c = document.getElementById("workspaceContent");
+  c.innerHTML='<div class="loading" style="padding:30px"><div class="spinner"></div><p>加载知识库…</p></div>';
+  const bid = currentBrandId || lastBrandIdForDash;
+  try{
+    const d = await api(`/api/brands/${bid}/knowledge`);
+    wsKnowledge = d;
+    renderKnowledgeTab(d);
+  }catch(e){ c.innerHTML=`<p style="color:var(--bad);padding:20px">${e.message}</p>`; }
+}
+
+function renderKnowledgeTab(d){
+  const c = document.getElementById("workspaceContent");
+  const catLabels={selling_point:'💎 卖点',faq:'❓ 常见问答',fact:'📌 品牌事实',story:'📖 品牌故事'};
+  let html=`
+    <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">🧠 品牌知识库（你的"品牌大脑"）</div>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">把品牌资料存进来，之后所有内容创作都基于这些资料生成——越丰富，内容越准、越像你的品牌</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-primary" style="font-size:13px;padding:10px 18px;background:linear-gradient(135deg,#059669,#047857)" onclick="autoExtractKb()" id="autoKbBtn">✨ AI自动提取（最快）</button>
+        <button class="btn-ghost" style="font-size:13px;padding:10px 18px" onclick="showAddKbForm()">+ 手动添加</button>
+      </div>
+    </div>
+    <div id="addKbForm" style="display:none;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px">
+      <select id="kbCat" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;font-family:inherit;font-size:14px">
+        <option value="selling_point">💎 卖点</option>
+        <option value="faq">❓ 常见问答</option>
+        <option value="fact">📌 品牌事实</option>
+        <option value="story">📖 品牌故事</option>
+      </select>
+      <input id="kbTitle" placeholder="标题/问题（如：你们的茶有什么特色？）" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;font-family:inherit;font-size:14px">
+      <textarea id="kbContent" placeholder="内容/答案（如：我们的莓茶来自张家界高山，富含黄酮…）" rows="3" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;font-family:inherit;font-size:14px"></textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" style="font-size:13px;padding:9px 18px" onclick="saveKb()">保存</button>
+        <button class="btn-ghost" style="font-size:13px;padding:9px 18px" onclick="document.getElementById('addKbForm').style.display='none'">取消</button>
+      </div>
+    </div>`;
+
+  if(d.total===0){
+    html+=`<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+      <div style="font-size:36px;margin-bottom:12px">🧠</div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:6px">知识库还是空的</div>
+      <div style="font-size:13px">点上方"AI自动提取"，10秒帮你建好品牌知识库</div>
+    </div>`;
+  } else {
+    html+=`<div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">共 ${d.total} 条知识</div>`;
+    d.items.forEach(it=>{
+      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
+          <div style="flex:1">
+            <div style="font-size:11px;color:#059669;font-weight:600;margin-bottom:4px">${catLabels[it.category]||it.category}</div>
+            ${it.title?`<div style="font-size:14px;font-weight:600;margin-bottom:4px">${escHtml(it.title)}</div>`:''}
+            <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${escHtml(it.content)}</div>
+          </div>
+          <button onclick="delKb(${it.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
+        </div>
+      </div>`;
+    });
+  }
+  c.innerHTML=html;
+}
+
+function showAddKbForm(){ document.getElementById("addKbForm").style.display="block"; }
+
+async function autoExtractKb(){
+  const btn=document.getElementById("autoKbBtn");
+  btn.textContent="AI提取中…";btn.disabled=true;
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{
+    const d=await api(`/api/brands/${bid}/knowledge/auto-extract`,{method:"POST"});
+    toast("✅ "+d.message);
+    loadKnowledgeTab();
+  }catch(e){ toast("提取失败："+e.message); btn.textContent="✨ AI自动提取（最快）";btn.disabled=false; }
+}
+
+async function saveKb(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const category=document.getElementById("kbCat").value;
+  const title=document.getElementById("kbTitle").value.trim();
+  const content=document.getElementById("kbContent").value.trim();
+  if(!content){ toast("请填写内容"); return; }
+  try{
+    await api(`/api/brands/${bid}/knowledge`,{method:"POST",body:JSON.stringify({brand_id:bid,category,title,content})});
+    toast("✅ 已添加");
+    loadKnowledgeTab();
+  }catch(e){ toast("保存失败："+e.message); }
+}
+
+async function delKb(id){
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{ await api(`/api/brands/${bid}/knowledge/${id}`,{method:"DELETE"}); loadKnowledgeTab(); }catch(e){}
+}
+
+// ---- Tab2: 选题库 ----
+async function loadTopicsTab(){
+  const c=document.getElementById("workspaceContent");
+  c.innerHTML='<div class="loading" style="padding:30px"><div class="spinner"></div><p>加载选题…</p></div>';
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{
+    const d=await api(`/api/brands/${bid}/content-workspace`);
+    wsData=d;
+    renderTopicsTab(d);
+  }catch(e){ c.innerHTML=`<p style="color:var(--bad);padding:20px">${e.message}</p>`; }
+}
+
+function renderTopicsTab(d){
+  const c=document.getElementById("workspaceContent");
+  let html=`
+    <div style="background:#f8faff;border:1px solid #c7d2fe;border-radius:14px;padding:18px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px">📋 选题库（该写什么，都列好了）</div>
+      <p style="font-size:13px;color:var(--ink-soft)">这些是用户最常问AI的问题。点"创作"，系统基于你的知识库直接生成内容。已创作 ${d.created_count}/${d.topic_count}</p>
+      ${d.knowledge_count===0?'<div style="margin-top:10px;background:#fffbeb;border-radius:8px;padding:10px;font-size:12px;color:#92400e">💡 建议先去①知识库添加资料，生成的内容会更准</div>':''}
+    </div>`;
+
+  if(!d.topics.length){
+    html+=`<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+      <div style="font-size:36px;margin-bottom:12px">📋</div>
+      <div style="font-size:14px">还没有选题，先去做一次监测，系统会自动生成选题</div>
+    </div>`;
+  } else {
+    d.topics.forEach((t,i)=>{
+      const prioColor=t.priority==='high'?'#ef4444':'#f59e0b';
+      const prioText=t.priority==='high'?'高优先':'推荐';
+      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">
+          <div style="flex:1;min-width:180px">
+            <div style="font-size:14px;font-weight:600;margin-bottom:4px">${escHtml(t.question)}</div>
+            <div style="font-size:12px;color:var(--ink-soft)">
+              <span style="color:${prioColor};font-weight:600">${prioText}</span> · ${t.source} · ${t.reason}
+            </div>
+          </div>
+          ${t.created
+            ? `<span style="font-size:12px;color:#10b981;font-weight:600;white-space:nowrap">✓ 已创作</span>`
+            : `<button class="btn-primary" style="font-size:12px;padding:8px 16px;white-space:nowrap" onclick="createFromTopic('${escHtml(t.question).replace(/'/g,"\\'")}')">✍️ 创作</button>`}
+        </div>
+      </div>`;
+    });
+  }
+  c.innerHTML=html;
+}
+
+async function createFromTopic(question){
+  const bid=currentBrandId||lastBrandIdForDash;
+  toast("✍️ 正在基于知识库创作…");
+  try{
+    const r=await api("/api/content/generate",{method:"POST",body:JSON.stringify({brand_id:bid,gap_question:question,content_type:"website"})});
+    // 创作完跳到"我的内容"看结果
+    switchWsTab(3);
+    toast("✅ 创作完成！");
+  }catch(e){ toast("创作失败："+e.message); }
+}
+
+// ---- Tab3: 我的内容 ----
+async function loadContentsTab(){
+  const c=document.getElementById("workspaceContent");
+  c.innerHTML='<div class="loading" style="padding:30px"><div class="spinner"></div><p>加载内容…</p></div>';
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{
+    const d=await api(`/api/brands/${bid}/content-workspace`);
+    renderContentsTab(d);
+  }catch(e){ c.innerHTML=`<p style="color:var(--bad);padding:20px">${e.message}</p>`; }
+}
+
+function renderContentsTab(d){
+  const c=document.getElementById("workspaceContent");
+  let html=`<div style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">已创作 ${d.contents.length} 篇内容</div>`;
+  if(!d.contents.length){
+    html+=`<div style="text-align:center;padding:40px;color:var(--ink-soft)">
+      <div style="font-size:36px;margin-bottom:12px">📝</div>
+      <div style="font-size:14px">还没创作内容，去②选题库点"创作"开始吧</div>
+    </div>`;
+  } else {
+    d.contents.forEach(ct=>{
+      const pub=ct.status==='published';
+      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
+          <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
+          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:#065f46':'background:#f1f5f9;color:#64748b'}">${pub?'已发布':'草稿'}</span>
+        </div>
+        <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;max-height:120px;overflow:hidden">${escHtml((ct.body||'').slice(0,300))}${(ct.body||'').length>300?'…':''}</div>
+        ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
+        <div style="background:#fffbeb;border-radius:6px;padding:8px 10px;font-size:11px;color:#92400e;margin-bottom:10px">⚠️ 此为AI生成草稿,发布前请核实数据真实性,避免使用"第一""最佳"等违规用语</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="copyContent(${ct.id})">📋 复制全文</button>
+          <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="togglePublished(${ct.id})">${pub?'标为草稿':'标为已发布'}</button>
+        </div>
+        <textarea id="content_${ct.id}" style="position:absolute;left:-9999px">${escHtml(ct.title||'')}\n\n${escHtml(ct.body||'')}</textarea>
+      </div>`;
+    });
+  }
+  c.innerHTML=html;
+}
+
+function copyContent(id){
+  const ta=document.getElementById("content_"+id);
+  navigator.clipboard.writeText(ta.value).then(()=>toast("✅ 全文已复制，去发布吧！"));
+}
+
+async function togglePublished(id){
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{ await api(`/api/brands/${bid}/content/${id}/mark-published`,{method:"POST"}); loadContentsTab(); }catch(e){}
+}
+
+// ===== 内容工作台结束 =====
+
+// ===== 我的推广 =====
+async function showReferral(){
+  document.getElementById("mainFlow").classList.add("hidden");
+  document.getElementById("dashboardView").classList.add("hidden");
+  document.getElementById("referralView").classList.remove("hidden");
+  const content = document.getElementById("referralContent");
+  content.innerHTML='<div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div>';
+  try{
+    const d = await api("/api/my-referral");
+    renderReferral(d);
+  }catch(e){
+    content.innerHTML=`<p style="color:var(--bad);padding:20px">加载失败：${e.message}</p>`;
+  }
+}
+
+function renderReferral(d){
+  const content = document.getElementById("referralContent");
+  let html=`
+    <!-- 佣金概览 -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px">
+      <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:#92400e;margin-bottom:6px">累计佣金</div>
+        <div style="font-size:32px;font-weight:900;color:#d97706">¥${d.total_commission}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已邀请</div>
+        <div style="font-size:32px;font-weight:900;color:var(--ink)">${d.total_invited}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">人注册</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+        <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已付费</div>
+        <div style="font-size:32px;font-weight:900;color:#10b981">${d.total_paid}</div>
+        <div style="font-size:12px;color:var(--ink-soft)">人转化</div>
+      </div>
+    </div>
+
+    <!-- 邀请链接 -->
+    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:20px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:6px">📨 你的专属邀请链接</div>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分享这个链接，别人通过它注册并付费，你可获得 <b style="color:#d97706">${d.commission_rate}%</b> 佣金</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <input id="inviteLink" value="${d.invite_link}" readonly style="flex:1;min-width:200px;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:#f8faff;font-family:inherit">
+        <button class="btn-primary" style="font-size:13px;padding:11px 20px" onclick="copyInviteLink()">📋 复制链接</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:12px;background:#fffbeb;border-radius:8px">
+        <span style="font-size:13px;color:#92400e">邀请码：</span>
+        <span style="font-size:18px;font-weight:800;color:#d97706;letter-spacing:1px">${d.invite_code}</span>
+      </div>
+    </div>
+
+    <!-- 佣金规则 -->
+    <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--brand-ink)">💰 佣金规则</div>
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.9">
+        · 好友通过你的链接注册并付费，你得订单金额的 <b>${d.commission_rate}%</b><br>
+        · 基础版¥299 → 你得 ¥${(299*d.commission_rate/100).toFixed(0)}　专业版¥899 → 你得 ¥${(899*d.commission_rate/100).toFixed(0)}<br>
+        · 企业版¥2999 → 你得 ¥${(2999*d.commission_rate/100).toFixed(0)}<br>
+        · 佣金结算请联系客服微信：<b>jenly222</b>
+      </div>
+    </div>`;
+
+  // 邀请记录
+  if(d.referrals && d.referrals.length){
+    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 邀请记录</div>`;
+    d.referrals.forEach(r=>{
+      const statusColor = r.status==='paid'?'#10b981':'#94a3b8';
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)">
+        <div>
+          <div style="font-size:14px;font-weight:500">${r.email}</div>
+          <div style="font-size:12px;color:var(--ink-soft)">${r.date}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:12px;color:${statusColor};font-weight:600">${r.status_text}</div>
+          ${r.commission>0?`<div style="font-size:14px;font-weight:700;color:#d97706">+¥${r.commission}</div>`:''}
+        </div>
+      </div>`;
+    });
+    html+=`</div>`;
+  } else {
+    html+=`<div style="text-align:center;padding:30px;color:var(--ink-soft);font-size:14px">还没有邀请记录，快分享你的链接吧！</div>`;
+  }
+
+  content.innerHTML=html;
+}
+
+function copyInviteLink(){
+  const inp = document.getElementById("inviteLink");
+  navigator.clipboard.writeText(inp.value).then(()=>toast("✅ 邀请链接已复制，去分享吧！"));
+}
+
+function backFromReferral(){
+  document.getElementById("referralView").classList.add("hidden");
+  document.getElementById("mainFlow").classList.remove("hidden");
+}
+
+// ===== 我的推广结束 =====
 
 async function showDashboard(){
   // 确定要看哪个品牌：当前监测品牌，或拉取用户第一个品牌
@@ -1990,6 +2465,40 @@ function renderSimResults(data){
   resEl.innerHTML=html;resEl.style.display='block';ctaEl.style.display='block';
 }
 if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;localStorage.removeItem("geo_token")})}
+
+// 加载首页案例
+(async function loadShowcase(){
+  try{
+    const d = await api("/api/showcase");
+    const avg = document.getElementById("avgImprove");
+    if(avg && d.stats) avg.textContent = d.stats.avg_improvement;
+    const container = document.getElementById("casesContainer");
+    if(!container || !d.cases) return;
+    container.innerHTML = d.cases.map(c=>`
+      <div style="background:#fff;border:1px solid #e7e8ef;border-radius:16px;padding:24px;box-shadow:0 2px 12px rgba(0,0,0,.04)">
+        <div style="font-size:13px;color:#64748b;font-weight:600;margin-bottom:16px">${c.industry}</div>
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+          <div style="text-align:center;flex:1">
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:2px">优化前</div>
+            <div style="font-size:28px;font-weight:900;color:#ef4444">${c.before}%</div>
+          </div>
+          <div style="font-size:24px;color:#059669">→</div>
+          <div style="text-align:center;flex:1">
+            <div style="font-size:13px;color:#94a3b8;margin-bottom:2px">${c.days}天后</div>
+            <div style="font-size:28px;font-weight:900;color:#059669">${c.after}%</div>
+          </div>
+        </div>
+        <div style="background:#f8faff;border-radius:8px;padding:12px;font-size:13px;color:#475569;line-height:1.6;margin-bottom:12px">${c.story}</div>
+        <div style="font-size:13px;color:#0f172a;font-style:italic;line-height:1.6">"${c.quote}"</div>
+      </div>
+    `).join("");
+    // 示范案例诚实标注
+    if(d.is_demo){
+      container.insertAdjacentHTML("afterend",
+        '<p style="text-align:center;font-size:11px;color:#cbd5e1;margin-top:16px">* 以上为典型场景示范案例，用于说明产品效果，非特定客户真实数据</p>');
+    }
+  }catch(e){ console.log("案例加载失败",e); }
+})();
 </script>
 </body>
 </html>
