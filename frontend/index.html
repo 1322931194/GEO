@@ -8,51 +8,43 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root{
-  /* 暗黑科技底色 */
-  --bg:#05070a;--bg-2:#0a0e14;--bg-3:#0f1520;
-  --panel:rgba(255,255,255,.03);--panel-2:rgba(255,255,255,.05);
-  --line:rgba(255,255,255,.08);--line-2:rgba(255,255,255,.14);
-  /* 文字 */
-  --ink:#eef4fb;--ink-soft:#9aa7b8;--ink-faint:#5e6b7d;
-  /* 霓虹强调 */
-  --cyan:#00f5ff;--cyan-soft:rgba(0,245,255,.12);--cyan-glow:rgba(0,245,255,.35);
-  --lime:#deff9a;--lime-ink:#b6f04e;
-  --brand:#00f5ff;--brand-grad:linear-gradient(135deg,#00f5ff,#4f8bff);
-  --action:#deff9a;--action-grad:linear-gradient(135deg,#deff9a,#8fe34a);
-  /* 语义 */
-  --good:#3ddc84;--good-soft:rgba(61,220,132,.12);
-  --warn:#ffc24b;--warn-soft:rgba(255,194,75,.12);
-  --bad:#ff5d6c;--bad-soft:rgba(255,93,108,.12);
-  --domestic:#41d4ff;--domestic-soft:rgba(65,212,255,.12);--domestic-ink:#9be4ff;
-  /* 圆角 */
-  --r-sm:10px;--r-md:14px;--r-lg:18px;--r-xl:24px;
-  /* 阴影/光晕 */
-  --sh-sm:0 2px 8px rgba(0,0,0,.4);
-  --sh-md:0 8px 28px rgba(0,0,0,.45);
-  --sh-lg:0 18px 50px rgba(0,0,0,.55);
-  --glow-cyan:0 0 0 1px rgba(0,245,255,.25),0 8px 32px rgba(0,245,255,.18);
+  /* 和纸米白底色 */
+  --bg:#f4f1ea;--bg-2:#efebe2;--bg-3:#e8e3d8;
+  --panel:#fbf9f4;--panel-2:#f7f4ec;
+  --line:rgba(38,34,28,.10);--line-2:rgba(38,34,28,.18);
+  /* 墨色文字(高对比,清晰) */
+  --ink:#26221c;--ink-soft:#6b655b;--ink-faint:#9c958a;
+  /* 抹茶绿点缀(克制) */
+  --cyan:#5a7d5a;--cyan-soft:rgba(90,125,90,.10);--cyan-glow:rgba(90,125,90,.2);
+  --lime:#7d9466;--lime-ink:#5a7344;
+  --brand:#5a7d5a;--brand-grad:linear-gradient(135deg,#5a7d5a,#6b8a5e);
+  --action:#3a6b4a;--action-grad:linear-gradient(135deg,#4a7355,#3a6b4a);
+  /* 语义(低饱和) */
+  --good:#5a7d5a;--good-soft:rgba(90,125,90,.10);
+  --warn:#b08442;--warn-soft:rgba(176,132,66,.10);
+  --bad:#b0524a;--bad-soft:rgba(176,82,74,.10);
+  --domestic:#5a7387;--domestic-soft:rgba(90,115,135,.10);--domestic-ink:#4a6377;
+  /* 圆角(克制,偏小) */
+  --r-sm:6px;--r-md:8px;--r-lg:12px;--r-xl:16px;
+  /* 阴影(极轻,几乎无) */
+  --sh-sm:0 1px 2px rgba(38,34,28,.04);
+  --sh-md:0 2px 10px rgba(38,34,28,.05);
+  --sh-lg:0 8px 30px rgba(38,34,28,.08);
+  --glow-cyan:0 0 0 1px rgba(90,125,90,.2);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
-  font-family:-apple-system,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
-  background:var(--bg);color:var(--ink);line-height:1.6;
+  font-family:-apple-system,"Segoe UI","PingFang SC","Hiragino Sans","Microsoft YaHei",sans-serif;
+  background:var(--bg);color:var(--ink);line-height:1.7;
   -webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
-/* 全局背景光晕(Mesh Gradient) */
+/* 和纸底色:纯净米白,极淡的暖色渐变 */
 body::before{
   content:"";position:fixed;inset:0;z-index:-2;
   background:
-    radial-gradient(60vw 50vh at 12% 8%, rgba(0,245,255,.10), transparent 60%),
-    radial-gradient(50vw 40vh at 88% 0%, rgba(79,139,255,.12), transparent 55%),
-    radial-gradient(50vw 50vh at 80% 90%, rgba(222,255,154,.06), transparent 60%),
+    radial-gradient(80vw 60vh at 50% 0%, rgba(255,253,248,.6), transparent 70%),
     var(--bg);
-}
-body::after{
-  content:"";position:fixed;inset:0;z-index:-1;opacity:.4;
-  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
-  background-size:48px 48px;mask-image:radial-gradient(ellipse 80% 60% at 50% 0%,#000,transparent 75%);
 }
 .hidden{display:none!important}
 
@@ -64,49 +56,46 @@ body::after{
 
 /* 通用按钮 */
 button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--r-sm);
-  font-size:14px;font-weight:600;transition:.2s;color:var(--ink)}
-.btn-primary{background:var(--cyan-soft);color:var(--cyan);padding:11px 22px;
-  border:1px solid rgba(0,245,255,.3)}
-.btn-primary:hover{background:rgba(0,245,255,.18);box-shadow:var(--glow-cyan);transform:translateY(-1px)}
-.btn-primary:disabled{opacity:.45;cursor:default;transform:none;box-shadow:none}
-.btn-action{background:var(--action-grad);color:#0a1400;padding:13px 26px;
-  border-radius:var(--r-md);font-weight:800;box-shadow:0 6px 24px rgba(222,255,154,.25)}
-.btn-action:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(222,255,154,.4)}
-.btn-ghost{background:var(--panel);color:var(--ink-soft);border:1px solid var(--line);padding:9px 18px}
-.btn-ghost:hover{border-color:var(--line-2);color:var(--ink);background:var(--panel-2)}
-.btn-cyan{background:var(--brand-grad);color:#021016;padding:13px 26px;border-radius:var(--r-md);font-weight:800;
-  box-shadow:0 6px 24px rgba(0,245,255,.3)}
-.btn-cyan:hover{transform:translateY(-2px);box-shadow:0 10px 36px rgba(0,245,255,.45)}
+  font-size:14px;font-weight:500;transition:.2s;color:var(--ink)}
+.btn-primary{background:var(--ink);color:var(--bg);padding:11px 22px;border:1px solid var(--ink)}
+.btn-primary:hover{background:#3a352c;transform:translateY(-1px);box-shadow:var(--sh-md)}
+.btn-primary:disabled{opacity:.4;cursor:default;transform:none;box-shadow:none}
+.btn-action{background:var(--action);color:#fff;padding:13px 26px;
+  border-radius:var(--r-md);font-weight:600;box-shadow:var(--sh-sm)}
+.btn-action:hover{background:#2f5a3d;transform:translateY(-1px);box-shadow:var(--sh-md)}
+.btn-ghost{background:transparent;color:var(--ink-soft);border:1px solid var(--line-2);padding:9px 18px}
+.btn-ghost:hover{border-color:var(--ink);color:var(--ink);background:var(--panel)}
+.btn-cyan{background:var(--action);color:#fff;padding:13px 26px;border-radius:var(--r-md);font-weight:600;
+  box-shadow:var(--sh-sm)}
+.btn-cyan:hover{background:#2f5a3d;transform:translateY(-1px);box-shadow:var(--sh-md)}
 
-/* 玻璃卡片 */
-.glass{background:var(--panel);backdrop-filter:blur(18px) saturate(1.2);
-  border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md)}
-.glass-2{background:var(--panel-2);backdrop-filter:blur(14px);
-  border:1px solid var(--line);border-radius:var(--r-md)}
+/* 卡片(和纸质感,非玻璃) */
+.glass{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-md)}
+.glass-2{background:var(--panel-2);border:1px solid var(--line);border-radius:var(--r-md)}
 
 /* 表单 */
 input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:12px 14px;
-  border:1px solid var(--line);border-radius:var(--r-sm);
-  background:rgba(255,255,255,.04);color:var(--ink);transition:.18s}
+  border:1px solid var(--line-2);border-radius:var(--r-sm);
+  background:#fff;color:var(--ink);transition:.18s}
 input::placeholder,textarea::placeholder{color:var(--ink-faint)}
-input:focus,select:focus,textarea:focus{outline:none;border-color:rgba(0,245,255,.5);
-  box-shadow:0 0 0 3px rgba(0,245,255,.12);background:rgba(255,255,255,.06)}
-select option{background:var(--bg-3);color:var(--ink)}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);
+  box-shadow:0 0 0 3px var(--cyan-soft);background:#fff}
+select option{background:#fff;color:var(--ink)}
 label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-weight:500}
 .field{margin-bottom:16px}
 
-/* eyebrow标签 */
-.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;
-  letter-spacing:.08em;text-transform:uppercase;color:var(--cyan);
-  background:var(--cyan-soft);border:1px solid rgba(0,245,255,.22);
-  padding:6px 14px;border-radius:30px}
+/* eyebrow标签(克制) */
+.eyebrow{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:600;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--cyan);
+  background:var(--cyan-soft);border:1px solid var(--line);
+  padding:6px 14px;border-radius:4px}
 
 /* 通用区块标题 */
 .sec-title{font-size:clamp(26px,5vw,40px);font-weight:800;letter-spacing:-.02em;line-height:1.15}
 .sec-sub{font-size:15px;color:var(--ink-soft);margin-top:12px}
 
 /* ============ 加载动画 ============ */
-.spinner{width:36px;height:36px;border:3px solid rgba(0,245,255,.15);
+.spinner{width:36px;height:36px;border:3px solid var(--cyan-soft);
   border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
 .loading{text-align:center;color:var(--ink-soft)}
@@ -125,11 +114,11 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
    ==================================================================== */
 .lp-nav{position:fixed;top:0;left:0;right:0;z-index:100;height:68px;
   display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,60px);
-  background:rgba(5,7,10,.6);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  background:rgba(251,249,244,.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
 .lp-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.01em}
-.lp-logo .mark{width:34px;height:34px;border-radius:10px;background:var(--brand-grad);
-  display:grid;place-items:center;font-size:17px;color:#021016;
-  box-shadow:0 0 20px rgba(0,245,255,.4)}
+.lp-logo .mark{width:34px;height:34px;border-radius:10px;background:var(--ink);
+  display:grid;place-items:center;font-size:17px;color:#fff;
+  }
 .lp-nav-links{display:flex;align-items:center;gap:22px}
 .lp-nav-links a{color:var(--ink-soft);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
 .lp-nav-links a:hover{color:var(--ink)}
@@ -137,8 +126,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .lp-hero{position:relative;padding:140px clamp(20px,5vw,60px) 80px;max-width:1280px;margin:0 auto;
   display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center}
 .lp-hero h1{font-size:clamp(34px,5.5vw,60px);font-weight:850;line-height:1.05;letter-spacing:-.03em}
-.lp-hero h1 .hl{background:linear-gradient(120deg,var(--cyan),#7cc4ff 60%,var(--lime));
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.lp-hero h1 .hl{color:var(--cyan)}
 .lp-hero .lead{font-size:clamp(16px,2.2vw,19px);color:var(--ink-soft);margin:24px 0 14px;max-width:520px;line-height:1.6}
 .lp-hero .urgent{font-size:14px;color:var(--lime-ink);margin-bottom:32px;display:flex;align-items:center;gap:8px}
 .lp-cta-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
@@ -147,18 +135,18 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 /* AI 模拟聊天框(signature element) */
 .ai-chat{position:relative}
 .ai-chat-glow{position:absolute;inset:-40px;z-index:0;
-  background:radial-gradient(circle at 50% 30%,rgba(0,245,255,.18),transparent 65%);filter:blur(20px)}
-.ai-chat-win{position:relative;z-index:1;background:linear-gradient(180deg,rgba(15,21,32,.92),rgba(10,14,20,.92));
+  background:radial-gradient(circle at 50% 30%,var(--cyan-soft),transparent 65%);filter:blur(20px)}
+.ai-chat-win{position:relative;z-index:1;background:#fff;
   backdrop-filter:blur(20px);border:1px solid var(--line-2);border-radius:var(--r-xl);
-  box-shadow:var(--sh-lg),0 0 60px rgba(0,245,255,.1);overflow:hidden}
+  box-shadow:var(--sh-lg),0 0 60px var(--cyan-soft);overflow:hidden}
 .ai-chat-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
 .ai-chat-bar .dot{width:11px;height:11px;border-radius:50%}
 .ai-chat-bar .d1{background:#ff5f57}.ai-chat-bar .d2{background:#febc2e}.ai-chat-bar .d3{background:#28c840}
 .ai-chat-bar .name{margin-left:8px;font-size:13px;color:var(--ink-soft);font-weight:600}
 .ai-chat-body{padding:22px 20px;min-height:280px;display:flex;flex-direction:column;gap:16px}
-.chat-q{align-self:flex-end;max-width:80%;background:var(--cyan-soft);border:1px solid rgba(0,245,255,.25);
+.chat-q{align-self:flex-end;max-width:80%;background:var(--cyan-soft);border:1px solid var(--line-2);
   color:var(--ink);padding:11px 15px;border-radius:14px 14px 4px 14px;font-size:14px}
-.chat-a{align-self:flex-start;max-width:88%;background:rgba(255,255,255,.04);border:1px solid var(--line);
+.chat-a{align-self:flex-start;max-width:88%;background:var(--panel);border:1px solid var(--line);
   padding:13px 16px;border-radius:14px 14px 14px 4px;font-size:13.5px;color:var(--ink-soft);line-height:1.7}
 .chat-a .comp{color:var(--cyan);font-weight:600}
 .chat-a .miss{color:var(--bad);font-weight:600}
@@ -183,9 +171,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .lp-stats{max-width:1280px;margin:0 auto;padding:56px clamp(20px,5vw,60px);
   display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
 .lp-stat{padding:26px;border-radius:var(--r-lg)}
-.lp-stat .num{font-size:clamp(30px,4vw,46px);font-weight:850;line-height:1;
-  background:linear-gradient(120deg,var(--cyan),var(--lime));-webkit-background-clip:text;
-  background-clip:text;-webkit-text-fill-color:transparent}
+.lp-stat .num{font-size:clamp(30px,4vw,46px);font-weight:700;line-height:1;color:var(--ink);
+  font-variant-numeric:tabular-nums}
 .lp-stat .desc{font-size:13.5px;color:var(--ink-soft);margin-top:10px;line-height:1.5}
 .lp-stat .src{font-size:11px;color:var(--ink-faint);margin-top:8px}
 
@@ -198,7 +185,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .flow-card{padding:32px 26px;border-radius:var(--r-lg);position:relative}
 .flow-card .step-n{position:absolute;top:24px;right:26px;font-size:13px;font-weight:800;color:var(--cyan);opacity:.5}
 .flow-card .ic{width:58px;height:58px;border-radius:16px;display:grid;place-items:center;font-size:25px;margin-bottom:20px;
-  background:var(--cyan-soft);border:1px solid rgba(0,245,255,.2)}
+  background:var(--cyan-soft);border:1px solid var(--line)}
 .flow-card h3{font-size:18px;font-weight:700;margin-bottom:10px}
 .flow-card p{font-size:14px;color:var(--ink-soft);line-height:1.65}
 
@@ -212,7 +199,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .case-prog .bf{font-size:28px;font-weight:850;color:var(--bad)}
 .case-prog .af{font-size:28px;font-weight:850;color:var(--good)}
 .case-prog .arrow{font-size:22px;color:var(--cyan)}
-.case-card .story{background:rgba(255,255,255,.03);border-radius:10px;padding:13px;
+.case-card .story{background:var(--panel);border-radius:10px;padding:13px;
   font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px}
 .case-card .quote{font-size:13px;color:var(--ink);font-style:italic;line-height:1.6}
 
@@ -228,24 +215,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
    ==================================================================== */
 .auth-wrap{min-height:100vh;display:grid;grid-template-columns:1fr 1fr}
 .auth-visual{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:space-between;
-  padding:48px;background:linear-gradient(160deg,#0a1420,#05070a)}
+  padding:48px;background:linear-gradient(160deg,#2b322a,#222820)}
 .auth-visual::before{content:"";position:absolute;inset:0;z-index:0;
-  background:radial-gradient(60% 50% at 30% 20%,rgba(0,245,255,.18),transparent 60%),
-    radial-gradient(50% 50% at 80% 80%,rgba(79,139,255,.16),transparent 60%)}
-.auth-visual::after{content:"";position:absolute;inset:0;z-index:0;opacity:.5;
-  background-image:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:40px 40px;
-  mask-image:radial-gradient(ellipse 70% 70% at 40% 40%,#000,transparent)}
+  background:radial-gradient(70% 60% at 25% 15%,rgba(140,170,120,.12),transparent 65%)}
 .auth-visual .av-top,.auth-visual .av-mid,.auth-visual .av-bot{position:relative;z-index:1}
-.auth-visual .av-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:20px}
-.auth-visual .av-logo .mark{width:36px;height:36px;border-radius:10px;background:var(--brand-grad);
-  display:grid;place-items:center;color:#021016;box-shadow:0 0 24px rgba(0,245,255,.45)}
-.auth-visual .av-quote{font-size:clamp(26px,3vw,38px);font-weight:800;line-height:1.2;letter-spacing:-.02em;max-width:440px}
-.auth-visual .av-quote .hl{color:var(--cyan)}
-.auth-visual .av-desc{font-size:15px;color:var(--ink-soft);margin-top:20px;max-width:400px;line-height:1.7}
+.auth-visual .av-logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:20px;color:#f4f1ea}
+.auth-visual .av-logo .mark{width:36px;height:36px;border-radius:8px;background:var(--cyan);
+  display:grid;place-items:center;color:#fff;font-size:17px}
+.auth-visual .av-quote{font-size:clamp(26px,3vw,36px);font-weight:700;line-height:1.3;letter-spacing:-.01em;max-width:440px;color:#f4f1ea}
+.auth-visual .av-quote .hl{color:#a8c48c}
+.auth-visual .av-desc{font-size:15px;color:rgba(244,241,234,.7);margin-top:20px;max-width:400px;line-height:1.7}
 .auth-visual .av-metrics{display:flex;gap:32px;margin-top:8px}
-.auth-visual .av-metric .n{font-size:28px;font-weight:850;color:var(--lime)}
-.auth-visual .av-metric .l{font-size:12px;color:var(--ink-soft);margin-top:4px}
+.auth-visual .av-metric .n{font-size:28px;font-weight:700;color:#a8c48c}
+.auth-visual .av-metric .l{font-size:12px;color:rgba(244,241,234,.6);margin-top:4px}
 
 .auth-form-side{display:flex;align-items:center;justify-content:center;padding:40px 24px;position:relative}
 .auth-card{width:100%;max-width:400px;padding:38px 34px;border-radius:var(--r-xl)}
@@ -254,27 +236,27 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .auth-back:hover{color:var(--ink)}
 .auth-card h2{font-size:25px;font-weight:800;margin-bottom:6px}
 .auth-card .sub{font-size:14px;color:var(--ink-soft);margin-bottom:26px}
-.auth-tabs{display:flex;gap:6px;background:rgba(255,255,255,.04);padding:5px;border-radius:12px;margin-bottom:24px}
+.auth-tabs{display:flex;gap:6px;background:var(--panel);padding:5px;border-radius:12px;margin-bottom:24px}
 .auth-tab{flex:1;padding:10px;border-radius:8px;font-size:14px;font-weight:600;text-align:center;
   background:none;color:var(--ink-soft);transition:.2s}
-.auth-tab.active{background:var(--cyan-soft);color:var(--cyan);box-shadow:inset 0 0 0 1px rgba(0,245,255,.25)}
+.auth-tab.active{background:var(--cyan-soft);color:var(--cyan);box-shadow:inset 0 0 0 1px var(--line-2)}
 .auth-err{font-size:13px;color:var(--bad);margin-bottom:14px;min-height:18px}
 
 /* ====================================================================
    3. 专业工作台 #appView  (Sidebar + Main)
    ==================================================================== */
 .app-shell{display:flex;min-height:100vh}
-.sidebar{width:248px;flex-shrink:0;background:rgba(8,12,18,.7);backdrop-filter:blur(16px);
+.sidebar{width:248px;flex-shrink:0;background:var(--panel);backdrop-filter:blur(16px);
   border-right:1px solid var(--line);display:flex;flex-direction:column;
   position:sticky;top:0;height:100vh;padding:22px 16px}
 .sb-logo{display:flex;align-items:center;gap:11px;font-weight:800;font-size:18px;padding:6px 10px 24px}
-.sb-logo .mark{width:32px;height:32px;border-radius:9px;background:var(--brand-grad);
-  display:grid;place-items:center;color:#021016;font-size:15px;box-shadow:0 0 18px rgba(0,245,255,.4)}
+.sb-logo .mark{width:32px;height:32px;border-radius:9px;background:var(--ink);
+  display:grid;place-items:center;color:#fff;font-size:15px;}
 .sb-nav{display:flex;flex-direction:column;gap:4px;flex:1}
 .sb-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-sm);
   font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;transition:.18s;border:1px solid transparent}
 .sb-item:hover{background:var(--panel-2);color:var(--ink)}
-.sb-item.active{background:var(--cyan-soft);color:var(--cyan);border-color:rgba(0,245,255,.22)}
+.sb-item.active{background:var(--cyan-soft);color:var(--cyan);border-color:var(--line)}
 .sb-item .ic{font-size:17px}
 .sb-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
 .sb-plan{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
@@ -284,14 +266,14 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .main-area{flex:1;min-width:0;display:flex;flex-direction:column}
 .main-topbar{height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
   padding:0 clamp(20px,3vw,36px);border-bottom:1px solid var(--line);
-  background:rgba(5,7,10,.5);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
+  background:rgba(251,249,244,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
 .main-crumb{font-size:15px;font-weight:700}
 .main-crumb .sub{font-size:13px;color:var(--ink-faint);font-weight:400;margin-left:10px}
 .main-actions{display:flex;align-items:center;gap:12px}
 .user-chip{display:flex;align-items:center;gap:9px;padding:6px 12px;background:var(--panel);
   border:1px solid var(--line);border-radius:30px;font-size:13px;color:var(--ink-soft)}
-.user-chip .av{width:26px;height:26px;border-radius:50%;background:var(--brand-grad);
-  display:grid;place-items:center;color:#021016;font-size:12px;font-weight:800}
+.user-chip .av{width:26px;height:26px;border-radius:50%;background:var(--ink);
+  display:grid;place-items:center;color:#fff;font-size:12px;font-weight:800}
 .main-content{flex:1;padding:clamp(20px,3vw,36px);max-width:1200px;width:100%;margin:0 auto}
 
 /* 工作流卡片 */
@@ -300,7 +282,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .wf-step{display:flex;align-items:center;gap:10px;flex:1}
 .wf-step .num{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
   font-size:14px;font-weight:700;background:var(--panel-2);border:1px solid var(--line);color:var(--ink-faint);flex-shrink:0}
-.wf-step.active .num{background:var(--cyan-soft);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 16px rgba(0,245,255,.3)}
+.wf-step.active .num{background:var(--cyan-soft);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 16px var(--line-2)}
 .wf-step.done .num{background:var(--good-soft);border-color:var(--good);color:var(--good)}
 .wf-step .lbl{font-size:13px;color:var(--ink-soft);font-weight:600;white-space:nowrap}
 .wf-step.active .lbl{color:var(--ink)}
@@ -324,19 +306,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .mode-card p{font-size:13px;color:var(--ink-soft);line-height:1.5}
 
 /* 平台标签 */
-.kw-tag{display:inline-block;background:var(--cyan-soft);border:1px solid rgba(0,245,255,.2);
+.kw-tag{display:inline-block;background:var(--cyan-soft);border:1px solid var(--line);
   color:var(--cyan);border-radius:7px;padding:4px 11px;font-size:12px;margin:3px;white-space:nowrap}
 .ws-tab{padding:10px 18px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);
   font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.2s}
 .ws-tab:hover{color:var(--ink);border-color:var(--line-2)}
-.ws-tab.active{background:var(--cyan-soft);color:var(--cyan);border-color:rgba(0,245,255,.3)}
+.ws-tab.active{background:var(--cyan-soft);color:var(--cyan);border-color:var(--line-2)}
 
 /* 套餐卡(深色) */
 .plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
 .plan{padding:30px 26px;border-radius:var(--r-lg);position:relative;border:1px solid var(--line);background:var(--panel)}
 .plan.popular{border-color:var(--cyan);box-shadow:var(--glow-cyan)}
 .plan-badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);
-  background:var(--action-grad);color:#0a1400;font-size:12px;font-weight:800;padding:5px 16px;border-radius:20px}
+  background:var(--action-grad);color:#fff;font-size:12px;font-weight:800;padding:5px 16px;border-radius:20px}
 .plan-name{font-size:17px;font-weight:700;margin-bottom:8px}
 .plan-price{font-size:38px;font-weight:850;color:var(--cyan)}
 .plan-price span{font-size:15px;color:var(--ink-faint);font-weight:500}
@@ -366,8 +348,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .step:hover{color:var(--ink-soft);border-color:var(--line-2)}
 .step .n{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
   font-size:12px;background:var(--panel-2);border:1px solid var(--line)}
-.step.on{color:var(--cyan);background:var(--cyan-soft);border-color:rgba(0,245,255,.3)}
-.step.on .n{background:var(--cyan);color:#021016;border-color:var(--cyan)}
+.step.on{color:var(--cyan);background:var(--cyan-soft);border-color:var(--line-2)}
+.step.on .n{background:var(--cyan);color:#fff;border-color:var(--cyan)}
 
 /* 模式选择按钮(JS用mode-btn/selected-*) */
 .mode-btn{padding:24px;border-radius:var(--r-lg);cursor:pointer;border:1px solid var(--line);
@@ -1076,7 +1058,7 @@ function showBrandPicker(brands){
   brands.forEach(b=>{
     const hasReport = b.report_count > 0;
     const rateStr = b.latest_rate !== null ? `${b.latest_rate}%` : '未监测';
-    const rateColor = b.latest_rate === null ? 'var(--ink-faint)' : (b.latest_rate >= 50 ? '#10b981' : (b.latest_rate >= 20 ? '#f59e0b' : '#ef4444'));
+    const rateColor = b.latest_rate === null ? 'var(--ink-faint)' : (b.latest_rate >= 50 ? 'var(--good)' : (b.latest_rate >= 20 ? 'var(--warn)' : 'var(--bad)'));
     html += `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--bg)">
         <div style="flex:1;min-width:0">
@@ -1096,6 +1078,10 @@ function showBrandPicker(brands){
             : `<button class="btn-primary" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="openBrand(${b.id},'monitor')">去监测</button>`}
           ${hasReport?`<button class="btn-ghost" style="font-size:12px;padding:7px 14px;white-space:nowrap" onclick="openBrand(${b.id},'dashboard')">看看板</button>`:''}
         </div>
+        <button onclick="deleteBrand(${b.id},'${escHtml(b.name).replace(/'/g,"\\'")}')" title="删除品牌"
+          style="background:none;border:none;color:var(--ink-faint);cursor:pointer;font-size:16px;padding:6px;flex-shrink:0;line-height:1;border-radius:6px;transition:.2s"
+          onmouseover="this.style.color='var(--bad)';this.style.background='var(--bad-soft)'"
+          onmouseout="this.style.color='var(--ink-faint)';this.style.background='none'">✕</button>
       </div>`;
   });
   html += `</div>
@@ -1114,6 +1100,20 @@ function hideBrandPicker(){
   if(card) card.remove();
   const panel1 = document.getElementById("panel1");
   if(panel1) panel1.style.display = "";
+}
+
+async function deleteBrand(brandId, brandName){
+  if(!confirm(`确定删除品牌「${brandName}」吗？\n\n该品牌的所有监测报告、生成内容、知识库都会一并删除，无法恢复。`)) return;
+  try{
+    await api(`/api/brands/${brandId}`, {method:"DELETE"});
+    toast("✅ 已删除品牌");
+    // 如果删的是当前品牌，清空
+    if(currentBrandId===brandId){ currentBrandId=null; lastBrandIdForDash=null; }
+    // 移除卡片重新加载
+    const card=document.getElementById("myBrandsCard");
+    if(card) card.remove();
+    loadMyBrands();
+  }catch(e){ toast("删除失败："+e.message); }
 }
 
 async function openBrand(brandId, action){
@@ -1212,7 +1212,7 @@ function renderKnowledgeTab(d){
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">🧠 品牌知识库（你的"品牌大脑"）</div>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">把品牌资料存进来，之后所有内容创作都基于这些资料生成——越丰富，内容越准、越像你的品牌</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn-primary" style="font-size:13px;padding:10px 18px;background:linear-gradient(135deg,#059669,#047857)" onclick="autoExtractKb()" id="autoKbBtn">✨ AI自动提取（最快）</button>
+        <button class="btn-primary" style="font-size:13px;padding:10px 18px;background:linear-gradient(135deg,var(--good),#047857)" onclick="autoExtractKb()" id="autoKbBtn">✨ AI自动提取（最快）</button>
         <button class="btn-ghost" style="font-size:13px;padding:10px 18px" onclick="showAddKbForm()">+ 手动添加</button>
       </div>
     </div>
@@ -1243,11 +1243,11 @@ function renderKnowledgeTab(d){
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
           <div style="flex:1">
-            <div style="font-size:11px;color:#059669;font-weight:600;margin-bottom:4px">${catLabels[it.category]||it.category}</div>
+            <div style="font-size:11px;color:var(--good);font-weight:600;margin-bottom:4px">${catLabels[it.category]||it.category}</div>
             ${it.title?`<div style="font-size:14px;font-weight:600;margin-bottom:4px">${escHtml(it.title)}</div>`:''}
             <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${escHtml(it.content)}</div>
           </div>
-          <button onclick="delKb(${it.id})" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:18px;flex-shrink:0">×</button>
+          <button onclick="delKb(${it.id})" style="background:none;border:none;color:var(--bad);cursor:pointer;font-size:18px;flex-shrink:0">×</button>
         </div>
       </div>`;
     });
@@ -1304,7 +1304,7 @@ function renderTopicsTab(d){
     <div style="background:var(--bg);border:1px solid #c7d2fe;border-radius:14px;padding:18px;margin-bottom:20px">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px">📋 选题库（该写什么，都列好了）</div>
       <p style="font-size:13px;color:var(--ink-soft)">这些是用户最常问AI的问题。点"创作"，系统基于你的知识库直接生成内容。已创作 ${d.created_count}/${d.topic_count}</p>
-      ${d.knowledge_count===0?'<div style="margin-top:10px;background:#fffbeb;border-radius:8px;padding:10px;font-size:12px;color:#92400e">💡 建议先去①知识库添加资料，生成的内容会更准</div>':''}
+      ${d.knowledge_count===0?'<div style="margin-top:10px;background:#fffbeb;border-radius:8px;padding:10px;font-size:12px;color:var(--warn)">💡 建议先去①知识库添加资料，生成的内容会更准</div>':''}
     </div>`;
 
   if(!d.topics.length){
@@ -1314,7 +1314,7 @@ function renderTopicsTab(d){
     </div>`;
   } else {
     d.topics.forEach((t,i)=>{
-      const prioColor=t.priority==='high'?'#ef4444':'#f59e0b';
+      const prioColor=t.priority==='high'?'var(--bad)':'var(--warn)';
       const prioText=t.priority==='high'?'高优先':'推荐';
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">
@@ -1325,7 +1325,7 @@ function renderTopicsTab(d){
             </div>
           </div>
           ${t.created
-            ? `<span style="font-size:12px;color:#10b981;font-weight:600;white-space:nowrap">✓ 已创作</span>`
+            ? `<span style="font-size:12px;color:var(--good);font-weight:600;white-space:nowrap">✓ 已创作</span>`
             : `<button class="btn-primary" style="font-size:12px;padding:8px 16px;white-space:nowrap" onclick="createFromTopic('${escHtml(t.question).replace(/'/g,"\\'")}')">✍️ 创作</button>`}
         </div>
       </div>`;
@@ -1370,11 +1370,11 @@ function renderContentsTab(d){
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
           <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
-          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:#065f46':'background:#f1f5f9;color:var(--ink-soft)'}">${pub?'已发布':'草稿'}</span>
+          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:var(--good)':'background:#f1f5f9;color:var(--ink-soft)'}">${pub?'已发布':'草稿'}</span>
         </div>
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;max-height:120px;overflow:hidden">${escHtml((ct.body||'').slice(0,300))}${(ct.body||'').length>300?'…':''}</div>
         ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
-        <div style="background:#fffbeb;border-radius:6px;padding:8px 10px;font-size:11px;color:#92400e;margin-bottom:10px">⚠️ 此为AI生成草稿,发布前请核实数据真实性,避免使用"第一""最佳"等违规用语</div>
+        <div style="background:#fffbeb;border-radius:6px;padding:8px 10px;font-size:11px;color:var(--warn);margin-bottom:10px">⚠️ 此为AI生成草稿,发布前请核实数据真实性,避免使用"第一""最佳"等违规用语</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="copyContent(${ct.id})">📋 复制全文</button>
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="togglePublished(${ct.id})">${pub?'标为草稿':'标为已发布'}</button>
@@ -1419,8 +1419,8 @@ function renderReferral(d){
     <!-- 佣金概览 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px">
       <div style="background:linear-gradient(135deg,#fffbeb,#fef3c7);border:1px solid #fde68a;border-radius:14px;padding:20px">
-        <div style="font-size:13px;color:#92400e;margin-bottom:6px">累计佣金</div>
-        <div style="font-size:32px;font-weight:900;color:#d97706">¥${d.total_commission}</div>
+        <div style="font-size:13px;color:var(--warn);margin-bottom:6px">累计佣金</div>
+        <div style="font-size:32px;font-weight:900;color:var(--warn)">¥${d.total_commission}</div>
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已邀请</div>
@@ -1429,7 +1429,7 @@ function renderReferral(d){
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已付费</div>
-        <div style="font-size:32px;font-weight:900;color:#10b981">${d.total_paid}</div>
+        <div style="font-size:32px;font-weight:900;color:var(--good)">${d.total_paid}</div>
         <div style="font-size:12px;color:var(--ink-soft)">人转化</div>
       </div>
     </div>
@@ -1437,14 +1437,14 @@ function renderReferral(d){
     <!-- 邀请链接 -->
     <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:20px">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">📨 你的专属邀请链接</div>
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分享这个链接，好友通过它注册并付费，你就能获得<b style="color:#d97706">推广奖励</b>，套餐越高奖励越多</p>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分享这个链接，好友通过它注册并付费，你就能获得<b style="color:var(--warn)">推广奖励</b>，套餐越高奖励越多</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <input id="inviteLink" value="${d.invite_link}" readonly style="flex:1;min-width:200px;padding:11px 13px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;background:var(--bg);font-family:inherit">
         <button class="btn-primary" style="font-size:13px;padding:11px 20px" onclick="copyInviteLink()">📋 复制链接</button>
       </div>
       <div style="display:flex;align-items:center;gap:10px;padding:12px;background:#fffbeb;border-radius:8px">
-        <span style="font-size:13px;color:#92400e">邀请码：</span>
-        <span style="font-size:18px;font-weight:800;color:#d97706;letter-spacing:1px">${d.invite_code}</span>
+        <span style="font-size:13px;color:var(--warn)">邀请码：</span>
+        <span style="font-size:18px;font-weight:800;color:var(--warn);letter-spacing:1px">${d.invite_code}</span>
       </div>
     </div>
 
@@ -1464,7 +1464,7 @@ function renderReferral(d){
     html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 邀请记录</div>`;
     d.referrals.forEach(r=>{
-      const statusColor = r.status==='paid'?'#10b981':'var(--ink-faint)';
+      const statusColor = r.status==='paid'?'var(--good)':'var(--ink-faint)';
       html+=`<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--line)">
         <div>
           <div style="font-size:14px;font-weight:500">${r.email}</div>
@@ -1472,7 +1472,7 @@ function renderReferral(d){
         </div>
         <div style="text-align:right">
           <div style="font-size:12px;color:${statusColor};font-weight:600">${r.status_text}</div>
-          ${r.commission>0?`<div style="font-size:14px;font-weight:700;color:#d97706">+¥${r.commission}</div>`:''}
+          ${r.commission>0?`<div style="font-size:14px;font-weight:700;color:var(--warn)">+¥${r.commission}</div>`:''}
         </div>
       </div>`;
     });
@@ -1535,13 +1535,13 @@ async function showDashboard(){
 function renderDashboard(d){
   const content = document.getElementById("dashContent");
   // 状态色
-  const statusColors={up:'#10b981',down:'#ef4444',flat:'#f59e0b',first:'#6366f1'};
-  const sc = statusColors[d.status]||'#6366f1';
+  const statusColors={up:'var(--good)',down:'var(--bad)',flat:'var(--warn)',first:'var(--cyan)'};
+  const sc = statusColors[d.status]||'var(--cyan)';
 
   // 环比变化展示
   const changeStr = d.change_vs_prev===null ? '首次监测' :
     (d.change_vs_prev>0?`+${d.change_vs_prev}`:`${d.change_vs_prev}`);
-  const changeColor = d.change_vs_prev>0?'#10b981':(d.change_vs_prev<0?'#ef4444':'var(--ink-faint)');
+  const changeColor = d.change_vs_prev>0?'var(--good)':(d.change_vs_prev<0?'var(--bad)':'var(--ink-faint)');
 
   let html=`
     <!-- 状态横幅 -->
@@ -1558,12 +1558,12 @@ function renderDashboard(d){
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">累计提升</div>
-        <div style="font-size:36px;font-weight:900;color:${d.change_vs_first>=0?'#10b981':'#ef4444'};line-height:1">${d.change_vs_first>=0?'+':''}${d.change_vs_first}</div>
+        <div style="font-size:36px;font-weight:900;color:${d.change_vs_first>=0?'var(--good)':'var(--bad)'};line-height:1">${d.change_vs_first>=0?'+':''}${d.change_vs_first}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">相比首次 ${d.first_rate}%</div>
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">被引用来源</div>
-        <div style="font-size:36px;font-weight:900;color:#6366f1;line-height:1">${d.source_count}</div>
+        <div style="font-size:36px;font-weight:900;color:var(--cyan);line-height:1">${d.source_count}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">AI 引用的外部站点</div>
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
@@ -1580,7 +1580,7 @@ function renderDashboard(d){
         <div style="font-size:14px;font-weight:700;color:var(--brand)">${d.progress_pct}%</div>
       </div>
       <div style="height:12px;background:#f0f0f0;border-radius:6px;overflow:hidden">
-        <div style="height:100%;width:${d.progress_pct}%;background:linear-gradient(90deg,var(--brand),#7c3aed);border-radius:6px;transition:width .6s"></div>
+        <div style="height:100%;width:${d.progress_pct}%;background:linear-gradient(90deg,var(--brand),var(--cyan));border-radius:6px;transition:width .6s"></div>
       </div>
       <div style="font-size:12px;color:var(--ink-soft);margin-top:8px">${d.current_rate>=d.target?'🎉 已达成目标！继续保持领先':`还差 ${(d.target-d.current_rate).toFixed(1)} 个百分点达成目标`}</div>
     </div>
@@ -1597,14 +1597,14 @@ function renderDashboard(d){
       <div style="font-size:14px;font-weight:600;margin-bottom:16px">📊 各平台当前表现</div>`;
     for(const [pf,rate] of Object.entries(d.platform_now)){
       const chg = d.platform_change?.[pf];
-      const chgStr = chg===undefined?'':(chg>0?` <span style="color:#10b981">↑${chg}</span>`:(chg<0?` <span style="color:#ef4444">↓${Math.abs(chg)}</span>`:' <span style="color:var(--ink-faint)">—</span>'));
+      const chgStr = chg===undefined?'':(chg>0?` <span style="color:var(--good)">↑${chg}</span>`:(chg<0?` <span style="color:var(--bad)">↓${Math.abs(chg)}</span>`:' <span style="color:var(--ink-faint)">—</span>'));
       html+=`<div style="margin-bottom:12px">
         <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
           <span style="font-weight:500">${pf}${chgStr}</span>
           <span style="font-weight:600">${rate}%</span>
         </div>
         <div style="height:8px;background:#f0f0f0;border-radius:4px;overflow:hidden">
-          <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,var(--brand),#7c3aed)"></div>
+          <div style="height:100%;width:${rate}%;background:linear-gradient(90deg,var(--brand),var(--cyan))"></div>
         </div>
       </div>`;
     }
@@ -1649,14 +1649,14 @@ function renderIndustryBenchmark(b){
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📊 行业大盘排名</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${b.message}</p>
         <div style="height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin-bottom:8px">
-          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--brand),#7c3aed)"></div>
+          <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--brand),var(--cyan))"></div>
         </div>
         <div style="font-size:12px;color:var(--ink-soft)">${b.industry} · 已收集 ${b.sample_count}/${b.needed} 个品牌</div>
       </div>`;
   } else {
     // 有大盘数据
-    const colors={good:'#10b981',neutral:'#f59e0b',bad:'#ef4444'};
-    const rc=colors[b.rank_color]||'#6366f1';
+    const colors={good:'var(--good)',neutral:'var(--warn)',bad:'var(--bad)'};
+    const rc=colors[b.rank_color]||'var(--cyan)';
     html=`
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:4px">📊 你在「${b.industry}」行业的排名</div>
@@ -1674,7 +1674,7 @@ function renderIndustryBenchmark(b){
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业平均</div>
           </div>
           <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
-            <div style="font-size:26px;font-weight:900;color:#10b981">${b.industry_max}%</div>
+            <div style="font-size:26px;font-weight:900;color:var(--good)">${b.industry_max}%</div>
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">行业最高</div>
           </div>
           <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
@@ -1682,7 +1682,7 @@ function renderIndustryBenchmark(b){
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">超过同行</div>
           </div>
         </div>
-        ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13px;color:#065f46;margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
+        ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--good);margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
       </div>`;
   }
   content.insertAdjacentHTML('beforeend', html);
@@ -1715,7 +1715,7 @@ function renderAITraffic(t, bid){
   } else {
     // 有数据，展示统计
     const wc = t.week_change;
-    const wcColor = wc>0?'#10b981':(wc<0?'#ef4444':'var(--ink-faint)');
+    const wcColor = wc>0?'var(--good)':(wc<0?'var(--bad)':'var(--ink-faint)');
     const wcStr = wc>0?`+${wc}`:`${wc}`;
     html = `
       <div style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;border-radius:14px;padding:24px;margin-top:24px">
@@ -1723,7 +1723,7 @@ function renderAITraffic(t, bid){
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px">
           <div style="background:#fff;border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">累计 AI 访客</div>
-            <div style="font-size:30px;font-weight:900;color:#059669">${t.total_visits}</div>
+            <div style="font-size:30px;font-weight:900;color:var(--good)">${t.total_visits}</div>
           </div>
           <div style="background:#fff;border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">近 7 天</div>
@@ -1747,7 +1747,7 @@ function renderAITraffic(t, bid){
             <span>${s.source}</span><span style="font-weight:600">${s.count} 人</span>
           </div>
           <div style="height:7px;background:#f0f0f0;border-radius:4px;overflow:hidden">
-            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#059669,#10b981)"></div>
+            <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--good),var(--good))"></div>
           </div>
         </div>`;
       });
@@ -1901,8 +1901,8 @@ async function loadQuestions(){
           <span style="float:right;font-size:11px;color:var(--ink-soft)">特征有偏差？返回第1步补充信息后重新生成</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px">
-          ${(kw.features||[]).map(f=>`<span class="kw-tag" style="background:#fef3c7;border-color:#fde68a;color:#92400e">🏷 ${f}</span>`).join("")}
-          ${(kw.scenarios||[]).map(s=>`<span class="kw-tag" style="background:#f0fdf4;border-color:#a7f3d0;color:#065f46">📍 ${s}</span>`).join("")}
+          ${(kw.features||[]).map(f=>`<span class="kw-tag" style="background:#fef3c7;border-color:#fde68a;color:var(--warn)">🏷 ${f}</span>`).join("")}
+          ${(kw.scenarios||[]).map(s=>`<span class="kw-tag" style="background:#f0fdf4;border-color:#a7f3d0;color:var(--good)">📍 ${s}</span>`).join("")}
           ${(kw.users||[]).map(u=>`<span class="kw-tag" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">👤 ${u}</span>`).join("")}
           ${(kw.concerns||[]).map(c=>`<span class="kw-tag">❓ ${c}</span>`).join("")}
         </div>`;
@@ -2026,14 +2026,14 @@ function renderReport(rep){
     </div>`;
   document.getElementById("repPlatforms").innerHTML=
     Object.entries(rep.platform_breakdown||{}).map(([nm,rt])=>{
-      const c=rt>=45?"#059669":rt>=30?"#d97706":"#dc2626";
+      const c=rt>=45?"var(--good)":rt>=30?"var(--warn)":"var(--bad)";
       const s=rt>=45?"✓ 良好":rt>=30?"待提升":"偏低";
       return`<div class="pf">
         <div class="nm">${nm}<span class="pf-badge" style="background:${rt>=45?"#d1fae5":rt>=30?"#fef3c7":"#fee2e2"};color:${c}">${s}</span></div>
         <div class="bar"><i style="width:${rt}%;background:${c}"></i></div>
         <div class="rt">${rt}% 提及率</div></div>`;
     }).join("");
-  const gc={high:"#dc2626",medium:"#d97706",low:"#059669"};
+  const gc={high:"var(--bad)",medium:"var(--warn)",low:"var(--good)"};
   document.getElementById("repGaps").innerHTML=(rep.gaps||[]).map((g,i)=>`
     <div class="gap">
       <span class="dot" style="background:${gc[g.priority]}"></span>
@@ -2132,7 +2132,7 @@ async function genContent(question, idx){
             <div class="ai-tip">${o.tip}</div>
             ${o.url?`<a href="${o.url}" target="_blank" style="display:inline-block;margin-top:6px;font-size:11px;padding:3px 10px;background:var(--brand-soft);color:var(--brand-ink);border-radius:6px;text-decoration:none;border:1px solid #c7d2fe">去发布 →</a>`:""}
           </div>`).join("")}</div>
-        <div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border-radius:6px;font-size:12px;color:#065f46">
+        <div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border-radius:6px;font-size:12px;color:var(--good)">
           ⏱ 发布后 <b>2-4 周</b>回来点「复测看提升」，验证 AI 提及率是否上涨
         </div>
       </div>
@@ -2166,7 +2166,7 @@ async function loadImprovePlan(){
         <div style="text-align:center;min-width:60px"><div style="font-size:26px;font-weight:700;color:var(--warn)">${d.current_score}%</div><div style="font-size:11px;color:var(--ink-soft)">现在</div></div>
         <div style="flex:1;height:12px;background:#e5e7eb;border-radius:6px;overflow:hidden;position:relative">
           <div style="position:absolute;left:0;top:0;height:100%;width:100%;background:linear-gradient(90deg,#d1fae5,#a7f3d0);border-radius:6px"></div>
-          <div style="position:absolute;left:0;top:0;height:100%;width:${curPct}%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:6px;transition:width 1s"></div>
+          <div style="position:absolute;left:0;top:0;height:100%;width:${curPct}%;background:linear-gradient(90deg,var(--warn),var(--warn));border-radius:6px;transition:width 1s"></div>
         </div>
         <div style="text-align:center;min-width:60px"><div style="font-size:26px;font-weight:700;color:var(--good)">${d.max_potential}%</div><div style="font-size:11px;color:var(--ink-soft)">可达到</div></div>
       </div>
@@ -2276,7 +2276,7 @@ async function loadKeywordOpp(){
     let html=`
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <div style="flex:1;min-width:100px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center">
-          <div style="font-size:24px;font-weight:800;color:#d97706">${stats.gold_count||0}</div>
+          <div style="font-size:24px;font-weight:800;color:var(--warn)">${stats.gold_count||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">黄金词</div>
         </div>
         <div style="flex:1;min-width:100px;background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;text-align:center">
@@ -2290,10 +2290,10 @@ async function loadKeywordOpp(){
       </div>`;
     // 核心建议
     if(data.top_advice){
-      html+=`<div style="background:#fff;border-left:3px solid #f59e0b;border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:#92400e">💡 ${data.top_advice}</div>`;
+      html+=`<div style="background:#fff;border-left:3px solid var(--warn);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--warn)">💡 ${data.top_advice}</div>`;
     }
     // 关键词卡片
-    const gradeColors={gold:'#f59e0b',green:'#10b981',gray:'var(--ink-faint)',red:'#ef4444'};
+    const gradeColors={gold:'var(--warn)',green:'var(--good)',gray:'var(--ink-faint)',red:'var(--bad)'};
     kws.forEach((k,i)=>{
       const gc = gradeColors[k.grade_color]||'var(--ink-faint)';
       html+=`
@@ -2306,11 +2306,11 @@ async function loadKeywordOpp(){
           <div style="display:flex;gap:12px;margin-bottom:8px">
             <div style="flex:1">
               <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px">AI热度 ${k.ai_heat||0}</div>
-              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.ai_heat||0}%;background:#f59e0b"></div></div>
+              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.ai_heat||0}%;background:var(--warn)"></div></div>
             </div>
             <div style="flex:1">
               <div style="font-size:10px;color:var(--ink-soft);margin-bottom:2px">竞争度 ${k.competition||0}</div>
-              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.competition||0}%;background:#ef4444"></div></div>
+              <div style="height:5px;background:#f0f0f0;border-radius:3px;overflow:hidden"><div style="height:100%;width:${k.competition||0}%;background:var(--bad)"></div></div>
             </div>
           </div>
           ${k.content_direction?`<div style="background:var(--bg);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:4px">✍️ 内容方向：${escHtml(k.content_direction)}</div>`:''}
@@ -2340,7 +2340,7 @@ async function loadMonthlyLoss(){
     if(data.mention_rate >= 60){
       card.style.background = 'linear-gradient(135deg,#ecfdf5,#f0fdf4)';
       card.style.borderColor = '#a7f3d0';
-      num.style.color = '#059669';
+      num.style.color = 'var(--good)';
     }
     num.textContent = data.monthly_loss_display;
     note.textContent = `次/月（保守估算）· 基于 Gartner 行业基准`;
@@ -2383,7 +2383,7 @@ async function doCompare(){
             <div style="font-size:12px;color:var(--ink-soft)">AI 推荐率</div>
           </div>
         </div>
-        <div style="background:${gap>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:12px;font-size:13px;color:${gap>0?'#991b1b':'#065f46'};line-height:1.6;margin-bottom:10px">
+        <div style="background:${gap>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:12px;font-size:13px;color:${gap>0?'#991b1b':'var(--good)'};line-height:1.6;margin-bottom:10px">
           ${data.analysis}
         </div>
         <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--brand-ink)">
@@ -2414,15 +2414,15 @@ async function genSchemaFaq(){
       </div>`).join('');
     result.innerHTML=`
       <div style="background:#fff;border:1px solid #a7f3d0;border-radius:12px;padding:16px">
-        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:#065f46">📋 FAQ 内容（复制到网站FAQ页面）</div>
+        <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--good)">📋 FAQ 内容（复制到网站FAQ页面）</div>
         ${faqHtml}
         <div style="margin-top:16px">
-          <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:#065f46">🏗️ JSON-LD Schema 代码（复制到网站 &lt;head&gt; 里）</div>
+          <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--good)">🏗️ JSON-LD Schema 代码（复制到网站 &lt;head&gt; 里）</div>
           <pre style="background:var(--ink);color:#e2e8f0;border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre-wrap;line-height:1.6">${(data.schema_code||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
         </div>
-        ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:#065f46;margin-top:10px">💡 ${data.publish_tip}</div>`:''}
+        ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--good);margin-top:10px">💡 ${data.publish_tip}</div>`:''}
         <div style="margin-top:12px;display:flex;gap:8px">
-          <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:linear-gradient(135deg,#059669,#047857)"
+          <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:linear-gradient(135deg,var(--good),#047857)"
             onclick="navigator.clipboard.writeText(document.querySelector('pre').innerText).then(()=>toast('✅ Schema 代码已复制'))">
             📋 复制 Schema 代码
           </button>
@@ -2573,14 +2573,14 @@ function simSetMode(mode){
   if(kw)kw.placeholder=mode==='outbound'?'best portable charger':'哪款充电宝好用';
   const ex=document.getElementById('simExamples');
   if(ex)ex.innerHTML=mode==='outbound'
-    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('')
-    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:#4338ca;padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('');
+    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('')
+    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('');
 }
 
 async function doSimulate(){
   const kwEl=document.getElementById('simKw');
   const kw=(kwEl?.value||'').trim();
-  if(!kw){if(kwEl){kwEl.style.borderColor='#ef4444';setTimeout(()=>kwEl.style.borderColor='var(--line)',2000);}return;}
+  if(!kw){if(kwEl){kwEl.style.borderColor='var(--bad)';setTimeout(()=>kwEl.style.borderColor='var(--line)',2000);}return;}
   const btn=document.getElementById('simBtn'),loading=document.getElementById('simLoading');
   const resEl=document.getElementById('simResults'),ctaEl=document.getElementById('simCta');
   btn.disabled=true;btn.textContent='…';
@@ -2594,7 +2594,7 @@ async function doSimulate(){
     renderSimResults(await r.json());
   }catch(e){
     clearInterval(mt);
-    resEl.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:13px;color:#dc2626">❌ ${e.message}</div>`;
+    resEl.innerHTML=`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:12px;font-size:13px;color:var(--bad)">❌ ${e.message}</div>`;
     resEl.style.display='block';
   }
   loading.style.display='none';btn.disabled=false;btn.textContent='查 →';
@@ -2604,10 +2604,10 @@ function renderSimResults(data){
   const resEl=document.getElementById('simResults'),ctaEl=document.getElementById('simCta');
   const s=data.summary;
   const good=s.mention_rate>=60;
-  let html=`<div style="background:${good?'#f0fdf4':'#fef2f2'};border:1px solid ${good?'#bbf7d0':'#fecaca'};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:${good?'#065f46':'#991b1b'};font-weight:600">${good?'✅':'❌'} ${s.verdict}</div>`;
+  let html=`<div style="background:${good?'#f0fdf4':'#fef2f2'};border:1px solid ${good?'#bbf7d0':'#fecaca'};border-radius:8px;padding:10px 12px;margin-bottom:10px;font-size:13px;color:${good?'var(--good)':'#991b1b'};font-weight:600">${good?'✅':'❌'} ${s.verdict}</div>`;
   (data.results||[]).filter(r=>!r.error).forEach(r=>{
     const icons={chatgpt:'🤖',deepseek:'🔵',perplexity:'🔍',qwen:'☁️',kimi:'🌙',doubao:'📦'};
-    html+=`<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${icons[r.pid]||'🤖'} ${r.platform}</div><div style="font-size:12px;color:#475569;line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${(r.answer_snippet||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div></div>`;
+    html+=`<div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:8px"><div style="font-size:12px;font-weight:600;color:var(--ink);margin-bottom:5px">${icons[r.pid]||'🤖'} ${r.platform}</div><div style="font-size:12px;color:var(--ink-soft);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden">${(r.answer_snippet||'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</div></div>`;
   });
   resEl.innerHTML=html;resEl.style.display='block';ctaEl.style.display='block';
 }
@@ -2636,7 +2636,7 @@ if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;sa
     // 示范案例诚实标注
     if(d.is_demo){
       container.insertAdjacentHTML("afterend",
-        '<p style="text-align:center;font-size:11px;color:#cbd5e1;margin-top:16px">* 以上为典型场景示范案例，用于说明产品效果，非特定客户真实数据</p>');
+        '<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin-top:16px">* 以上为典型场景示范案例，用于说明产品效果，非特定客户真实数据</p>');
     }
   }catch(e){ console.log("案例加载失败",e); }
 })();
