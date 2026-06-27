@@ -1869,7 +1869,8 @@ function renderDashboard(d){
 }
 
 // ===== 全景对话快照(活体证据) =====
-async function showChatSnapshots(){
+async function showChatSnapshots(type){
+  type = type || 'positive';
   let bid = currentBrandId || lastBrandIdForDash;
   if(!bid){ toast("请先完成监测"); return; }
   // 弹窗骨架
@@ -1885,62 +1886,87 @@ async function showChatSnapshots(){
   let d;
   try{
     d=await api(`/api/brands/${bid}/chat-snapshots`);
-    if(!d.snapshots||!d.snapshots.length){
-      d=await api(`/api/brands/${bid}/chat-snapshots?demo=true`);
+    const hasData = type==='negative' ? (d.negative&&d.negative.length) : (d.positive&&d.positive.length);
+    if(!hasData && !d.demo){
+      // 该类型无数据，但另一类可能有
+      if(type==='negative' && (!d.negative||!d.negative.length)){
+        renderSnapshots(d, type); return;
+      }
     }
   }catch(e){
     try{ d=await api(`/api/brands/${bid}/chat-snapshots?demo=true`); }
     catch(e2){ document.querySelector("#snapModal>div").innerHTML='<p style="padding:20px;color:var(--ink-soft)">暂无对话快照</p>'; return; }
   }
-  renderSnapshots(d);
+  renderSnapshots(d, type);
 }
 
-function renderSnapshots(d){
+function renderSnapshots(d, type){
+  type = type || 'positive';
   const wrap=document.querySelector("#snapModal>div");
   if(!wrap) return;
   const platIcon={'DeepSeek':'🐋','豆包':'🫛','通义千问':'🟣','Kimi':'🌙','ChatGPT':'🤖','Gemini':'✨','文心一言':'🐻'};
+  const isNeg = type==='negative';
+  // 选择数据源
+  let list = isNeg ? (d.negative||[]) : (d.positive||d.snapshots||[]);
 
   let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-    <div style="font-size:18px;font-weight:800">🔍 AI 对话现场快照</div>
+    <div style="font-size:18px;font-weight:800">${isNeg?'⚠️ 负面/未提及来源':'🔍 AI 推荐你的现场'}</div>
     <button onclick="document.getElementById('snapModal').remove()" style="background:none;border:none;font-size:20px;color:var(--ink-faint);cursor:pointer">✕</button>
-  </div>
-  <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">这不是系统推算 —— 是真实时间、真实节点向 AI 发出的真实提问，AI 确实推荐了你。</p>`;
+  </div>`;
 
-  d.snapshots.forEach(s=>{
+  if(isNeg){
+    html+=`<p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">这些是 AI 没有推荐你的真实对话 —— 客户问了，但 AI 推了别人或没提你。每一条都是真实流失的来源。</p>`;
+  } else {
+    html+=`<p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">这不是系统推算 —— 是真实时间、真实节点向 AI 发出的真实提问，AI 确实推荐了你。</p>`;
+  }
+
+  if(!list.length){
+    html+=`<div style="text-align:center;padding:30px;color:var(--ink-soft)">${isNeg?'🎉 本次监测没有发现负面或未提及的情况':'暂无对话记录'}</div>`;
+  }
+
+  list.forEach(s=>{
     const icon=platIcon[s.platform]||'🤖';
-    // 高亮品牌名
     let ans=escHtml(s.answer).replace(new RegExp(escHtml(d.brand_name),'g'),
       `<span style="background:#deff9a;color:#26221c;font-weight:700;padding:1px 4px;border-radius:3px">${escHtml(d.brand_name)}</span>`);
+    // 负面时高亮竞品名
+    if(isNeg && s.competitors){
+      s.competitors.forEach(comp=>{
+        if(comp) ans=ans.replace(new RegExp(escHtml(comp),'g'),
+          `<span style="background:#fde2e0;color:#b0524a;font-weight:700;padding:1px 4px;border-radius:3px">${escHtml(comp)}</span>`);
+      });
+    }
     ans=ans.replace(/\n/g,'<br>');
+    const evidColor = isNeg?'#b0524a':'var(--good)';
+    const evidText = isNeg
+      ? `❌ ${s.queried_at}，从${s.node}节点向 ${s.platform} 提问，AI 没有推荐「${escHtml(d.brand_name)}」${s.competitors&&s.competitors.length?'，而是推荐了竞品':''}`
+      : `✅ ${s.queried_at}，从${s.node}节点真实 IP 向 ${s.platform} 发出的真实提问<br>AI 确实向客户推荐了「<b style="color:var(--good)">${escHtml(d.brand_name)}</b>」`;
     html+=`
     <div style="background:#ededed;border-radius:14px;overflow:hidden;margin-bottom:18px;box-shadow:var(--sh-sm)">
-      <!-- 微信风格顶栏 -->
       <div style="background:#f7f7f7;border-bottom:1px solid #e3e3e3;padding:10px 14px;display:flex;align-items:center;gap:8px">
         <span style="font-size:16px">${icon}</span>
         <span style="font-size:14px;font-weight:600;color:#26221c">${s.platform}</span>
         <span style="margin-left:auto;font-size:11px;color:#999">${s.queried_at}</span>
       </div>
-      <!-- 对话气泡 -->
       <div style="padding:16px 14px;background:#ededed">
-        <!-- 用户提问(右,绿) -->
         <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
           <div style="background:#95ec69;color:#26221c;padding:9px 13px;border-radius:8px;font-size:13.5px;max-width:80%;line-height:1.5">${escHtml(s.question)}</div>
         </div>
-        <!-- AI回答(左,白) -->
         <div style="display:flex;justify-content:flex-start">
           <div style="background:#fff;color:#26221c;padding:11px 14px;border-radius:8px;font-size:13.5px;max-width:88%;line-height:1.7">${ans}</div>
         </div>
       </div>
-      <!-- 活体证据标注 -->
-      <div style="background:#fff;border-top:1px solid #e3e3e3;padding:10px 14px;font-size:11px;color:#888;line-height:1.6">
-        ✅ ${s.queried_at}，从${s.node}节点真实 IP 向 ${s.platform} 发出的真实提问<br>AI 确实向客户推荐了「<b style="color:var(--good)">${escHtml(d.brand_name)}</b>」
-      </div>
+      <div style="background:#fff;border-top:1px solid #e3e3e3;padding:10px 14px;font-size:11px;color:#888;line-height:1.6">${evidText}</div>
     </div>`;
   });
 
   if(d.demo){
     html+=`<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin-bottom:10px">* 当前为演示快照，完成监测后显示你的真实 AI 对话记录</p>`;
   }
+  // 正负面切换
+  const switchBtn = isNeg
+    ? `<button class="btn-ghost" style="width:100%;margin-bottom:10px" onclick="document.getElementById('snapModal').remove();showChatSnapshots('positive')">🔍 看 AI 推荐你的现场 →</button>`
+    : `<button class="btn-ghost" style="width:100%;margin-bottom:10px" onclick="document.getElementById('snapModal').remove();showChatSnapshots('negative')">⚠️ 看负面/未提及来源 →</button>`;
+  html+=switchBtn;
   html+=`<button class="btn-cyan" style="width:100%;padding:12px" onclick="document.getElementById('snapModal').remove()">知道了</button>`;
   wrap.innerHTML=html;
 }
@@ -2013,7 +2039,7 @@ function drawRadar(d, isDemo){
   svg+=`<div style="display:flex;gap:16px;justify-content:center;margin-top:8px;flex-wrap:wrap">
     <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--good)">${s.positive_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">正面推荐</div></div>
     <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--ink-faint)">${s.neutral_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">客观提及</div></div>
-    <div style="text-align:center"><div style="font-size:22px;font-weight:800;color:var(--bad)">${s.negative_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">负面预警</div></div>
+    <div style="text-align:center;cursor:pointer" onclick="showChatSnapshots('negative')" title="点击看负面/未提及的真实来源"><div style="font-size:22px;font-weight:800;color:var(--bad);border-bottom:2px dashed var(--bad);display:inline-block">${s.negative_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">负面预警 👆</div></div>
   </div>`;
   if(isDemo||d.demo){
     svg+=`<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin-top:8px">* 演示数据，完成监测后显示真实健康度</p>`;
