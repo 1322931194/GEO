@@ -2172,10 +2172,23 @@ def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_ses
     """
     _check_admin(key)
     from datetime import timedelta
-    since = cn_now() - timedelta(days=days)
-    logs = session.exec(
-        select(ApiCallLog).where(ApiCallLog.created_at >= since)
-    ).all()
+    # 容错：表可能尚未创建或为空，出错时返回空统计而非崩溃
+    try:
+        since = cn_now() - timedelta(days=days)
+        logs = session.exec(
+            select(ApiCallLog).where(ApiCallLog.created_at >= since)
+        ).all()
+    except Exception as e:
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        return {
+            "period_days": days, "total_calls": 0, "total_success": 0,
+            "total_failed": 0, "success_rate": 0, "estimated_cost_rmb": 0,
+            "monitor_runs": 0, "by_platform": {},
+            "note": "暂无 API 调用记录。完成一次监测后即可看到消耗数据。",
+        }
 
     total_calls = sum(l.calls for l in logs)
     total_success = sum(l.success for l in logs)
@@ -2427,6 +2440,7 @@ async function login(){
 async function loadUsage(){
   try{
     const r=await fetch('/api/admin/api-usage?key='+encodeURIComponent(KEY)+'&days=30');
+    if(!r.ok){ document.getElementById('usage').innerHTML='<span style="color:#b0524a">接口返回错误（'+r.status+'）。可能是 database.py 未更新到最新版，请确认已部署含 ApiCallLog 表的版本。</span>'; return; }
     const d=await r.json();
     var pnames={deepseek:'DeepSeek',doubao:'豆包',qwen:'通义',kimi:'Kimi',wenxin:'文心',chatgpt:'ChatGPT',gemini:'Gemini',claude:'Claude',perplexity:'Perplexity'};
     var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">';
