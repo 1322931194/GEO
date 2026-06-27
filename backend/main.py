@@ -389,6 +389,15 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
         mode=getattr(brand, "mode", "outbound"),
     )
 
+    # 监测全失败保护：如果一条 AI 回答都没成功，说明 API 配置/网络有问题，
+    # 不存假的全0报告（会误导用户以为"AI真的没推你"）
+    if report.answered_queries == 0:
+        raise HTTPException(
+            503,
+            "AI 监测未能成功获取数据：可能是 AI 平台密钥未配置、余额不足或网络超时。"
+            "请检查服务器的 API 密钥配置后重试。本次不计入监测次数。"
+        )
+
     # 更新监测次数
     user.monitor_count = user_count + 1
     session.add(user)
@@ -1121,6 +1130,7 @@ def industry_benchmark(brand_id: int, user: User = Depends(current_user),
         "percentile": percentile, "rank_text": rank_text, "rank_color": rank_color,
         "gap_to_avg": round(my_rate - avg_rate, 1),
         "gap_to_top": round(max_rate - my_rate, 1),
+        "data_source": f"基于见微平台上 {sample_count} 个「{industry_std}」行业品牌的真实监测数据（匿名聚合），样本越多越准确。",
     }
 
 
