@@ -554,8 +554,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 
   <!-- 数据指标 -->
   <div class="lp-stats">
-    <div class="lp-stat glass"><div class="num">58%</div><div class="desc">买家改用 AI 找供应商</div><div class="src">Gartner 2025</div></div>
-    <div class="lp-stat glass"><div class="num">25%</div><div class="desc">传统搜索流量正在消失</div><div class="src">Gartner 2026</div></div>
+    <div class="lp-stat glass"><div class="num">89%</div><div class="desc">B2B 买家用 AI 做采购研究</div><div class="src">Forrester 2024</div></div>
+    <div class="lp-stat glass"><div class="num">25%</div><div class="desc">传统搜索流量将下降（预测）</div><div class="src">Gartner（2026 预测）</div></div>
     <div class="lp-stat glass"><div class="num">8 大</div><div class="desc">AI 平台同步监测覆盖</div><div class="src">国内外全覆盖</div></div>
     <div class="lp-stat glass"><div class="num">30 秒</div><div class="desc">出体检结果</div><div class="src">即时反馈</div></div>
   </div>
@@ -930,7 +930,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="monthlyLossCard" style="display:none;background:var(--bad-soft);border:1px solid rgba(255,93,108,.3);border-radius:14px;padding:20px;margin-bottom:20px">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
                   <div>
-                    <div style="font-size:12px;color:var(--bad);font-weight:600;margin-bottom:4px">📉 你每月预计损失的 AI 推荐曝光</div>
+                    <div style="font-size:12px;color:var(--bad);font-weight:600;margin-bottom:4px">📉 每月可能错失的 AI 推荐曝光（估算）</div>
                     <div style="font-size:32px;font-weight:900;color:var(--bad)" id="monthlyLossNum">—</div>
                     <div style="font-size:12px;color:var(--warn);margin-top:4px" id="monthlyLossNote">次/月</div>
                   </div>
@@ -3016,7 +3016,7 @@ async function loadMonthlyLoss(){
       num.style.color = 'var(--good)';
     }
     num.textContent = data.monthly_loss_display;
-    note.textContent = `次/月（保守估算）· 基于 Gartner 行业基准`;
+    note.textContent = `次/月（量级估算，基于行业公开均值，非精确数据）`;
     verdict.textContent = data.verdict;
     card.style.display = 'block';
   }catch(e){ console.log('月损失加载失败',e) }
