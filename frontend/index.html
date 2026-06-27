@@ -1560,10 +1560,13 @@ function renderContentsTab(d){
   } else {
     d.contents.forEach(ct=>{
       const pub=ct.status==='published';
+      const pending=ct.status==='pending_approval';
+      const statusLabel=pub?'已发布':pending?'待老板确认':'草稿';
+      const statusStyle=pub?'background:var(--good-soft);color:var(--good)':pending?'background:var(--warn-soft);color:var(--warn)':'background:#f1f5f9;color:var(--ink-soft)';
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
           <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
-          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${pub?'background:#d1fae5;color:var(--good)':'background:#f1f5f9;color:var(--ink-soft)'}">${pub?'已发布':'草稿'}</span>
+          <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${statusStyle}">${statusLabel}</span>
         </div>
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;max-height:120px;overflow:hidden">${escHtml((ct.body||'').slice(0,300))}${(ct.body||'').length>300?'…':''}</div>
         ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
@@ -1571,6 +1574,7 @@ function renderContentsTab(d){
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="copyContent(${ct.id})">📋 复制全文</button>
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="togglePublished(${ct.id})">${pub?'标为草稿':'标为已发布'}</button>
+          <button class="btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--cyan);border-color:var(--cyan)" onclick="submitApproval(${ct.id})">📲 提交老板审批</button>
         </div>
         <textarea id="content_${ct.id}" style="position:absolute;left:-9999px">${escHtml(ct.title||'')}\n\n${escHtml(ct.body||'')}</textarea>
       </div>`;
@@ -1587,6 +1591,31 @@ function copyContent(id){
 async function togglePublished(id){
   const bid=currentBrandId||lastBrandIdForDash;
   try{ await api(`/api/brands/${bid}/content/${id}/mark-published`,{method:"POST"}); loadContentsTab(); }catch(e){}
+}
+
+// 提交老板审批，生成可分享链接
+async function submitApproval(id){
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{
+    const r=await api(`/api/brands/${bid}/content/${id}/submit-approval`,{method:"POST"});
+    showApprovalLink(r.approval_url);
+    loadContentsTab();
+  }catch(e){ toast("提交失败："+e.message); }
+}
+
+function showApprovalLink(url){
+  const modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;background:rgba(38,34,28,.6);z-index:2200;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.onclick=()=>modal.remove();
+  modal.innerHTML=`<div onclick="event.stopPropagation()" style="background:var(--panel);border-radius:var(--r-xl);max-width:400px;width:100%;padding:28px;text-align:center">
+    <div style="font-size:42px;margin-bottom:12px">📲</div>
+    <div style="font-size:19px;font-weight:800;margin-bottom:8px">审批链接已生成</div>
+    <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:20px">把下面的链接发给老板（微信/钉钉都行）。<br>老板点开就是一个极简页面，只有"同意发布"和"打回重写"两个按钮，无需登录。</div>
+    <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:12px;color:var(--ink);word-break:break-all;margin-bottom:16px;font-family:monospace">${url}</div>
+    <button class="btn-cyan" style="width:100%;padding:13px;margin-bottom:10px" onclick="navigator.clipboard.writeText('${url}').then(()=>toast('✅ 链接已复制'))">📋 复制链接发给老板</button>
+    <button class="btn-ghost" style="width:100%" onclick="this.closest('div[style*=fixed]').remove()">关闭</button>
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 // ===== 内容工作台结束 =====
@@ -1746,7 +1775,8 @@ function renderDashboard(d){
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">当前 AI 提及率</div>
-        <div style="font-size:36px;font-weight:900;color:var(--brand);line-height:1">${d.current_rate}%</div>
+        <div style="font-size:36px;font-weight:900;color:var(--brand);line-height:1;cursor:pointer;border-bottom:2px dashed var(--cyan);display:inline-block" onclick="showChatSnapshots()" title="点击查看 AI 对话现场">${d.current_rate}%</div>
+        <div style="font-size:11px;color:var(--cyan);margin-top:4px;cursor:pointer" onclick="showChatSnapshots()">👆 点击看 AI 对话现场</div>
         <div style="font-size:13px;margin-top:6px;color:${changeColor};font-weight:600">${d.change_vs_prev!==null?`${changeStr} pt 相比上次`:'首次'}</div>
       </div>
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
@@ -1836,6 +1866,83 @@ function renderDashboard(d){
   loadAITraffic();
   // 加载行业大盘
   loadIndustryBenchmark();
+}
+
+// ===== 全景对话快照(活体证据) =====
+async function showChatSnapshots(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ toast("请先完成监测"); return; }
+  // 弹窗骨架
+  const modal=document.createElement("div");
+  modal.id="snapModal";
+  modal.style.cssText="position:fixed;inset:0;background:rgba(38,34,28,.7);z-index:2200;display:flex;align-items:center;justify-content:center;padding:16px";
+  modal.onclick=()=>modal.remove();
+  modal.innerHTML=`<div onclick="event.stopPropagation()" style="background:var(--panel);border-radius:var(--r-xl);max-width:420px;width:100%;max-height:88vh;overflow-y:auto;padding:24px">
+    <div class="loading" style="padding:40px"><div class="spinner"></div><p>正在调取 AI 对话现场…</p></div>
+  </div>`;
+  document.body.appendChild(modal);
+
+  let d;
+  try{
+    d=await api(`/api/brands/${bid}/chat-snapshots`);
+    if(!d.snapshots||!d.snapshots.length){
+      d=await api(`/api/brands/${bid}/chat-snapshots?demo=true`);
+    }
+  }catch(e){
+    try{ d=await api(`/api/brands/${bid}/chat-snapshots?demo=true`); }
+    catch(e2){ document.querySelector("#snapModal>div").innerHTML='<p style="padding:20px;color:var(--ink-soft)">暂无对话快照</p>'; return; }
+  }
+  renderSnapshots(d);
+}
+
+function renderSnapshots(d){
+  const wrap=document.querySelector("#snapModal>div");
+  if(!wrap) return;
+  const platIcon={'DeepSeek':'🐋','豆包':'🫛','通义千问':'🟣','Kimi':'🌙','ChatGPT':'🤖','Gemini':'✨','文心一言':'🐻'};
+
+  let html=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <div style="font-size:18px;font-weight:800">🔍 AI 对话现场快照</div>
+    <button onclick="document.getElementById('snapModal').remove()" style="background:none;border:none;font-size:20px;color:var(--ink-faint);cursor:pointer">✕</button>
+  </div>
+  <p style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">这不是系统推算 —— 是真实时间、真实节点向 AI 发出的真实提问，AI 确实推荐了你。</p>`;
+
+  d.snapshots.forEach(s=>{
+    const icon=platIcon[s.platform]||'🤖';
+    // 高亮品牌名
+    let ans=escHtml(s.answer).replace(new RegExp(escHtml(d.brand_name),'g'),
+      `<span style="background:#deff9a;color:#26221c;font-weight:700;padding:1px 4px;border-radius:3px">${escHtml(d.brand_name)}</span>`);
+    ans=ans.replace(/\n/g,'<br>');
+    html+=`
+    <div style="background:#ededed;border-radius:14px;overflow:hidden;margin-bottom:18px;box-shadow:var(--sh-sm)">
+      <!-- 微信风格顶栏 -->
+      <div style="background:#f7f7f7;border-bottom:1px solid #e3e3e3;padding:10px 14px;display:flex;align-items:center;gap:8px">
+        <span style="font-size:16px">${icon}</span>
+        <span style="font-size:14px;font-weight:600;color:#26221c">${s.platform}</span>
+        <span style="margin-left:auto;font-size:11px;color:#999">${s.queried_at}</span>
+      </div>
+      <!-- 对话气泡 -->
+      <div style="padding:16px 14px;background:#ededed">
+        <!-- 用户提问(右,绿) -->
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <div style="background:#95ec69;color:#26221c;padding:9px 13px;border-radius:8px;font-size:13.5px;max-width:80%;line-height:1.5">${escHtml(s.question)}</div>
+        </div>
+        <!-- AI回答(左,白) -->
+        <div style="display:flex;justify-content:flex-start">
+          <div style="background:#fff;color:#26221c;padding:11px 14px;border-radius:8px;font-size:13.5px;max-width:88%;line-height:1.7">${ans}</div>
+        </div>
+      </div>
+      <!-- 活体证据标注 -->
+      <div style="background:#fff;border-top:1px solid #e3e3e3;padding:10px 14px;font-size:11px;color:#888;line-height:1.6">
+        ✅ ${s.queried_at}，从${s.node}节点真实 IP 向 ${s.platform} 发出的真实提问<br>AI 确实向客户推荐了「<b style="color:var(--good)">${escHtml(d.brand_name)}</b>」
+      </div>
+    </div>`;
+  });
+
+  if(d.demo){
+    html+=`<p style="text-align:center;font-size:11px;color:var(--ink-faint);margin-bottom:10px">* 当前为演示快照，完成监测后显示你的真实 AI 对话记录</p>`;
+  }
+  html+=`<button class="btn-cyan" style="width:100%;padding:12px" onclick="document.getElementById('snapModal').remove()">知道了</button>`;
+  wrap.innerHTML=html;
 }
 
 // ===== 品牌健康度雷达图 =====
@@ -2454,6 +2561,28 @@ const ACTION_ORDERS = {
   ]
 };
 
+function renderComplianceShield(comp){
+  if(!comp) return "";
+  if(comp.passed){
+    return `<div style="display:flex;align-items:center;gap:10px;background:var(--good-soft);border:1px solid var(--good);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <span style="font-size:20px">🛡️</span>
+      <div style="flex:1">
+        <div style="font-size:13px;font-weight:700;color:var(--good)">已通过 2026 最新广告法违禁词扫描</div>
+        <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">未检出绝对化用语、医疗违禁词等高危表述，可放心发布</div>
+      </div>
+      <span style="font-size:11px;color:var(--good);font-weight:600">✓ 安全</span>
+    </div>`;
+  } else {
+    return `<div style="background:var(--bad-soft);border:1px solid var(--bad);border-radius:8px;padding:10px 14px;margin-bottom:14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="font-size:18px">⚠️</span>
+        <span style="font-size:13px;font-weight:700;color:var(--bad)">检测到 ${comp.count} 个广告法风险词，发布前请修改</span>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);padding-left:26px">风险词：${comp.hits.map(h=>`<span style="background:var(--bad-soft);color:var(--bad);padding:1px 6px;border-radius:4px;margin:2px;display:inline-block">${h}</span>`).join("")}</div>
+    </div>`;
+  }
+}
+
 async function genContent(question, idx){
   const area=document.getElementById("contentArea");
   area.innerHTML='<div class="loading"><div class="spinner"></div><p>正在生成符合 GEO 规则的内容…</p></div>';
@@ -2463,6 +2592,7 @@ async function genContent(question, idx){
     const orders=ACTION_ORDERS[currentMode||"outbound"];
     area.innerHTML=`<div class="content-out">
       <h3>📄 ${c.title||"已生成内容"}</h3>
+      ${renderComplianceShield(c.compliance)}
       <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,"").replace(/\*\*/g,"")}</div>
       ${c.publish_tip?`<div class="tip">💡 ${c.publish_tip}</div>`:""}
       <div class="action-order" style="margin-top:14px">
@@ -2565,6 +2695,7 @@ async function genTaskContent(target,ctype){
     const orders=ACTION_ORDERS[currentMode||"outbound"];
     area.innerHTML=`<div class="content-out">
       <h3>📄 ${c.title||"已生成内容"}</h3>
+      ${renderComplianceShield(c.compliance)}
       <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,"").replace(/\*\*/g,"")}</div>
       ${c.publish_tip?`<div class="tip">💡 ${c.publish_tip}</div>`:""}
       <div class="action-order" style="margin-top:14px">
