@@ -6,10 +6,14 @@ GEO 雷达 - 数据层
 """
 
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from sqlmodel import SQLModel, Field, create_engine, Session
+
+# 中国时区时间（UTC+8），解决服务器UTC时间比本地慢8小时的问题
+def cn_now():
+    return datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
 
 # 默认 SQLite,生产环境改 DATABASE_URL=postgresql://... 即可,无需改代码
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./geo_radar.db")
@@ -57,7 +61,7 @@ class User(SQLModel, table=True):
     is_admin: bool = Field(default=False)   # 管理员标记
     invite_code: str = Field(default="", index=True)  # 自己的专属邀请码
     referred_by: int = Field(default=0)     # 被谁推荐（推荐人用户ID，0=无）
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=cn_now)
     trial_ends_at: Optional[datetime] = None
 
 
@@ -74,7 +78,7 @@ class Brand(SQLModel, table=True):
     brand_facts: str = ""            # 知识库抓取的事实
     questions_json: str = "[]"       # 问题集
     track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=cn_now)
 
 
 class Referral(SQLModel, table=True):
@@ -86,7 +90,7 @@ class Referral(SQLModel, table=True):
     status: str = "registered"                  # registered=已注册 paid=已付费
     commission: float = 0.0                     # 佣金金额
     paid_plan: str = ""                          # 付费的套餐
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=cn_now)
     paid_at: Optional[datetime] = None
 
 
@@ -101,7 +105,7 @@ class KnowledgeItem(SQLModel, table=True):
     title: str = ""               # 标题/问题
     content: str = ""             # 内容/答案
     source: str = "manual"        # manual=手动添加 crawled=官网抓取 ai=AI生成
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=cn_now)
 
 
 class Order(SQLModel, table=True):
@@ -116,14 +120,14 @@ class Order(SQLModel, table=True):
     status: str = "pending"         # pending=待支付 paid=已支付 failed=失败
     pay_method: str = ""            # wxpay / alipay
     pay_no: str = ""                # 支付平台流水号
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=cn_now, index=True)
     paid_at: Optional[datetime] = None
 
 
 class Report(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     brand_id: int = Field(index=True)
-    generated_at: datetime = Field(default_factory=datetime.utcnow)
+    generated_at: datetime = Field(default_factory=cn_now)
     mention_rate: float = 0.0
     competitor_share_json: str = "{}"
     platform_breakdown_json: str = "{}"
@@ -142,7 +146,7 @@ class GeneratedContent(SQLModel, table=True):
     body: str = ""
     publish_tip: str = ""
     status: str = "draft"          # draft / published(人工标记)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=cn_now)
 
 
 class AIVisit(SQLModel, table=True):
@@ -153,7 +157,7 @@ class AIVisit(SQLModel, table=True):
     referrer: str = ""                        # 完整来源URL
     landing_page: str = ""                    # 落地页
     user_agent: str = ""                      # 设备信息
-    visited_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    visited_at: datetime = Field(default_factory=cn_now, index=True)
 
 
 class IndustrySample(SQLModel, table=True):
@@ -170,7 +174,7 @@ class IndustrySample(SQLModel, table=True):
     mention_rate: float = 0.0                  # 提及率
     source_count: int = 0                      # 被引用来源数
     brand_id_hash: str = ""                    # 品牌ID哈希（去重用，不可反推品牌）
-    created_at: datetime = Field(default_factory=datetime.utcnow, index=True)
+    created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
 def init_db():
