@@ -563,24 +563,34 @@ def chat_snapshots(brand_id: int, demo: bool = False,
     raw = full.get("raw_results", [])
     brand_name = brand.name
 
-    snapshots = []
+    positive = []   # AI推荐了你
+    negative = []   # AI没提你（负面/缺口的真实来源）
     for r in raw:
-        if r.get("brand_mentioned") and r.get("answer_text") and not r.get("error"):
-            pid = r.get("platform", "")
-            snapshots.append({
-                "platform": PLAT_LABELS.get(pid, pid),
-                "node": r.get("node", "上海"),
-                "queried_at": r.get("queried_at", ""),
-                "question": r.get("question", ""),
-                "answer": r.get("answer_text", "")[:800],
-                "mentioned": True,
-            })
-    # 最多返回6条最有代表性的
-    snapshots = snapshots[:6]
+        if r.get("error") or not r.get("answer_text"):
+            continue
+        pid = r.get("platform", "")
+        item = {
+            "platform": PLAT_LABELS.get(pid, pid),
+            "node": r.get("node", "上海"),
+            "queried_at": r.get("queried_at", ""),
+            "question": r.get("question", ""),
+            "answer": r.get("answer_text", "")[:800],
+            "competitors": r.get("competitors_mentioned", []),
+        }
+        if r.get("brand_mentioned"):
+            item["mentioned"] = True
+            positive.append(item)
+        else:
+            item["mentioned"] = False
+            negative.append(item)
+
     return {
         "demo": False, "brand_name": brand_name,
-        "snapshots": snapshots,
-        "total": len(snapshots),
+        "snapshots": positive[:6],          # 兼容旧字段
+        "positive": positive[:6],
+        "negative": negative[:6],
+        "total": len(positive),
+        "negative_total": len(negative),
     }
 
 
