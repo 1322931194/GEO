@@ -62,7 +62,7 @@ async def analyze_keyword_opportunities(
 {{"keywords":[{{"keyword":"","ai_heat":85,"competition":40,"opportunity_score":78,"intent":"购买决策","content_direction":"","reason":""}}],"summary":"一句话总结这个行业的关键词商机格局","top_advice":"给商家的一句话核心建议：优先抢哪类词"}}
 """
 
-    raw = await _chat(prompt, system, json_mode=True)
+    raw = await _chat(prompt, system, json_mode=True, scene="opportunity")
     data = _safe_parse_json(raw)
     if not data or "keywords" not in data:
         return {"error": True, "message": "分析失败，请重试"}
