@@ -192,6 +192,59 @@ _DISPATCH = {
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
 DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
+
+async def check_all_keys() -> list:
+    """
+    逐个测试每个平台的 API 密钥能否真实调用。
+    返回每个平台的状态：已配置/未配置、能否调通、错误原因。
+    用于管理后台一键自检。
+    """
+    results = []
+    async with httpx.AsyncClient() as client:
+        for pid, cfg in PLATFORMS.items():
+            key = os.getenv(cfg["api_key_env"])
+            item = {
+                "platform": pid,
+                "label": cfg.get("label", pid),
+                "env_name": cfg["api_key_env"],
+                "configured": bool(key),
+            }
+            if not key:
+                item["status"] = "未配置"
+                item["ok"] = False
+                item["detail"] = f"环境变量 {cfg['api_key_env']} 没有设置"
+                results.append(item)
+                continue
+            # 真实测试调用（用最短的问题省成本）
+            try:
+                ans = await _DISPATCH[pid](client, cfg, "你好", key)
+                if ans and len(ans.strip()) > 0:
+                    item["status"] = "正常"
+                    item["ok"] = True
+                    item["detail"] = "密钥有效，调用成功"
+                else:
+                    item["status"] = "异常"
+                    item["ok"] = False
+                    item["detail"] = "返回空内容"
+            except Exception as e:
+                item["status"] = "失败"
+                item["ok"] = False
+                msg = str(e)[:120]
+                # 常见错误友好提示
+                if "401" in msg or "invalid" in msg.lower() or "auth" in msg.lower():
+                    item["detail"] = "密钥无效或错误（401），请检查密钥是否填对"
+                elif "402" in msg or "balance" in msg.lower() or "quota" in msg.lower() or "insufficient" in msg.lower():
+                    item["detail"] = "余额不足或额度用完，请充值"
+                elif "429" in msg:
+                    item["detail"] = "请求过于频繁（429），稍后重试"
+                elif "timeout" in msg.lower():
+                    item["detail"] = "网络超时，可能是服务器无法访问该平台"
+                else:
+                    item["detail"] = msg
+            results.append(item)
+    return results
+
+
 def _normalize(text: str) -> str:
     """标准化文本：转小写、去掉空格和常见标点，方便匹配"""
     import unicodedata
