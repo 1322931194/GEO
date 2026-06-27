@@ -22,6 +22,14 @@ import re
 
 logger = logging.getLogger("geo.generator")
 
+# 调用记账（不影响主流程，失败静默）
+def _track(platform, ok, scene):
+    try:
+        from services.call_tracker import track_call
+        track_call(platform, ok, scene)
+    except Exception:
+        pass
+
 # ----------------------------- 广告法违禁词扫描 -----------------------------
 # 基于《广告法》绝对化用语 + 常见违禁词（真实检测，安抚商家风控焦虑）
 BANNED_WORDS = [
@@ -66,6 +74,7 @@ def _gen_config():
             "url": "https://api.deepseek.com/v1/chat/completions",
             "model": os.getenv("GEN_MODEL", "deepseek-chat"),
             "supports_json_mode": False,  # DeepSeek 不支持 response_format
+            "platform": "deepseek",
         }
     if openai_key:
         return {
@@ -73,6 +82,7 @@ def _gen_config():
             "url": "https://api.openai.com/v1/chat/completions",
             "model": os.getenv("GEN_MODEL", "gpt-4o"),
             "supports_json_mode": True,
+            "platform": "chatgpt",
         }
     return None
 
@@ -105,10 +115,11 @@ def _safe_parse_json(raw: str) -> dict:
     return {}
 
 
-async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
+async def _chat(prompt: str, system: str = "", json_mode: bool = False, scene: str = "other") -> str:
     cfg = _gen_config()
     if not cfg:
         raise RuntimeError("生成功能需要 DEEPSEEK_API_KEY 或 OPENAI_API_KEY，请在环境变量中配置。")
+    platform = cfg.get("platform", "unknown")
     messages = []
     if system:
         messages.append({"role": "system", "content": system})
@@ -137,11 +148,18 @@ async def _chat(prompt: str, system: str = "", json_mode: bool = False) -> str:
                 raise RuntimeError(f"AI 服务暂时不可用（{r.status_code}），请稍后重试")
             r.raise_for_status()
             data = r.json()
-            return data["choices"][0]["message"]["content"]
+            result = data["choices"][0]["message"]["content"]
+            _track(platform, True, scene)
+            return result
         except httpx.TimeoutException:
+            _track(platform, False, scene)
             raise RuntimeError("AI 响应超时（超过120秒），请稍后重试。问题较多时正常，可缩短问题数量后重试")
         except httpx.ConnectError:
+            _track(platform, False, scene)
             raise RuntimeError("无法连接到 AI 服务，请检查网络或稍后重试")
+        except Exception:
+            _track(platform, False, scene)
+            raise
 
 
 # 出海场景类目（英文场景）
@@ -199,7 +217,7 @@ async def extract_brand_keywords(
 只返回 JSON:
 {{"keywords":{{"features":["特征1","特征2"],"scenarios":["场景1","场景2"],"users":["用户群1"],"concerns":["关注点1"]}},"summary":"一句话品牌定位"}}
 """
-    raw = await _chat(prompt, system, json_mode=True)
+    raw = await _chat(prompt, system, json_mode=True, scene="extract")
     data = _safe_parse_json(raw)
     if not data or "keywords" not in data:
         return {"keywords": {"features": [product], "scenarios": [], "users": [], "concerns": []}, "summary": f"{industry}品牌"}
@@ -300,7 +318,7 @@ async def generate_questions(
 {{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
 """
 
-    raw = await _chat(prompt, system, json_mode=True)
+    raw = await _chat(prompt, system, json_mode=True, scene="questions")
     data = _safe_parse_json(raw)
     qs = data.get("questions", [])[:count]
     for q in qs:
@@ -374,7 +392,7 @@ async def generate_content(
 只返回 JSON,格式:
 {{"title":"标题","body":"正文(可含小标题)","publish_tip":"一句话发布建议","compliance_note":"一句话合规提示(如:本内容为草稿,发布前请核实数据真实性)"}}
 """
-    raw = await _chat(prompt, system, json_mode=True)
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
     data = _safe_parse_json(raw)
     if not data or "body" not in data:
         # 如果解析失败，把原始内容作为 body 返回，至少商家能看到内容
