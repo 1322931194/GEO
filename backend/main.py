@@ -43,6 +43,47 @@ app.add_middleware(
     CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
+from services.call_tracker import drain as _drain_calls, cost_of as _cost_of
+
+def _flush_call_logs():
+    """把 tracker 缓冲区的调用记录聚合后写入数据库。
+    解决'钱花了不知道花哪'——所有 AI 调用统一落库。"""
+    items = _drain_calls()
+    if not items:
+        return
+    # 按 (platform, scene) 聚合
+    agg = {}
+    for platform, scene, ok in items:
+        k = (platform, scene)
+        if k not in agg:
+            agg[k] = {"calls": 0, "success": 0, "failed": 0}
+        agg[k]["calls"] += 1
+        if ok:
+            agg[k]["success"] += 1
+        else:
+            agg[k]["failed"] += 1
+    try:
+        with Session(engine) as s:
+            for (platform, scene), st in agg.items():
+                s.add(ApiCallLog(
+                    platform=platform, scene=scene,
+                    calls=st["calls"], success=st["success"], failed=st["failed"],
+                    est_cost=round(st["calls"] * _cost_of(platform), 4),
+                ))
+            s.commit()
+    except Exception:
+        pass  # 记账失败绝不影响主流程
+
+@app.middleware("http")
+async def _track_middleware(request, call_next):
+    response = await call_next(request)
+    # 请求结束后异步落库调用记录
+    try:
+        _flush_call_logs()
+    except Exception:
+        pass
+    return response
+
 
 @app.on_event("startup")
 def _startup():
@@ -1004,6 +1045,91 @@ def track_visit(tid: str, request: Request, ref: str = "", page: str = "",
     session.add(visit)
     session.commit()
     return {"ok": True, "tracked": True}
+
+
+class ConversionReq(BaseModel):
+    event_type: str = "lead"   # lead/consult/order
+    value: float = 0.0
+    source: str = ""
+    note: str = ""
+
+@app.post("/api/track-conversion")
+def track_conversion(tid: str, req: ConversionReq, request: Request,
+                     session: Session = Depends(get_session)):
+    """上报转化事件（公开接口）。商家在留资/下单页埋点调用，形成 ROI 归因。"""
+    if not tid:
+        return {"ok": False}
+    try:
+        _rate_limit(f"conv:{_client_ip(request)}", max_calls=30, window_sec=60)
+    except HTTPException:
+        return {"ok": True, "tracked": False}
+    from database import Conversion
+    conv = Conversion(
+        track_id=tid, event_type=req.event_type[:20],
+        value=max(0, req.value), source=req.source[:50], note=req.note[:200],
+    )
+    session.add(conv)
+    session.commit()
+    return {"ok": True, "tracked": True}
+
+
+@app.post("/api/brands/{brand_id}/manual-conversion")
+def manual_conversion(brand_id: int, req: ConversionReq,
+                      user: User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+    """商家手动登记一笔转化（没埋点也能用，简单可行）。"""
+    brand = _owned_brand(brand_id, user, session)
+    tid = getattr(brand, "track_id", "") or _get_or_create_track_id(brand, session)
+    from database import Conversion
+    conv = Conversion(
+        track_id=tid, event_type=req.event_type[:20],
+        value=max(0, req.value), source=req.source[:50] or "manual", note=req.note[:200],
+    )
+    session.add(conv)
+    session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/brands/{brand_id}/roi")
+def brand_roi(brand_id: int, user: User = Depends(current_user),
+              session: Session = Depends(get_session)):
+    """ROI 归因看板：AI访客 → 转化 → 价值的完整链路。"""
+    brand = _owned_brand(brand_id, user, session)
+    tid = getattr(brand, "track_id", "")
+    if not tid:
+        return {"has_data": False, "visits": 0, "conversions": 0, "total_value": 0,
+                "conversion_rate": 0, "by_source": {}, "note": "尚未安装追踪代码"}
+
+    from database import Conversion
+    visits = session.exec(select(AIVisit).where(AIVisit.track_id == tid)).all()
+    convs = session.exec(select(Conversion).where(Conversion.track_id == tid)).all()
+
+    total_value = round(sum(c.value for c in convs), 2)
+    conv_rate = round(100 * len(convs) / len(visits), 1) if visits else 0
+
+    # 按来源归因（哪个AI平台带来的转化最值钱）
+    by_source = {}
+    for v in visits:
+        s = v.source or "other"
+        by_source.setdefault(s, {"visits": 0, "conversions": 0, "value": 0.0})
+        by_source[s]["visits"] += 1
+    for c in convs:
+        s = c.source or "other"
+        by_source.setdefault(s, {"visits": 0, "conversions": 0, "value": 0.0})
+        by_source[s]["conversions"] += 1
+        by_source[s]["value"] += c.value
+    for s in by_source:
+        by_source[s]["value"] = round(by_source[s]["value"], 2)
+
+    return {
+        "has_data": len(visits) > 0 or len(convs) > 0,
+        "visits": len(visits),
+        "conversions": len(convs),
+        "total_value": total_value,
+        "conversion_rate": conv_rate,
+        "by_source": by_source,
+        "note": "ROI 归因基于追踪代码记录的真实 AI 访客与转化数据。",
+    }
 
 
 @app.get("/api/brands/{brand_id}/ai-traffic")
@@ -2248,6 +2374,23 @@ def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_ses
         c = by_platform[p]["calls"]
         by_platform[p]["success_rate"] = round(100 * by_platform[p]["success"] / c) if c else 0
 
+    # 按场景聚合（让你知道钱花在哪个功能上）
+    SCENE_NAMES = {
+        "monitor": "品牌监测", "extract": "品牌提取", "questions": "生成问题集",
+        "content": "生成内容", "opportunity": "关键词分析", "check_keys": "密钥自检",
+        "other": "其他",
+    }
+    by_scene = {}
+    for l in logs:
+        sc = getattr(l, "scene", None) or "other"
+        name = SCENE_NAMES.get(sc, sc)
+        if name not in by_scene:
+            by_scene[name] = {"calls": 0, "cost": 0.0}
+        by_scene[name]["calls"] += l.calls
+        by_scene[name]["cost"] += l.est_cost
+    for sc in by_scene:
+        by_scene[sc]["cost"] = round(by_scene[sc]["cost"], 3)
+
     # 监测次数（去重日志条目近似）
     monitor_runs = len(set((l.user_id, l.brand_id, str(l.created_at)[:16]) for l in logs))
 
@@ -2260,6 +2403,7 @@ def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_ses
         "estimated_cost_rmb": total_cost,
         "monitor_runs": monitor_runs,
         "by_platform": by_platform,
+        "by_scene": by_scene,
         "note": "成本为估算值，真实扣费请以各 AI 平台官方账单为准。",
     }
 
@@ -2521,6 +2665,16 @@ async function loadUsage(){
       html+='<tr style="border-top:1px solid #eee"><td style="padding:8px 6px;font-weight:600">'+(pnames[p]||p)+'</td><td>'+s.calls+'</td><td style="color:'+rateColor+';font-weight:600">'+s.success_rate+'%</td><td>'+s.failed+'</td><td>¥'+s.cost+'</td></tr>';
     }
     html+='</table>';
+    // 按功能场景花费（让你知道钱花在哪个功能上）
+    if(d.by_scene && Object.keys(d.by_scene).length){
+      html+='<div style="font-size:13px;font-weight:700;margin:18px 0 8px;color:#26221c">💰 钱花在哪个功能上</div>';
+      html+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:6px">功能</th><th>调用次数</th><th>估算花费</th></tr>';
+      var scenes=Object.entries(d.by_scene).sort(function(a,b){return b[1].cost-a[1].cost;});
+      scenes.forEach(function(e){
+        html+='<tr style="border-top:1px solid #eee"><td style="padding:8px 6px;font-weight:600">'+e[0]+'</td><td>'+e[1].calls+'</td><td style="color:#b0524a;font-weight:600">¥'+e[1].cost+'</td></tr>';
+      });
+      html+='</table>';
+    }
     html+='<div style="font-size:11px;color:#aaa;margin-top:12px">近30天 · '+d.note+'</div>';
     document.getElementById('usage').innerHTML=html;
   }catch(e){ document.getElementById('usage').innerHTML='<span style="color:#b0524a">加载失败：'+e.message+'</span>'; }
