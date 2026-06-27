@@ -190,6 +190,64 @@ DOMESTIC_CATEGORIES = [
 QUESTION_CATEGORIES = OUTBOUND_CATEGORIES
 
 
+# ============ 垂直赛道深度 Prompt 库 ============
+# 为高客单、决策链长的行业预置专属问题维度，让监测更精准命中真实购买场景。
+# 匹配到行业时，把这些维度注入 prompt，生成更贴合该赛道的长尾问题。
+VERTICAL_PROMPT_LIBRARY = {
+    "医美": [
+        "项目效果与恢复期（如'XX项目多久恢复''效果能维持多久'）",
+        "安全与资质（'哪家医美机构正规有资质''XX项目安全吗'）",
+        "价格与避坑（'XX项目大概多少钱''医美怎么避免被宰'）",
+        "医生与案例（'哪个医生做XX好''有真实案例吗'）",
+    ],
+    "装修": [
+        "全案与报价（'全案装修大概多少钱''XX平方装修预算'）",
+        "公司与口碑（'哪家装修公司靠谱''XX装修公司怎么样'）",
+        "避坑与增项（'装修怎么防止加项''装修合同要注意什么'）",
+        "风格与方案（'XX风格装修推荐''小户型怎么设计'）",
+    ],
+    "教育": [
+        "课程与效果（'XX培训有用吗''哪家机构提分快'）",
+        "资质与师资（'哪家教育机构正规''老师水平怎么样'）",
+        "价格与退费（'XX课程多少钱''能退费吗'）",
+        "适配与选择（'孩子适合哪种课''零基础怎么选'）",
+    ],
+    "法律": [
+        "专业领域（'XX案件找哪个律师''擅长XX的律师推荐'）",
+        "收费与流程（'律师怎么收费''打官司要多久'）",
+        "口碑与胜诉（'哪个律所靠谱''有成功案例吗'）",
+        "咨询与方案（'XX问题怎么处理''要不要请律师'）",
+    ],
+    "金融": [
+        "产品与收益（'XX理财怎么样''收益率多少'）",
+        "安全与合规（'XX平台正规吗''有牌照吗'）",
+        "门槛与流程（'XX产品门槛多少''怎么办理'）",
+        "对比与选择（'XX和XX哪个好''新手怎么选'）",
+    ],
+    "出海": [
+        "Product quality & certification（'best certified XX brands'）",
+        "Reviews & reputation（'is XX brand reliable''XX reviews'）",
+        "Price & value（'is XX worth it''affordable XX brands'）",
+        "Comparison & alternatives（'XX vs YY''alternatives to XX'）",
+    ],
+    "电商": [
+        "品质与正品（'XX旗舰店正品吗''哪个牌子质量好'）",
+        "性价比（'XX值不值''平价替代推荐'）",
+        "对比评测（'XX和XX哪个好''XX测评'）",
+        "口碑与售后（'XX怎么样''售后好不好'）",
+    ],
+}
+
+def _get_vertical_dimensions(industry: str) -> list:
+    """匹配行业的垂直深度维度，没匹配到返回空。"""
+    if not industry:
+        return []
+    for key, dims in VERTICAL_PROMPT_LIBRARY.items():
+        if key in industry:
+            return dims
+    return []
+
+
 async def extract_brand_keywords(
     brand: str,
     industry: str,
@@ -239,6 +297,13 @@ async def generate_questions(
     mode=domestic: 国内模式，纯中文问题，监测 DeepSeek/通义千问/豆包/Kimi
     """
     categories = DOMESTIC_CATEGORIES if mode == "domestic" else OUTBOUND_CATEGORIES
+
+    # 垂直赛道深度维度：匹配到高客单行业时，注入专属问题维度，让监测更精准
+    vertical_dims = _get_vertical_dimensions(industry)
+    if vertical_dims:
+        # 把垂直维度放在前面（优先级更高），再补通用维度
+        categories = vertical_dims + list(categories)
+        logger.info("匹配到垂直赛道[%s]，注入 %d 个专属维度", industry, len(vertical_dims))
 
     # 关键词提取失败时用默认值继续，不中断整个问题生成
     try:
