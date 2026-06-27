@@ -338,13 +338,32 @@ def delete_brand(brand_id: int, user: User = Depends(current_user),
 
 
 @app.get("/api/brands/{brand_id}/keywords")
-async def brand_keywords(brand_id: int, user: User = Depends(current_user),
+async def brand_keywords(brand_id: int, refresh: bool = False,
+                         user: User = Depends(current_user),
                          session: Session = Depends(get_session)):
-    """提取品牌关键词，让商家确认品牌特征理解是否正确，再生成问题。"""
+    """提取品牌关键词，让商家确认品牌特征理解是否正确，再生成问题。
+    带缓存：同品牌已提取过的直接返回缓存，避免重复调用 AI 烧 token。
+    refresh=true 可强制重新提取。"""
     brand = _owned_brand(brand_id, user, session)
+
+    # 优先用缓存（除非强制刷新）
+    if not refresh and getattr(brand, "keywords_cache", ""):
+        cached = _jload(brand.keywords_cache, None)
+        if cached and cached.get("keywords"):
+            cached["_cached"] = True
+            return cached
+
     result = await extract_brand_keywords(
         brand.name, brand.industry, brand.product, brand.brand_facts
     )
+    # 提取成功才缓存（失败的默认值不缓存，下次还能重试）
+    if result and result.get("keywords", {}).get("features"):
+        try:
+            brand.keywords_cache = json.dumps(result, ensure_ascii=False)
+            session.add(brand)
+            session.commit()
+        except Exception:
+            session.rollback()
     return result
 
 
