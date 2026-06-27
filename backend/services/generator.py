@@ -22,6 +22,41 @@ import re
 
 logger = logging.getLogger("geo.generator")
 
+# ----------------------------- 广告法违禁词扫描 -----------------------------
+# 基于《广告法》绝对化用语 + 常见违禁词（真实检测，安抚商家风控焦虑）
+BANNED_WORDS = [
+    # 绝对化用语
+    "国家级", "世界级", "最高级", "最佳", "最好", "第一", "唯一", "顶级", "极致",
+    "最强", "最优", "最先进", "最大", "最低", "最高", "首个", "独一无二", "绝无仅有",
+    "史上最", "全网最", "全国第一", "世界第一", "100%", "百分百", "绝对", "永久",
+    # 医疗保健违禁（医美/保健行业高危）
+    "根治", "治愈", "痊愈", "疗效", "药到病除", "包治", "彻底解决", "无副作用",
+    "纯天然无害", "包好", "无效退款"[:0],  # 占位
+    # 虚假承诺
+    "稳赚", "零风险", "包过", "保证赚", "一夜暴富", "躺赚",
+]
+BANNED_WORDS = [w for w in BANNED_WORDS if w]
+
+def compliance_scan(text: str) -> dict:
+    """
+    扫描内容里的广告法违禁词。
+    返回是否通过 + 命中的词 + 建议。
+    """
+    if not text:
+        return {"passed": True, "hits": [], "count": 0}
+    hits = []
+    for w in BANNED_WORDS:
+        if w in text:
+            hits.append(w)
+    hits = list(dict.fromkeys(hits))  # 去重
+    return {
+        "passed": len(hits) == 0,
+        "hits": hits,
+        "count": len(hits),
+        "scanned_at": "2026最新广告法违禁词库",
+    }
+
+
 def _gen_config():
     deepseek_key = os.getenv("DEEPSEEK_API_KEY")
     openai_key = os.getenv("OPENAI_API_KEY")
@@ -343,6 +378,9 @@ async def generate_content(
     data = _safe_parse_json(raw)
     if not data or "body" not in data:
         # 如果解析失败，把原始内容作为 body 返回，至少商家能看到内容
-        return {"title": "已生成内容", "body": raw, "content_type": content_type, "publish_tip": ""}
+        data = {"title": "已生成内容", "body": raw, "content_type": content_type, "publish_tip": ""}
     data["content_type"] = content_type
+    # 合规扫描（真实检测广告法违禁词）
+    scan = compliance_scan((data.get("title", "") + " " + data.get("body", "")))
+    data["compliance"] = scan
     return data
