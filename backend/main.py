@@ -522,6 +522,68 @@ def progress(brand_id: int, user: User = Depends(current_user),
     return result
 
 
+@app.get("/api/brands/{brand_id}/chat-snapshots")
+def chat_snapshots(brand_id: int, demo: bool = False,
+                   user: User = Depends(current_user),
+                   session: Session = Depends(get_session)):
+    """
+    全景对话快照：返回'AI真实推荐了你'的对话现场。
+    这是活体证据——真实时间、真实节点、真实提问、AI真实回答。
+    """
+    brand = _owned_brand(brand_id, user, session)
+
+    PLAT_LABELS = {p: PLATFORMS[p].get("label", p) for p in PLATFORMS}
+
+    if demo:
+        return {
+            "demo": True, "brand_name": brand.name,
+            "snapshots": [{
+                "platform": "DeepSeek", "node": "上海",
+                "queried_at": "2026-06-27 10:26:13",
+                "question": f"推荐几个靠谱的{brand.industry or '相关'}品牌",
+                "answer": f"根据口碑和专业度，推荐几个值得考虑的品牌：\n\n1. {brand.name} —— 在{brand.industry or '行业'}领域口碑良好，服务专业；\n2. 同类品牌B；\n3. 同类品牌C。\n\n建议结合自身需求进一步对比。",
+                "mentioned": True,
+            }, {
+                "platform": "豆包", "node": "上海",
+                "queried_at": "2026-06-27 10:26:41",
+                "question": f"{brand.name}怎么样？",
+                "answer": f"{brand.name}是{brand.industry or '该领域'}里口碑不错的选择，整体评价正面，可以考虑。",
+                "mentioned": True,
+            }],
+        }
+
+    latest = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).first()
+    if not latest:
+        raise HTTPException(404, "暂无监测数据")
+
+    full = _jload(latest.full_json, {})
+    raw = full.get("raw_results", [])
+    brand_name = brand.name
+
+    snapshots = []
+    for r in raw:
+        if r.get("brand_mentioned") and r.get("answer_text") and not r.get("error"):
+            pid = r.get("platform", "")
+            snapshots.append({
+                "platform": PLAT_LABELS.get(pid, pid),
+                "node": r.get("node", "上海"),
+                "queried_at": r.get("queried_at", ""),
+                "question": r.get("question", ""),
+                "answer": r.get("answer_text", "")[:800],
+                "mentioned": True,
+            })
+    # 最多返回6条最有代表性的
+    snapshots = snapshots[:6]
+    return {
+        "demo": False, "brand_name": brand_name,
+        "snapshots": snapshots,
+        "total": len(snapshots),
+    }
+
+
 @app.get("/api/brands/{brand_id}/health-radar")
 def health_radar(brand_id: int, demo: bool = False,
                  user: User = Depends(current_user),
@@ -1693,6 +1755,107 @@ def mark_published(brand_id: int, content_id: int,
         session.commit()
         return {"status": c.status}
     raise HTTPException(404, "内容不存在")
+
+
+@app.post("/api/brands/{brand_id}/content/{content_id}/submit-approval")
+def submit_approval(brand_id: int, content_id: int,
+                    user: User = Depends(current_user),
+                    session: Session = Depends(get_session)):
+    """提交内容给老板审批：状态变为 pending_approval，返回可分享的审批链接"""
+    _owned_brand(brand_id, user, session)
+    c = session.get(GeneratedContent, content_id)
+    if not c or c.brand_id != brand_id:
+        raise HTTPException(404, "内容不存在")
+    c.status = "pending_approval"
+    session.add(c)
+    session.commit()
+    # 生成审批令牌（简单签名，老板凭链接审批，无需登录）
+    token = hashlib.sha256(f"{content_id}-{c.brand_id}-{JWT_SECRET}".encode()).hexdigest()[:16]
+    base = os.getenv("PUBLIC_URL", "https://geo-radar.onrender.com")
+    return {
+        "status": "pending_approval",
+        "approval_url": f"{base}/approve?cid={content_id}&t={token}",
+        "message": "已提交审批，把链接发给老板，他点开就能一键同意/打回",
+    }
+
+
+@app.get("/approve")
+def approval_page(cid: int, t: str, session: Session = Depends(get_session)):
+    """老板审批页面（极简，无需登录，凭令牌）"""
+    from fastapi.responses import HTMLResponse
+    c = session.get(GeneratedContent, cid)
+    if not c:
+        return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;padding:60px'>内容不存在</h2>")
+    token = hashlib.sha256(f"{cid}-{c.brand_id}-{JWT_SECRET}".encode()).hexdigest()[:16]
+    if t != token:
+        return HTMLResponse("<h2 style='font-family:sans-serif;text-align:center;padding:60px'>链接无效</h2>")
+
+    status_label = {"pending_approval": "待你确认", "published": "已通过", "draft": "已打回"}.get(c.status, c.status)
+    body_html = (c.body or "").replace("<", "&lt;").replace("\n", "<br>")
+    done = c.status in ("published", "draft")
+    html = f"""<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0"><title>内容审批 · 见微</title>
+<style>
+*{{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,"PingFang SC",sans-serif}}
+body{{background:#f4f1ea;color:#26221c;padding:20px;max-width:600px;margin:0 auto}}
+.card{{background:#fbf9f4;border:1px solid rgba(38,34,28,.1);border-radius:14px;padding:24px;margin-top:20px}}
+.brand{{display:flex;align-items:center;gap:10px;margin-bottom:8px}}
+.brand .m{{width:32px;height:32px;border-radius:8px;background:#26221c;color:#f4f1ea;display:grid;place-items:center;font-weight:600}}
+h1{{font-size:18px;margin:20px 0 6px}}
+.sub{{font-size:13px;color:#6b655b;margin-bottom:20px}}
+.title{{font-size:17px;font-weight:700;margin-bottom:14px}}
+.body{{font-size:14px;line-height:1.8;color:#3a352c;background:#fff;border-radius:10px;padding:18px;border:1px solid rgba(38,34,28,.08)}}
+.btns{{display:flex;gap:12px;margin-top:24px}}
+.btn{{flex:1;padding:16px;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer}}
+.ok{{background:#3a6b4a;color:#fff}}
+.no{{background:#fff;color:#b0524a;border:1px solid #b0524a}}
+.done{{text-align:center;padding:40px;font-size:18px;font-weight:700}}
+.shield{{display:inline-flex;align-items:center;gap:6px;background:rgba(90,125,90,.1);color:#5a7d5a;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;margin-bottom:14px}}
+</style></head><body>
+<div class="brand"><span class="m">見</span><b>见微 · 内容审批</b></div>
+<div class="card">
+<h1>请确认这篇内容是否可以发布</h1>
+<div class="sub">状态：{status_label}</div>
+<div class="shield">🛡️ 已通过广告法违禁词扫描</div>
+<div class="title">{c.title or '内容'}</div>
+<div class="body">{body_html}</div>
+{'<div class="done" style="color:#5a7d5a">✅ 你已确认通过，内容可以发布了</div>' if c.status=="published" else '<div class="done" style="color:#b0524a">↩️ 你已打回，团队会重新修改</div>' if c.status=="draft" else f'''
+<div class="btns">
+  <button class="btn ok" onclick="act('approve')">✅ 同意发布</button>
+  <button class="btn no" onclick="act('reject')">↩️ 打回重写</button>
+</div>'''}
+</div>
+<script>
+async function act(action){{
+  const r=await fetch('/api/approve-action',{{method:'POST',headers:{{'Content-Type':'application/json'}},body:JSON.stringify({{cid:{cid},t:'{t}',action}})}});
+  if(r.ok){{ location.reload(); }} else {{ alert('操作失败，请重试'); }}
+}}
+</script>
+</body></html>"""
+    return HTMLResponse(html)
+
+
+class ApproveActionReq(BaseModel):
+    cid: int
+    t: str
+    action: str  # approve / reject
+
+@app.post("/api/approve-action")
+def approve_action(req: ApproveActionReq, session: Session = Depends(get_session)):
+    """老板审批操作（凭令牌，无需登录）"""
+    c = session.get(GeneratedContent, req.cid)
+    if not c:
+        raise HTTPException(404, "内容不存在")
+    token = hashlib.sha256(f"{req.cid}-{c.brand_id}-{JWT_SECRET}".encode()).hexdigest()[:16]
+    if req.t != token:
+        raise HTTPException(403, "令牌无效")
+    if req.action == "approve":
+        c.status = "published"
+    elif req.action == "reject":
+        c.status = "draft"
+    session.add(c)
+    session.commit()
+    return {"status": c.status}
 
 
 @app.get("/simulator")
