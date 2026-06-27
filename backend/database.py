@@ -77,6 +77,7 @@ class Brand(SQLModel, table=True):
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
     questions_json: str = "[]"       # 问题集
+    keywords_cache: str = ""         # 关键词提取结果缓存（避免重复调用AI烧token）
     track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
     created_at: datetime = Field(default_factory=cn_now)
 
@@ -214,6 +215,7 @@ def _auto_migrate():
         ("user", "trial_ends_at", "TIMESTAMP"),
         ("brand", "track_id", "VARCHAR DEFAULT ''"),
         ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
+        ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
     ]
     is_sqlite = str(engine.url).startswith("sqlite")
     with engine.connect() as conn:
