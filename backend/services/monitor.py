@@ -381,6 +381,32 @@ async def run_monitoring(
             else:
                 logger.warning("监测任务异常: %s", g)
 
+        # 智能补采样：AI 回答有随机性，单次采样可能"碰巧没提到品牌"。
+        # 对"成功调用但没提到品牌"的问题，自动再补 1 次确认，消除冤枉的 0。
+        # 只对疑似 0 的问题补采样，成本增加极小但显著提升首次数据准确性。
+        if samples_per_question == 1:  # 仅低采样套餐需要补采样
+            # 找出每个问题是否至少被提及一次
+            q_mentioned = {}
+            for r in results:
+                if not r.error:
+                    q_mentioned.setdefault(r.question, False)
+                    if r.brand_mentioned:
+                        q_mentioned[r.question] = True
+            # 对"调用成功但完全没提到"的问题补采样
+            retry_tasks = []
+            retry_meta = []
+            for q in questions:
+                if q in q_mentioned and not q_mentioned[q]:
+                    # 用最便宜的1个平台补采样1次确认
+                    for pid, cfg in list(available.items())[:1]:
+                        retry_tasks.append(_one_query(client, pid, cfg, q, brand, competitors))
+                        retry_meta.append(q)
+            if retry_tasks:
+                retried = await asyncio.gather(*retry_tasks, return_exceptions=True)
+                for g in retried:
+                    if isinstance(g, AnswerResult):
+                        results.append(g)
+
     return _aggregate(brand, questions, competitors, available, results,
                       samples_per_question)
 
@@ -491,8 +517,10 @@ def _aggregate(brand, questions, competitors, available, results,
 
     sample_note = (
         f"本报告基于 {len(questions)} 个问题 × {len(available)} 个平台"
-        f" × {samples} 次采样,共 {len(results)} 次真实 AI 查询统计得出。"
-        f"AI 回答存在随机性,数据为采样估计,非绝对精确值。"
+        f"，共 {len(results)} 次真实 AI 查询统计得出。"
+        f"AI 回答存在随机性（同一问题多次提问，结果可能不同），"
+        f"为提升准确度，系统已对未提及品牌的问题自动补采样确认。"
+        f"数据为采样估计，建议监测 2-3 次观察稳定趋势。"
     )
 
     return VisibilityReport(
