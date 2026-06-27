@@ -29,7 +29,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog)
 from services.monitor import run_monitoring, PLATFORMS, estimate_cost
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -417,6 +417,33 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
         _save_industry_sample(brand, report.mention_rate, report.source_count, session)
     except Exception:
         pass  # 样本采集失败不影响主流程
+
+    # 记录 API 调用日志（用于管理后台监控真实消耗）
+    try:
+        raw = report.raw_results or []
+        # 按平台统计成功/失败
+        plat_stats = {}
+        for r in raw:
+            pid = r.get("platform", "unknown")
+            if pid not in plat_stats:
+                plat_stats[pid] = {"calls": 0, "success": 0, "failed": 0}
+            plat_stats[pid]["calls"] += 1
+            if r.get("error"):
+                plat_stats[pid]["failed"] += 1
+            else:
+                plat_stats[pid]["success"] += 1
+        # 成本等级映射（便宜平台约 ¥0.003/次，贵的约 ¥0.03/次）
+        cost_per_call = {"deepseek": 0.003, "qwen": 0.003, "doubao": 0.003,
+                         "kimi": 0.003, "wenxin": 0.003,
+                         "chatgpt": 0.03, "gemini": 0.01, "claude": 0.03, "perplexity": 0.01}
+        for pid, st in plat_stats.items():
+            session.add(ApiCallLog(
+                user_id=user.id, brand_id=brand.id, platform=pid,
+                calls=st["calls"], success=st["success"], failed=st["failed"],
+                est_cost=round(st["calls"] * cost_per_call.get(pid, 0.01), 4),
+            ))
+    except Exception:
+        pass  # 日志记录失败不影响主流程
 
     session.commit()
     session.refresh(rec)
@@ -2137,6 +2164,55 @@ def _check_admin(key: str):
         raise HTTPException(403, "管理员密钥错误")
 
 
+@app.get("/api/admin/api-usage")
+def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_session)):
+    """
+    真实 API 调用统计（管理员）。
+    看实际消耗了多少次、成功率、各平台分布、估算花费。
+    """
+    _check_admin(key)
+    from datetime import timedelta
+    since = cn_now() - timedelta(days=days)
+    logs = session.exec(
+        select(ApiCallLog).where(ApiCallLog.created_at >= since)
+    ).all()
+
+    total_calls = sum(l.calls for l in logs)
+    total_success = sum(l.success for l in logs)
+    total_failed = sum(l.failed for l in logs)
+    total_cost = round(sum(l.est_cost for l in logs), 2)
+
+    # 按平台聚合
+    by_platform = {}
+    for l in logs:
+        p = l.platform or "unknown"
+        if p not in by_platform:
+            by_platform[p] = {"calls": 0, "success": 0, "failed": 0, "cost": 0.0}
+        by_platform[p]["calls"] += l.calls
+        by_platform[p]["success"] += l.success
+        by_platform[p]["failed"] += l.failed
+        by_platform[p]["cost"] += l.est_cost
+    for p in by_platform:
+        by_platform[p]["cost"] = round(by_platform[p]["cost"], 3)
+        c = by_platform[p]["calls"]
+        by_platform[p]["success_rate"] = round(100 * by_platform[p]["success"] / c) if c else 0
+
+    # 监测次数（去重日志条目近似）
+    monitor_runs = len(set((l.user_id, l.brand_id, str(l.created_at)[:16]) for l in logs))
+
+    return {
+        "period_days": days,
+        "total_calls": total_calls,
+        "total_success": total_success,
+        "total_failed": total_failed,
+        "success_rate": round(100 * total_success / total_calls) if total_calls else 0,
+        "estimated_cost_rmb": total_cost,
+        "monitor_runs": monitor_runs,
+        "by_platform": by_platform,
+        "note": "成本为估算值，真实扣费请以各 AI 平台官方账单为准。",
+    }
+
+
 @app.get("/api/admin/cost-estimate")
 def admin_cost_estimate(key: str):
     """
@@ -2323,6 +2399,10 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <div class="result" id="upR"></div>
 </div>
 <div class="card">
+<h2>📊 API 消耗监控 <button onclick="loadUsage()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
+<div id="usage">点刷新加载</div>
+</div>
+<div class="card">
 <h2>👥 用户列表 <button onclick="loadUsers()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="users">点刷新加载</div>
 </div>
@@ -2340,7 +2420,34 @@ async function login(){
     document.getElementById('loginCard').style.display='none';
     document.getElementById('main').style.display='block';
     loadUsers();
+    loadUsage();
   }catch(e){show('loginR','❌'+e.message,false);}
+}
+
+async function loadUsage(){
+  try{
+    const r=await fetch('/api/admin/api-usage?key='+encodeURIComponent(KEY)+'&days=30');
+    const d=await r.json();
+    var pnames={deepseek:'DeepSeek',doubao:'豆包',qwen:'通义',kimi:'Kimi',wenxin:'文心',chatgpt:'ChatGPT',gemini:'Gemini',claude:'Claude',perplexity:'Perplexity'};
+    var html='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px">';
+    html+='<div style="background:#f7f4ec;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800">'+d.total_calls+'</div><div style="font-size:12px;color:#888">总调用次数</div></div>';
+    html+='<div style="background:#f7f4ec;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:'+(d.success_rate>=90?'#5a7d5a':'#b0524a')+'">'+d.success_rate+'%</div><div style="font-size:12px;color:#888">成功率</div></div>';
+    html+='<div style="background:#f7f4ec;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#b0524a">'+d.total_failed+'</div><div style="font-size:12px;color:#888">失败次数</div></div>';
+    html+='<div style="background:#f7f4ec;border-radius:8px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:800;color:#5a7d5a">¥'+d.estimated_cost_rmb+'</div><div style="font-size:12px;color:#888">估算成本</div></div>';
+    html+='</div>';
+    if(d.total_failed>0 && d.success_rate<90){
+      html+='<div style="background:#fdf3f2;border:1px solid #e8c5c0;border-radius:8px;padding:10px 14px;font-size:13px;color:#b0524a;margin-bottom:14px">⚠️ 失败率偏高，可能是某个平台的 API 密钥失效或余额不足，请检查下方各平台明细</div>';
+    }
+    html+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:6px">平台</th><th>调用</th><th>成功率</th><th>失败</th><th>成本</th></tr>';
+    for(var p in d.by_platform){
+      var s=d.by_platform[p];
+      var rateColor=s.success_rate>=90?'#5a7d5a':'#b0524a';
+      html+='<tr style="border-top:1px solid #eee"><td style="padding:8px 6px;font-weight:600">'+(pnames[p]||p)+'</td><td>'+s.calls+'</td><td style="color:'+rateColor+';font-weight:600">'+s.success_rate+'%</td><td>'+s.failed+'</td><td>¥'+s.cost+'</td></tr>';
+    }
+    html+='</table>';
+    html+='<div style="font-size:11px;color:#aaa;margin-top:12px">近30天 · '+d.note+'</div>';
+    document.getElementById('usage').innerHTML=html;
+  }catch(e){ document.getElementById('usage').innerHTML='<span style="color:#b0524a">加载失败：'+e.message+'</span>'; }
 }
 async function upgrade(){
   const email=document.getElementById('email').value.trim();
