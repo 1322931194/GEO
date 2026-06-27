@@ -30,7 +30,7 @@ import jwt
 
 from database import (engine, init_db, get_session, PLANS,
                       User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog)
-from services.monitor import run_monitoring, PLATFORMS, estimate_cost
+from services.monitor import run_monitoring, PLATFORMS, estimate_cost, check_all_keys
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports, estimate_monthly_loss
@@ -2164,6 +2164,25 @@ def _check_admin(key: str):
         raise HTTPException(403, "管理员密钥错误")
 
 
+@app.get("/api/admin/check-keys")
+async def admin_check_keys(key: str):
+    """
+    密钥自检（管理员）：逐个测试每个 AI 平台的密钥能否真实调用。
+    这是排查'数据全0'问题的最直接工具。
+    """
+    _check_admin(key)
+    results = await check_all_keys()
+    ok_count = sum(1 for r in results if r["ok"])
+    configured = sum(1 for r in results if r["configured"])
+    return {
+        "results": results,
+        "total": len(results),
+        "configured": configured,
+        "working": ok_count,
+        "summary": f"{ok_count} 个平台密钥正常可用" if ok_count else "⚠️ 没有任何平台密钥可用，监测会全部失败！",
+    }
+
+
 @app.get("/api/admin/api-usage")
 def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_session)):
     """
@@ -2412,6 +2431,11 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <div class="result" id="upR"></div>
 </div>
 <div class="card">
+<h2>🔑 API 密钥自检 <button onclick="checkKeys()" style="width:auto;padding:4px 12px;font-size:12px;float:right">立即检测</button></h2>
+<div style="font-size:13px;color:#888;margin-bottom:10px">点"立即检测"测试每个平台密钥能不能用。这是排查"监测数据全是0"的最快方法。</div>
+<div id="keycheck">点"立即检测"开始</div>
+</div>
+<div class="card">
 <h2>📊 API 消耗监控 <button onclick="loadUsage()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="usage">点刷新加载</div>
 </div>
@@ -2435,6 +2459,25 @@ async function login(){
     loadUsers();
     loadUsage();
   }catch(e){show('loginR','❌'+e.message,false);}
+}
+
+async function checkKeys(){
+  document.getElementById('keycheck').innerHTML='⏳ 正在逐个测试各平台密钥，请稍候（约10-20秒）…';
+  try{
+    const r=await fetch('/api/admin/check-keys?key='+encodeURIComponent(KEY));
+    if(!r.ok){ document.getElementById('keycheck').innerHTML='<span style="color:#b0524a">检测接口错误（'+r.status+'）。请确认已部署最新的 monitor.py 和 main.py。</span>'; return; }
+    const d=await r.json();
+    var html='<div style="font-size:14px;font-weight:700;margin-bottom:12px;padding:10px;border-radius:8px;background:'+(d.working>0?'#f0f5ee;color:#5a7d5a':'#fdf3f2;color:#b0524a')+'">'+d.summary+'</div>';
+    html+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:6px">平台</th><th>状态</th><th>说明</th></tr>';
+    d.results.forEach(function(it){
+      var color=it.ok?'#5a7d5a':(it.configured?'#b0524a':'#999');
+      var icon=it.ok?'✅':(it.configured?'❌':'⚪');
+      html+='<tr style="border-top:1px solid #eee"><td style="padding:8px 6px;font-weight:600">'+it.label+'<div style="font-size:11px;color:#aaa;font-weight:400">'+it.env_name+'</div></td><td style="color:'+color+';font-weight:600;white-space:nowrap">'+icon+' '+it.status+'</td><td style="font-size:12px;color:#666">'+it.detail+'</td></tr>';
+    });
+    html+='</table>';
+    html+='<div style="font-size:12px;color:#888;margin-top:12px;line-height:1.6">💡 ⚪未配置=没填密钥；❌失败=密钥错了或没钱；✅正常=可用。只要有1个✅，监测就能跑。</div>';
+    document.getElementById('keycheck').innerHTML=html;
+  }catch(e){ document.getElementById('keycheck').innerHTML='<span style="color:#b0524a">检测失败：'+e.message+'</span>'; }
 }
 
 async function loadUsage(){
