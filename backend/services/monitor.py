@@ -23,6 +23,14 @@ import httpx
 
 logger = logging.getLogger("geo.monitor")
 
+# 调用记账（统一记录所有AI调用，不影响主流程）
+def _track_mon(platform, ok, scene):
+    try:
+        from services.call_tracker import track_call
+        track_call(platform, ok, scene)
+    except Exception:
+        pass
+
 # ----------------------------------------------------------------------------
 # 配置:各大 AI 平台的接入点。商家部署时在 .env 填入自己的密钥即可。
 # 缺密钥的平台会被自动跳过,不会让整个监测失败。
@@ -218,6 +226,7 @@ async def check_all_keys() -> list:
             # 真实测试调用（用最短的问题省成本）
             try:
                 ans = await _DISPATCH[pid](client, cfg, "你好", key)
+                _track_mon(pid, True, "check_keys")
                 if ans and len(ans.strip()) > 0:
                     item["status"] = "正常"
                     item["ok"] = True
@@ -227,6 +236,7 @@ async def check_all_keys() -> list:
                     item["ok"] = False
                     item["detail"] = "返回空内容"
             except Exception as e:
+                _track_mon(pid, False, "check_keys")
                 item["status"] = "失败"
                 item["ok"] = False
                 msg = str(e)[:120]
@@ -448,8 +458,10 @@ async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerRe
         res.brand_position = parsed["brand_position"]
         res.competitors_mentioned = parsed["competitors_mentioned"]
         res.cited_sources = parsed["cited_sources"]
+        _track_mon(pid, True, "monitor")
     except Exception as e:
         res.error = str(e)
+        _track_mon(pid, False, "monitor")
         logger.warning("平台 %s 查询失败: %s", pid, e)
     return res
 
