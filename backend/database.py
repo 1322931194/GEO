@@ -133,6 +133,7 @@ class ApiCallLog(SQLModel, table=True):
     user_id: int = Field(index=True, default=0)
     brand_id: int = Field(default=0)
     platform: str = ""              # 调用的平台（deepseek/doubao等）
+    scene: str = "other"            # 调用场景（monitor/extract/questions/content/check_keys）
     calls: int = 0                  # 本次调用次数
     success: int = 0                # 成功次数
     failed: int = 0                 # 失败次数
@@ -176,6 +177,18 @@ class AIVisit(SQLModel, table=True):
     visited_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class Conversion(SQLModel, table=True):
+    """转化事件：AI访客产生的留资/咨询/下单，用于 ROI 归因。
+    商家通过追踪代码或手动上报，形成'AI访客→转化'的归因闭环。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    track_id: str = Field(index=True)         # 品牌追踪码
+    event_type: str = "lead"                  # lead=留资 consult=咨询 order=下单
+    value: float = 0.0                        # 转化价值（订单金额，元）
+    source: str = ""                          # 归因来源（哪个AI平台带来的）
+    note: str = ""                            # 备注
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 class IndustrySample(SQLModel, table=True):
     """
     行业匿名样本：每次监测后存一条。
@@ -216,6 +229,7 @@ def _auto_migrate():
         ("brand", "track_id", "VARCHAR DEFAULT ''"),
         ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
         ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
+        ("apicalllog", "scene", "VARCHAR DEFAULT 'other'"),
     ]
     is_sqlite = str(engine.url).startswith("sqlite")
     with engine.connect() as conn:
