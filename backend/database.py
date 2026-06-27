@@ -31,17 +31,17 @@ PLANS = {
         "monitor_limit": 1,   # 只能跑1次完整监测
     },
     "starter": {
-        "name": "基础版", "price_cny": 299, "brands": 2,
+        "name": "专业版", "price_cny": 1980, "brands": 3,
         "questions": 50, "samples": 1, "platforms": 4, "freq": "weekly",
         "monitor_limit": 4,   # 每月4次
     },
     "pro": {
-        "name": "专业版", "price_cny": 899, "brands": 5,
+        "name": "企业版", "price_cny": 3980, "brands": 5,
         "questions": 150, "samples": 2, "platforms": 4, "freq": "daily",
         "monitor_limit": 999,  # 不限
     },
     "business": {
-        "name": "企业版", "price_cny": 2999, "brands": 10,
+        "name": "旗舰版", "price_cny": 9800, "brands": 10,
         "questions": 999, "samples": 3, "platforms": 4, "freq": "daily",
         "monitor_limit": 999,  # 不限
     },
