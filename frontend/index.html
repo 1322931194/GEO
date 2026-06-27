@@ -507,12 +507,12 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       <div class="eyebrow" style="margin-bottom:24px">見微知著 · AI 时代的品牌哨兵</div>
       <h1>你的品牌，<br><span class="hl">AI 推荐得到吗？</span></h1>
       <p class="lead">见微，帮你在 AI 刚开始决定"推荐谁"的关键时刻，抢先占住位置。让 AI 主动把客户送上门，而不是推给对手。</p>
-      <p class="urgent">🔥 你的同行已经在用 AI 抢流量了 — 58% 的买家改用 AI 找供应商</p>
+      <p class="urgent">🔥 你的同行已经在用 AI 抢流量了 — 越来越多买家改用 AI 找供应商</p>
       <div class="lp-cta-row">
-        <button class="btn-action" onclick="gotoAuth('reg')">立即免费体检 →</button>
-        <button class="btn-ghost" style="padding:13px 24px" onclick="gotoAuth('login')">已有账号登录</button>
+        <button class="btn-action" onclick="document.getElementById('simulator-section')?.scrollIntoView({behavior:'smooth'})">免费试一下 AI 推不推你 →</button>
+        <button class="btn-ghost" style="padding:13px 24px" onclick="gotoAuth('reg')">注册看完整报告</button>
       </div>
-      <div class="lp-cta-note">无需信用卡 · 30 秒出结果 · ¥9.9 解锁完整报告</div>
+      <div class="lp-cta-note">下方可免费试用 · 完整监测报告注册后 ¥9.9 解锁</div>
     </div>
 
     <!-- signature: AI 模拟聊天框 -->
@@ -556,9 +556,41 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   <div class="lp-stats">
     <div class="lp-stat glass"><div class="num">89%</div><div class="desc">B2B 买家用 AI 做采购研究</div><div class="src">Forrester 2024</div></div>
     <div class="lp-stat glass"><div class="num">25%</div><div class="desc">传统搜索流量将下降（预测）</div><div class="src">Gartner（2026 预测）</div></div>
-    <div class="lp-stat glass"><div class="num">8 大</div><div class="desc">AI 平台同步监测覆盖</div><div class="src">国内外全覆盖</div></div>
+    <div class="lp-stat glass"><div class="num">多平台</div><div class="desc">AI 平台同步监测覆盖</div><div class="src">国内外双引擎</div></div>
     <div class="lp-stat glass"><div class="num">30 秒</div><div class="desc">出体检结果</div><div class="src">即时反馈</div></div>
   </div>
+
+  <!-- ============ 免费模拟器（真免费，无需注册）============ -->
+  <section class="lp-section" id="simulator-section" style="padding-bottom:40px">
+    <div class="lp-section-head" style="text-align:center">
+      <div class="eyebrow" style="color:var(--matcha)">免费试用 · 无需注册</div>
+      <h2 class="sec-title">现在就试：问 AI 一个问题，看它推不推你</h2>
+      <p class="sec-sub">输入你的客户会问 AI 的问题，现场看 AI 推荐了谁。完全免费。</p>
+    </div>
+    <div style="max-width:600px;margin:24px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px">
+      <!-- 模式切换 -->
+      <div style="display:flex;gap:6px;background:var(--bg);border-radius:8px;padding:4px;margin-bottom:14px">
+        <button id="simTabOut" onclick="simSetMode('outbound')" style="flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌍 出海（问英文AI）</button>
+        <button id="simTabDom" onclick="simSetMode('domestic')" style="flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内（问中文AI）</button>
+      </div>
+      <!-- 输入框 -->
+      <div style="display:flex;gap:8px">
+        <input id="simKw" type="text" placeholder="best portable charger" style="flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit;outline:none" onkeydown="if(event.key==='Enter')doSimulate()">
+        <button id="simBtn" onclick="doSimulate()" style="padding:12px 20px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap">查 →</button>
+      </div>
+      <!-- 示例词 -->
+      <div id="simExamples" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"></div>
+      <!-- 加载 -->
+      <div id="simLoading" style="display:none;text-align:center;padding:24px">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div id="simMsg" style="font-size:13px;color:var(--ink-soft)">正在查询…</div>
+      </div>
+      <!-- 结果 -->
+      <div id="simResults" style="display:none;margin-top:16px"></div>
+      <!-- CTA -->
+      <div id="simCta" style="display:none;margin-top:16px"></div>
+    </div>
+  </section>
 
   <!-- ============ GEO 认知阶梯 ============ -->
   <section class="lp-section" id="geo" style="padding-bottom:40px">
@@ -738,7 +770,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       </div>
       <div class="av-mid">
         <div class="av-quote">在 AI 决定<span class="hl">谁被推荐</span>的时代，<br>先看清你的位置。</div>
-        <p class="av-desc">8 大 AI 平台实时监测，把"AI 推不推你"这件看不见的事，变成你能看懂、能行动的数据。</p>
+        <p class="av-desc">主流 AI 平台实时监测，把"AI 推不推你"这件看不见的事，变成你能看懂、能行动的数据。</p>
       </div>
       <div class="av-bot">
         <div class="av-metrics">
@@ -1131,11 +1163,36 @@ function gotoAuth(mode){
   document.getElementById("authView").classList.remove("hidden");
   if(mode) switchTab(mode);
 }
-// 返回营销页
+// 返回营销页（彻底重置应用内状态，防止状态泄露）
 function gotoLanding(){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.add("hidden");
   document.getElementById("landingView").classList.remove("hidden");
+  // 重置所有应用内状态，避免下次进入残留
+  resetAppState();
+  // 回到营销页顶部
+  window.scrollTo(0, 0);
+}
+
+// 统一的状态重置（退出/切换账号时调用）
+function resetAppState(){
+  currentBrandId = null;
+  lastBrandIdForDash = null;
+  currentMode = null;
+  // 重置主视图到默认（AI监测）
+  ["dashboardView","workspaceView","referralView","pricingView"].forEach(v=>{
+    const el=document.getElementById(v); if(el) el.classList.add("hidden");
+  });
+  const mf=document.getElementById("mainFlow"); if(mf) mf.classList.remove("hidden");
+  // 侧边栏高亮归位
+  ["navFlow","navDash","navWs","navRef","navPrice"].forEach(n=>{
+    const el=document.getElementById(n); if(el) el.classList.remove("active");
+  });
+  const nf=document.getElementById("navFlow"); if(nf) nf.classList.add("active");
+  // 清空可能残留的报告/看板内容
+  ["repMetrics","repPlatforms","repGaps","dashContent","contentArea"].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.innerHTML="";
+  });
 }
 
 // ===== 侧边栏导航 =====
@@ -1178,7 +1235,7 @@ function maybeShowOnboarding(){
 
 const ONBOARD_STEPS = [
   {icon:"👋", title:"欢迎来到见微", desc:"我帮你查清楚:AI 到底在推你,还是推你的对手。跟着这几步走,5 分钟上手。"},
-  {icon:"🔍", title:"第一步 · 监测你的品牌", desc:"填入品牌信息,我会去 8 大 AI 平台(ChatGPT、DeepSeek、豆包等)查一遍,看 AI 会不会推荐你。"},
+  {icon:"🔍", title:"第一步 · 监测你的品牌", desc:"填入品牌信息,我会去主流 AI 平台(ChatGPT、DeepSeek、豆包等)查一遍,看 AI 会不会推荐你。"},
   {icon:"🧠", title:"第二步 · 建品牌知识库", desc:"在「内容工作台」点 AI 自动提取,10 秒建好你的品牌大脑。之后所有内容都基于它生成,越用越懂你。"},
   {icon:"✍️", title:"第三步 · 一键创作内容", desc:"我把该写的选题都列好了,你点「创作」,我基于知识库直接写出来,你复制就能发布。"},
   {icon:"📊", title:"第四步 · 看增长", desc:"在「增长看板」看你的提及率变化、AI 给你带来的真实访客。做了优化,回来看涨了没。"},
@@ -1866,8 +1923,85 @@ function renderDashboard(d){
   loadHealthRadar();
   // 加载AI流量数据
   loadAITraffic();
+  // 加载ROI归因
+  loadROI();
   // 加载行业大盘
   loadIndustryBenchmark();
+}
+
+// ===== ROI 转化归因 =====
+async function loadROI(){
+  let bid = currentBrandId || lastBrandIdForDash;
+  if(!bid) return;
+  const content = document.getElementById("dashContent");
+  if(!content) return;
+  try{
+    const d = await api(`/api/brands/${bid}/roi`);
+    const sourceNames={chatgpt:'ChatGPT',deepseek:'DeepSeek',perplexity:'Perplexity',gemini:'Gemini',qwen:'通义',kimi:'Kimi',doubao:'豆包',copilot:'Copilot',other:'其他'};
+    let srcRows='';
+    const srcs=Object.entries(d.by_source||{}).filter(([k,v])=>v.visits>0||v.conversions>0).sort((a,b)=>b[1].value-a[1].value);
+    srcs.forEach(([k,v])=>{
+      srcRows+=`<tr style="border-top:1px solid var(--line)"><td style="padding:8px 6px;font-weight:600">${sourceNames[k]||k}</td><td>${v.visits}</td><td>${v.conversions}</td><td style="color:var(--good);font-weight:600">¥${v.value}</td></tr>`;
+    });
+    const html=`
+    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
+        <div style="font-size:14px;font-weight:600">💰 ROI 转化归因</div>
+        <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showAddConversion()">+ 登记一笔转化</button>
+      </div>
+      ${(d.visits||d.conversions)?`
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:16px">
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800">${d.visits}</div><div style="font-size:11px;color:var(--ink-soft)">AI 访客</div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--cyan)">${d.conversions}</div><div style="font-size:11px;color:var(--ink-soft)">转化数</div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--warn)">${d.conversion_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">转化率</div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--good)">¥${d.total_value}</div><div style="font-size:11px;color:var(--ink-soft)">转化价值</div></div>
+        </div>
+        ${srcRows?`<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--ink-soft)"><th style="padding:6px">来源平台</th><th>访客</th><th>转化</th><th>价值</th></tr>${srcRows}</table>`:''}
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:12px">${d.note}</div>
+      `:`
+        <div style="text-align:center;padding:24px;color:var(--ink-soft)">
+          <div style="font-size:14px;margin-bottom:8px">还没有转化数据</div>
+          <div style="font-size:12px;line-height:1.6">安装追踪代码后，AI 访客的留资/下单会自动归因；<br>也可以点上方"登记一笔转化"手动记录，看清 AI 带来的真实回报。</div>
+        </div>
+      `}
+    </div>`;
+    content.insertAdjacentHTML('beforeend', html);
+  }catch(e){ console.log('ROI加载失败', e); }
+}
+
+function showAddConversion(){
+  const modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;background:rgba(38,34,28,.6);z-index:2200;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.onclick=(e)=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:var(--panel);border-radius:var(--r-xl);max-width:380px;width:100%;padding:26px">
+    <div style="font-size:18px;font-weight:800;margin-bottom:16px">登记一笔转化</div>
+    <label style="font-size:13px;color:var(--ink-soft)">类型</label>
+    <select id="convType" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:6px 0 14px;font-family:inherit;font-size:14px">
+      <option value="lead">留资（拿到联系方式）</option>
+      <option value="consult">咨询（主动问询）</option>
+      <option value="order">下单（成交）</option>
+    </select>
+    <label style="font-size:13px;color:var(--ink-soft)">金额（元，可不填）</label>
+    <input id="convValue" type="number" placeholder="如 1980" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:6px 0 14px;font-family:inherit;font-size:14px">
+    <label style="font-size:13px;color:var(--ink-soft)">来源平台（可不填）</label>
+    <input id="convSource" type="text" placeholder="如 ChatGPT" style="width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;margin:6px 0 18px;font-family:inherit;font-size:14px">
+    <button class="btn-cyan" style="width:100%;padding:12px" onclick="submitConversion(this)">保存</button>
+    <button class="btn-ghost" style="width:100%;margin-top:8px" onclick="this.closest('div[style*=fixed]').remove()">取消</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+async function submitConversion(btn){
+  const bid = currentBrandId || lastBrandIdForDash;
+  const event_type=document.getElementById("convType").value;
+  const value=parseFloat(document.getElementById("convValue").value)||0;
+  const source=document.getElementById("convSource").value||"";
+  btn.disabled=true;btn.textContent="保存中…";
+  try{
+    await api(`/api/brands/${bid}/manual-conversion`,{method:"POST",body:JSON.stringify({event_type,value,source})});
+    btn.closest('div[style*=fixed]').remove();
+    toast("✅ 已登记，刷新看板查看 ROI");
+  }catch(e){ btn.disabled=false;btn.textContent="保存"; toast("保存失败："+e.message); }
 }
 
 // ===== 全景对话快照(活体证据) =====
@@ -2241,7 +2375,12 @@ function reMonitorFromDash(){
   if(currentBrandId){ goMonitor(); }
   else { toast("请先选择品牌"); }
 }
-function logout(){safeStore.remove("geo_token");token=null;location.reload()}
+function logout(){
+  safeStore.remove("geo_token");
+  token=null;
+  resetAppState();
+  location.reload();
+}
 
 // ===== 模式选择（双引擎核心）=====
 function selectMode(mode){
@@ -2394,7 +2533,7 @@ async function goMonitor(){
             <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥9.9 体验版包含：</div>
             <div style="font-size:13px;color:var(--ink-soft);line-height:2">
               ✅ 1次完整 AI 能见度监测<br>
-              ✅ ChatGPT + DeepSeek 双平台数据<br>
+              ✅ 多平台覆盖（国内/出海双引擎）<br>
               ✅ 品牌提及率 + 竞品对比<br>
               ✅ 内容缺口诊断 + 提升方案<br>
               ✅ 一键生成补救内容
@@ -3327,6 +3466,9 @@ if(token){api("/api/me").then(d=>enterApp(d.plan_info)).catch(()=>{token=null;sa
     }
   }catch(e){ console.log("案例加载失败",e); }
 })();
+
+// 初始化首页模拟器（显示示例词和正确placeholder）
+if(typeof simSetMode==="function"){ try{ simSetMode('outbound'); }catch(e){} }
 </script>
 </body>
 </html>
