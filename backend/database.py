@@ -124,6 +124,21 @@ class Order(SQLModel, table=True):
     paid_at: Optional[datetime] = None
 
 
+class ApiCallLog(SQLModel, table=True):
+    """
+    AI API 调用日志。每次监测后汇总记录，用于在管理后台看真实消耗。
+    """
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True, default=0)
+    brand_id: int = Field(default=0)
+    platform: str = ""              # 调用的平台（deepseek/doubao等）
+    calls: int = 0                  # 本次调用次数
+    success: int = 0                # 成功次数
+    failed: int = 0                 # 失败次数
+    est_cost: float = 0.0           # 估算成本（元）
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 class Report(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     brand_id: int = Field(index=True)
