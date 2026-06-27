@@ -925,6 +925,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                 <canvas id="lineChart" height="80"></canvas>
                 <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
               </div>
+              <div id="repCrisis"></div>
               <div class="metrics" id="repMetrics"></div>
               <div id="monthlyLossCard" style="display:none;background:var(--bad-soft);border:1px solid rgba(255,93,108,.3);border-radius:14px;padding:20px;margin-bottom:20px">
                 <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
@@ -2428,11 +2429,26 @@ function renderReport(rep){
     "生成于 "+new Date(rep.generated_at).toLocaleString("zh-CN")+
     " · 监测 "+Object.keys(rep.platform_breakdown||{}).length+" 大 AI · "+rep.answered_queries+" 次真实查询";
   const topComp=Object.entries(rep.competitor_share||{}).sort((a,b)=>b[1]-a[1])[0];
+  // 提及率为0时的危机钩子：把冷冰冰的0%变成成交动力
+  const rate = rep.mention_rate;
+  let rateDelta, rateColor;
+  if(rate === 0){
+    rateColor = "var(--bad)";
+    rateDelta = topComp
+      ? `❗ AI 暂未推荐你，却推荐了竞品<br>你的客户正流向对手`
+      : `❗ AI 暂未推荐你，急需优化`;
+  } else if(rate >= 40){
+    rateColor = "var(--good)"; rateDelta = "✅ 表现良好";
+  } else if(rate >= 20){
+    rateColor = "var(--warn)"; rateDelta = "⚠️ 有提升空间";
+  } else {
+    rateColor = "var(--bad)"; rateDelta = "❗ 急需优化";
+  }
   document.getElementById("repMetrics").innerHTML=`
     <div class="metric green">
       <div class="lab">AI 推荐你的概率</div>
-      <div class="val" style="color:${rep.mention_rate>=40?"var(--good)":rep.mention_rate>=20?"var(--warn)":"var(--bad)"}">${rep.mention_rate}%</div>
-      <div class="delta">${rep.mention_rate>=40?"✅ 表现良好":rep.mention_rate>=20?"⚠️ 有提升空间":"❗ 急需优化"}</div>
+      <div class="val" style="color:${rateColor}">${rate}%</div>
+      <div class="delta">${rateDelta}</div>
     </div>
     <div class="metric red">
       <div class="lab">竞品抢走的份额</div>
@@ -2444,6 +2460,25 @@ function renderReport(rep){
       <div class="val">${rep.source_count}</div>
       <div class="delta">AI 引用的外部站点</div>
     </div>`;
+
+  // 提及率为0的危机横幅（把尴尬的0变成成交钩子）
+  const crisisEl = document.getElementById("repCrisis");
+  if(crisisEl){
+    if(rate === 0){
+      const compNames = Object.keys(rep.competitor_share||{});
+      const compTxt = compNames.length
+        ? `AI 在回答时推荐了 <b>${compNames.slice(0,3).join("、")}</b> 等竞品，却<b style="color:#ffd9d4">只字未提你的品牌</b>。`
+        : `AI 在回答这些问题时，还没有推荐到你的品牌。`;
+      crisisEl.innerHTML = `
+        <div style="background:linear-gradient(135deg,#b0524a,#8f4039);border-radius:14px;padding:20px 24px;margin-bottom:20px;color:#fff">
+          <div style="font-size:17px;font-weight:800;margin-bottom:8px">⚠️ 你的客户，正在被竞品截走</div>
+          <div style="font-size:14px;line-height:1.7;color:rgba(255,255,255,.92)">${compTxt}<br>这不是工具的问题，而是<b style="color:#ffd9d4">真实的现状</b>——也正是见微要帮你扭转的：通过补齐内容缺口，让 AI 重新认识并推荐你。</div>
+          <div style="font-size:12.5px;color:rgba(255,255,255,.7);margin-top:10px">💡 下方已为你列出具体的内容缺口，点「生成内容」即可开始优化。</div>
+        </div>`;
+    } else {
+      crisisEl.innerHTML = "";
+    }
+  }
   document.getElementById("repPlatforms").innerHTML=
     Object.entries(rep.platform_breakdown||{}).map(([nm,rt])=>{
       const c=rt>=45?"var(--good)":rt>=30?"var(--warn)":"var(--bad)";
