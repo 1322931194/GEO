@@ -445,6 +445,17 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .geo-after-item .ar{color:var(--cyan);font-weight:700;flex-shrink:0}
 .geo-after-item .a{font-size:13.5px;color:var(--ink);font-weight:600;flex:1;min-width:120px}
 
+/* 分发渠道网络 */
+.dist-box{padding:48px clamp(24px,4vw,56px)}
+.dist-head{text-align:center;margin-bottom:40px}
+.dist-stats{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:center}
+.dist-stat{text-align:center;padding:0 24px}
+.dist-stat .dn{font-size:clamp(40px,6vw,60px);font-weight:800;color:var(--ink);line-height:1;letter-spacing:-.02em}
+.dist-stat .dn span{font-size:.5em;color:var(--cyan);font-weight:700}
+.dist-stat .dl{font-size:15px;font-weight:600;color:var(--ink);margin-top:14px}
+.dist-stat .dnote{font-size:12.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5}
+.dist-divider{width:1px;height:80px;background:var(--line)}
+
 /* 响应式 */
 @media(max-width:960px){
   .lp-hero{grid-template-columns:1fr;gap:40px;padding-top:110px}
@@ -457,6 +468,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   .geo-vs{grid-template-columns:1fr;gap:14px}
   .geo-vs-arrow{transform:rotate(90deg)}
   .geo-why-grid{grid-template-columns:1fr}
+  .dist-stats{grid-template-columns:1fr}
+  .dist-divider{width:60%;height:1px;margin:24px auto}
 }
 @media(max-width:640px){
   .flow-grid,.plans,.mode-select,.metrics{grid-template-columns:1fr}
@@ -481,6 +494,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
     <div class="lp-nav-links">
       <a href="#geo">什么是 GEO</a>
       <a href="#how">如何运作</a>
+      <a href="#channels">分发网络</a>
       <a href="#cases">成功案例</a>
       <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
       <button class="btn-cyan" style="padding:9px 20px" onclick="gotoAuth('reg')">免费体验</button>
@@ -663,6 +677,37 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
     <div class="case-grid" id="casesContainer"></div>
     <div style="text-align:center;margin-top:36px">
       <button class="btn-action" onclick="gotoAuth('reg')">我也要让 AI 推荐我 →</button>
+    </div>
+  </section>
+
+  <!-- 分发渠道网络背书 -->
+  <section class="lp-section" id="channels" style="padding-top:0">
+    <div class="dist-box glass">
+      <div class="dist-head">
+        <div class="eyebrow" style="margin-bottom:14px">分发网络 · Distribution</div>
+        <h2 class="sec-title" style="font-size:clamp(22px,4vw,32px)">优质内容，需要被 AI 看得见的地方</h2>
+        <p class="sec-sub">AI 倾向于引用高权重、高活跃的信源。见微帮你把内容铺到 AI 真正会读取的渠道</p>
+      </div>
+      <div class="dist-stats">
+        <div class="dist-stat">
+          <div class="dn">300<span>+</span></div>
+          <div class="dl">可触达的全球权威新闻源</div>
+          <div class="dnote">覆盖财经、科技、行业垂直媒体网络</div>
+        </div>
+        <div class="dist-divider"></div>
+        <div class="dist-stat">
+          <div class="dn">50<span>+</span></div>
+          <div class="dl">行业垂直社区分发渠道</div>
+          <div class="dnote">知乎、垂直论坛、专业问答等 AI 高引用平台</div>
+        </div>
+        <div class="dist-divider"></div>
+        <div class="dist-stat">
+          <div class="dn">8<span>大</span></div>
+          <div class="dl">AI 平台同步监测</div>
+          <div class="dnote">国内外主流生成式引擎全覆盖</div>
+        </div>
+      </div>
+      <p style="text-align:center;font-size:12px;color:var(--ink-faint);margin-top:24px">* 指见微可触达的渠道网络范围，实际分发以内容类型与合规审核为准</p>
     </div>
   </section>
 
@@ -942,11 +987,11 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <!-- ===== 套餐页 ===== -->
         <div id="pricingView" class="hidden">
           <div class="pricing-page" style="padding-top:0">
-            <h1>选择适合你的套餐</h1>
-            <p class="sub">国内出海双引擎，7 天免费试用，随时取消</p>
+            <h1>选择适合你的方案</h1>
+            <p class="sub">从单次体检到企业级 AI 能见度管理，覆盖不同阶段的需求</p>
             <div class="plans">
               <div class="plan">
-                <div class="plan-name">¥9.9 体验版</div>
+                <div class="plan-name">体验版</div>
                 <div class="plan-price">¥9.9<span>/次</span></div>
                 <div class="plan-desc">首次体验，看清你的品牌 AI 能见度现状</div>
                 <ul class="plan-features"><li>1 次完整监测</li><li>1 个品牌</li><li>30 个问题场景</li><li>国内/出海双引擎</li><li>完整能见度报告</li><li>缺口诊断+提升方案</li></ul>
@@ -954,20 +999,21 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               </div>
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
-                <div class="plan-name">基础版</div>
-                <div class="plan-price">¥299<span>/月</span></div>
-                <div class="plan-desc">持续监测，看到真实提升曲线</div>
-                <ul class="plan-features"><li>2 个品牌</li><li>50 个问题场景</li><li>国内/出海双引擎</li><li>每月 4 次监测</li><li>历史折线战报</li><li>一键生成内容+行动工单</li><li>中文客服支持</li></ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('starter')">立即升级</button>
+                <div class="plan-name">专业版</div>
+                <div class="plan-price">¥1,980<span>/季</span></div>
+                <div class="plan-desc">持续监测优化，适合品牌方与营销团队</div>
+                <ul class="plan-features"><li>3 个品牌</li><li>50 个问题场景</li><li>国内/出海双引擎</li><li>每月 4 次监测</li><li>历史折线战报 + 健康度雷达</li><li>一键生成内容 + 行动工单</li><li>高管级 PDF 汇报导出</li><li>专属顾问支持</li></ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('starter')">开通专业版</button>
               </div>
               <div class="plan">
-                <div class="plan-name">专业版</div>
-                <div class="plan-price">¥899<span>/月</span></div>
-                <div class="plan-desc">多品牌监测，适合代运营机构</div>
-                <ul class="plan-features"><li>5 个品牌</li><li>150 个问题场景</li><li>国内/出海双引擎</li><li>不限监测次数</li><li>竞品深度对比</li><li>API 接口</li><li>专属顾问服务</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('pro')">立即升级</button>
+                <div class="plan-name">企业版</div>
+                <div class="plan-price">¥3,980<span>/年</span></div>
+                <div class="plan-desc">企业 IT / 市场部门的 AI 品牌资产自助管理工具</div>
+                <ul class="plan-features"><li>10 个品牌矩阵管理</li><li>150 个问题场景</li><li>国内/出海双引擎</li><li>不限监测次数</li><li>竞品深度对比 + 雷达图</li><li>API 接口接入</li><li>全年高管级汇报</li><li>优先专属顾问服务</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('pro')">开通企业版</button>
               </div>
             </div>
+            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要更大规模的品牌矩阵或定制服务？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
           </div>
         </div>
 
@@ -2288,9 +2334,64 @@ function renderReport(rep){
     '<div style="text-align:center;padding:24px;color:var(--good);font-weight:600">🎉 本次监测未发现明显缺口</div>';
   document.getElementById("repNote").textContent="📊 "+rep.sample_note;
   document.getElementById("contentArea").innerHTML="";
+
+  // 缺口过大/提及率过低 → 插入深度包导流卡
+  renderDeepPackCta(rep);
   loadImprovePlan();
   loadProgress();
   loadMonthlyLoss();
+}
+
+// 缺口过大时，导流高意向客户到客服深度包
+function renderDeepPackCta(rep){
+  const gaps = rep.gaps||[];
+  const highGaps = gaps.filter(g=>g.priority==="high").length;
+  const lowRate = rep.mention_rate < 25;
+  const bigGap = gaps.length >= 3 || highGaps >= 2;
+  // 找个挂载点：报告缺口区下方
+  let mount = document.getElementById("deepPackMount");
+  if(!mount){
+    mount = document.createElement("div");
+    mount.id = "deepPackMount";
+    const gapsEl = document.getElementById("repGaps");
+    if(gapsEl && gapsEl.parentNode) gapsEl.parentNode.insertBefore(mount, gapsEl.nextSibling);
+  }
+  if(!(lowRate || bigGap)){ mount.innerHTML=""; return; }
+
+  const reason = lowRate
+    ? `你的 AI 推荐率仅 <b style="color:var(--bad)">${rep.mention_rate}%</b>，大量客户正流向竞品`
+    : `检测到 <b style="color:var(--bad)">${gaps.length} 个内容缺口</b>，自行优化周期较长`;
+
+  mount.innerHTML = `
+    <div style="background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:var(--r-lg);padding:24px 26px;margin:20px 0;position:relative;overflow:hidden">
+      <div style="position:absolute;top:-30px;right:-20px;font-size:120px;opacity:.06">⚡</div>
+      <div style="position:relative">
+        <div style="display:inline-block;background:rgba(176,82,74,.2);color:#ff9b91;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;margin-bottom:12px">⚠️ 缺口预警</div>
+        <div style="font-size:18px;font-weight:700;color:#f4f1ea;margin-bottom:8px">缺口过大？自己补太慢，让专业团队帮你一次补齐</div>
+        <div style="font-size:14px;color:rgba(244,241,234,.75);line-height:1.7;margin-bottom:18px">${reason}。<br>见微提供官方 <b style="color:#a8c48c">[内容创作 + 全渠道分发]</b> 深度包——专业团队帮你批量产出 AI 偏好的优质内容，并铺到 300+ 权威信源与垂直社区，加速让 AI 重新认识你的品牌。</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+          <button onclick="showDeepPackContact()" style="background:#deff9a;color:#26221c;border:none;padding:13px 26px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">🚀 获取深度包方案 →</button>
+          <span style="font-size:13px;color:rgba(244,241,234,.6)">限时·首次咨询免费评估</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+function showDeepPackContact(){
+  const modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;background:rgba(38,34,28,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.onclick=()=>modal.remove();
+  modal.innerHTML=`<div onclick="event.stopPropagation()" style="background:var(--panel);border:1px solid var(--line);border-radius:var(--r-xl);padding:32px;max-width:380px;width:100%;text-align:center">
+    <div style="font-size:42px;margin-bottom:14px">🚀</div>
+    <div style="font-size:20px;font-weight:800;margin-bottom:8px">获取专属深度包方案</div>
+    <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:22px">添加专属顾问微信，发送你的品牌名，<br>免费获取一份针对性的内容+分发方案评估</div>
+    <div style="background:var(--bg);border-radius:var(--r-md);padding:18px;margin-bottom:18px">
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">专属顾问微信</div>
+      <div style="font-size:22px;font-weight:800;color:var(--cyan);letter-spacing:1px">jenly222</div>
+    </div>
+    <button class="btn-ghost" style="width:100%" onclick="this.closest('div[style*=fixed]').remove()">关闭</button>
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 // ===== 历史折线图 =====
