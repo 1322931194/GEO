@@ -129,8 +129,8 @@ COMMISSION_RATE = 0.35
 # 套餐价格（用于算佣金）
 PLAN_PRICES = {
     "starter_trial": 9.9,
-    "starter": 299,
-    "pro": 899,
+    "starter": 1980,
+    "pro": 3980,
     "business": 2999,
 }
 
@@ -1982,7 +1982,7 @@ def admin_cost_estimate(key: str):
             "total_cost": monthly_cost,
         })
     # 套餐价格对照
-    plan_prices = {"starter_trial": 9.9, "starter": 299, "pro": 899, "business": 2999}
+    plan_prices = {"starter_trial": 9.9, "starter": 1980, "pro": 3980, "business": 9800}
     return {
         "scenarios": results,
         "plan_prices": plan_prices,
@@ -2131,9 +2131,9 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <label>套餐</label>
 <select id="plan">
 <option value="starter_trial">¥9.9体验版（1次监测）</option>
-<option value="starter">基础版¥299/月</option>
-<option value="pro">专业版¥899/月（不限次）</option>
-<option value="business">企业版¥2999/月</option>
+<option value="starter">专业版¥1980/季</option>
+<option value="pro">企业版¥3980/年（不限次）</option>
+<option value="business">旗舰版¥9800/年</option>
 <option value="trial">退回免费试用</option>
 </select>
 <button onclick="upgrade()">确认开通</button>
