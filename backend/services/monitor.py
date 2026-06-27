@@ -15,7 +15,7 @@ import re
 import json
 import asyncio
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -356,7 +356,6 @@ def estimate_cost(question_count: int, platform_count: int,
 
 async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerResult:
     key = os.getenv(cfg["api_key_env"])
-    from datetime import datetime, timezone, timedelta
     # 用 UTC+8 时间戳（活体证据用）
     now_cn = datetime.now(timezone(timedelta(hours=8)))
     res = AnswerResult(platform=pid, question=question, answer_text="",
@@ -445,7 +444,7 @@ def _aggregate(brand, questions, competitors, available, results,
 
     return VisibilityReport(
         brand=brand,
-        generated_at=datetime.utcnow().isoformat(),
+        generated_at=datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(),
         total_queries=len(results),
         answered_queries=answered,
         mention_rate=mention_rate,
