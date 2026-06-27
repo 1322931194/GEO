@@ -2102,6 +2102,7 @@ function renderIndustryBenchmark(b){
           </div>
         </div>
         ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--good);margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
+        ${b.data_source?`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px">📋 数据说明：${b.data_source}</div>`:''}
       </div>`;
   }
   content.insertAdjacentHTML('beforeend', html);
