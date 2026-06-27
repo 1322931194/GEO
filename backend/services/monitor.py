@@ -106,6 +106,8 @@ class AnswerResult:
     competitors_mentioned: list = field(default_factory=list)
     cited_sources: list = field(default_factory=list)
     error: Optional[str] = None
+    queried_at: str = ""                          # 提问时间戳(用于对话快照活体证据)
+    node: str = ""                                # 查询节点(地域，用于活体证据)
 
 
 @dataclass
@@ -354,7 +356,12 @@ def estimate_cost(question_count: int, platform_count: int,
 
 async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerResult:
     key = os.getenv(cfg["api_key_env"])
-    res = AnswerResult(platform=pid, question=question, answer_text="")
+    from datetime import datetime, timezone, timedelta
+    # 用 UTC+8 时间戳（活体证据用）
+    now_cn = datetime.now(timezone(timedelta(hours=8)))
+    res = AnswerResult(platform=pid, question=question, answer_text="",
+                       queried_at=now_cn.strftime("%Y-%m-%d %H:%M:%S"),
+                       node=os.getenv("QUERY_NODE", "上海"))
     try:
         answer = await _DISPATCH[pid](client, cfg, question, key)
         res.answer_text = answer
