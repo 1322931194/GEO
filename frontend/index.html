@@ -942,6 +942,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               </div>
               <div class="section-title">📊 各 AI 平台表现</div>
               <div class="platforms" id="repPlatforms"></div>
+              <div id="repPlatformNote"></div>
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
               <div id="contentArea"></div>
@@ -2355,7 +2356,8 @@ async function goMonitor(){
     ? ["DeepSeek","豆包","通义千问","Kimi","文心一言"]
     : ["ChatGPT","Gemini","Claude","Perplexity","DeepSeek"];
   const monPf=document.getElementById("monPlatforms");
-  monPf.innerHTML=platformLabels.map(p=>`<span style="background:#fff;border:1px solid var(--line);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--ink-soft)">${p}</span>`).join("");
+  monPf.innerHTML=platformLabels.map(p=>`<span style="background:#fff;border:1px solid var(--line);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--ink-soft)">${p}</span>`).join("")
+    +`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;width:100%">实际监测平台以你配置的 API 密钥为准</div>`;
   const msgs=[
     ...platformLabels.map(p=>`正在向 ${p} 发送查询…`),
     "正在解析 AI 回答中的品牌提及…","正在识别竞品出现情况…","正在生成报告…"
@@ -2479,8 +2481,9 @@ function renderReport(rep){
       crisisEl.innerHTML = "";
     }
   }
+  const pbEntries = Object.entries(rep.platform_breakdown||{});
   document.getElementById("repPlatforms").innerHTML=
-    Object.entries(rep.platform_breakdown||{}).map(([nm,rt])=>{
+    pbEntries.map(([nm,rt])=>{
       const c=rt>=45?"var(--good)":rt>=30?"var(--warn)":"var(--bad)";
       const s=rt>=45?"✓ 良好":rt>=30?"待提升":"偏低";
       return`<div class="pf">
@@ -2488,6 +2491,17 @@ function renderReport(rep){
         <div class="bar"><i style="width:${rt}%;background:${c}"></i></div>
         <div class="rt">${rt}% 提及率</div></div>`;
     }).join("");
+  // 诚实提示：只监测了1个平台 / 平台太少时，告诉用户去配更多密钥
+  const pfNoteEl = document.getElementById("repPlatformNote");
+  if(pfNoteEl){
+    if(pbEntries.length === 0){
+      pfNoteEl.innerHTML = '';
+    } else if(pbEntries.length === 1){
+      pfNoteEl.innerHTML = `<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#92722a;margin-top:10px">⚠️ 本次仅监测了 <b>${pbEntries[0][0]}</b> 一个平台。要看 ChatGPT、豆包、通义等更多平台的真实表现，请在后台配置对应的 API 密钥（管理后台「API 密钥自检」可查看哪些已配置）。</div>`;
+    } else {
+      pfNoteEl.innerHTML = `<div style="font-size:12px;color:var(--ink-faint);margin-top:8px">📊 本次实际监测了 ${pbEntries.length} 个平台（仅显示已配置密钥的平台）</div>`;
+    }
+  }
   const gc={high:"var(--bad)",medium:"var(--warn)",low:"var(--good)"};
   document.getElementById("repGaps").innerHTML=(rep.gaps||[]).map((g,i)=>`
     <div class="gap">
