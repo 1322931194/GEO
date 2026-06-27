@@ -272,7 +272,9 @@ def _build_summary(mention_delta, source_delta, gaps_closed, improved):
 # 月损失 AI 流量估算
 # ----------------------------------------------------------------------------
 
-# 行业基准月均 AI 查询量（保守估计，来源：Gartner / SimilarWeb 行业均值）
+# 行业基准月均 AI 查询量（估算模型，基于行业公开均值的量级假设，非精确数据）
+# 说明：这是用于"量级感知"的估算参数，帮助商家直观理解 AI 曝光的规模，
+# 不代表精确的真实查询量。实际数据因品类、市场、时段差异很大。
 INDUSTRY_AI_QUERY_BASELINE = {
     "电商": 280000,
     "出海": 180000,
@@ -292,9 +294,10 @@ INDUSTRY_AI_QUERY_BASELINE = {
 
 def estimate_monthly_loss(mention_rate: float, industry: str = "") -> dict:
     """
-    根据提及率估算每月损失的 AI 流量曝光次数。
-    公式：月损失 = 行业月均AI查询量 × (1 - 提及率) × AI点击转化率(3%)
-    返回区间值（保守/乐观）给商家看到量级感
+    根据提及率估算每月可能错失的 AI 曝光机会（量级示意，非精确值）。
+    公式：估算值 = 行业月均AI查询量(估算) × (1 - 提及率)
+    返回区间值给商家直观感受量级。
+    诚信要求：明确标注为估算模型，不冒用第三方权威名义。
     """
     # 匹配行业基准
     baseline = INDUSTRY_AI_QUERY_BASELINE["default"]
@@ -321,16 +324,16 @@ def estimate_monthly_loss(mention_rate: float, industry: str = "") -> dict:
     if mention_rate >= 60:
         verdict = "✅ 你的 AI 曝光处于良好水平，继续保持"
     elif mention_rate >= 30:
-        verdict = f"⚠️ 你每月预计损失 {fmt(conservative)}-{fmt(optimistic)} 次 AI 推荐曝光"
+        verdict = f"⚠️ 预计每月可能错失约 {fmt(conservative)} ~ {fmt(optimistic)} 次 AI 推荐曝光（估算）"
     else:
-        verdict = f"❗ 你每月预计损失 {fmt(conservative)}-{fmt(optimistic)} 次 AI 推荐曝光"
+        verdict = f"❗ 预计每月可能错失约 {fmt(conservative)} ~ {fmt(optimistic)} 次 AI 推荐曝光（估算）"
 
     return {
         "mention_rate": mention_rate,
         "monthly_loss_conservative": conservative,
         "monthly_loss_optimistic": optimistic,
-        "monthly_loss_display": f"{fmt(conservative)} - {fmt(optimistic)}",
+        "monthly_loss_display": f"{fmt(conservative)} ~ {fmt(optimistic)}",
         "verdict": verdict,
         "baseline_industry": baseline,
-        "note": "基于 Gartner 行业 AI 查询量基准估算，实际数据因品类和市场而异"
+        "note": "量级估算，基于行业公开均值的假设模型，非精确数据。实际曝光量因品类与市场而异。"
     }
