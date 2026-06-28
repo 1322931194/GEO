@@ -992,6 +992,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                 <canvas id="lineChart" height="80"></canvas>
                 <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
               </div>
+              <div id="repAlerts"></div>
               <div id="repCrisis"></div>
               <div class="metrics" id="repMetrics"></div>
               <div id="monthlyLossCard" style="display:none;background:var(--bad-soft);border:1px solid rgba(255,93,108,.3);border-radius:14px;padding:20px;margin-bottom:20px">
@@ -1012,6 +1013,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repPlatformNote"></div>
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
+              <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
@@ -2683,6 +2685,8 @@ async function goMonitor(){
 
 // ===== 第4步：渲染报告 =====
 function renderReport(rep){
+  // 异动预警（对标 Goodie Catch shifts）
+  renderAlerts(rep);
   document.getElementById("repDate").textContent=
     "生成于 "+new Date(rep.generated_at).toLocaleString("zh-CN")+
     " · 监测 "+Object.keys(rep.platform_breakdown||{}).length+" 大 AI · "+rep.answered_queries+" 次真实查询";
@@ -2776,11 +2780,63 @@ function renderReport(rep){
 
   // 引用源影响力分析（对标 Similarweb 引用分析）
   renderCitations(rep);
+  // 主题维度细分（对标 Goodie Segment by topic）
+  renderTopics(rep);
   // 缺口过大/提及率过低 → 插入深度包导流卡
   renderDeepPackCta(rep);
   loadImprovePlan();
   loadProgress();
   loadMonthlyLoss();
+}
+
+// 主题维度细分渲染（对标 Goodie Segment by topic）
+function renderTopics(rep){
+  const el=document.getElementById("repTopics");
+  if(!el) return;
+  const topics=rep.by_topic||[];
+  if(topics.length<2){ el.innerHTML=""; return; }  // 至少2个主题才有对比意义
+  let html=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">🎯 主题维度表现</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">不只看整体，更看你在每个主题上的表现。表现最弱的主题，就是最该优先补内容的地方。</div>`;
+  topics.forEach(t=>{
+    const c=t.rate>=45?"var(--good)":t.rate>=20?"var(--warn)":"var(--bad)";
+    const tag=t.rate>=45?"强":t.rate>=20?"中":"弱";
+    html+=`<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="font-size:13px;font-weight:600">${escHtml(t.topic)}</span>
+        <span style="font-size:12px;color:${c};font-weight:600">${t.rate}% <span style="font-size:10px;background:${t.rate>=45?'#f0f5ee':t.rate>=20?'#fef9ec':'#fdf3f2'};padding:1px 6px;border-radius:4px;margin-left:4px">${tag}</span></span>
+      </div>
+      <div style="height:7px;background:#eee;border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:${t.rate}%;background:${c}"></i></div>
+    </div>`;
+  });
+  const weakest=topics[0];
+  html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:12px">💡 建议：优先补「${escHtml(weakest.topic)}」主题的内容（当前提及率最低 ${weakest.rate}%），这是性价比最高的优化点。</div>`;
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+// 异动预警渲染（对标 Goodie Catch shifts）
+function renderAlerts(rep){
+  const el=document.getElementById("repAlerts");
+  if(!el) return;
+  const alerts=rep.alerts||[];
+  if(!alerts.length){ el.innerHTML=""; return; }
+  const styles={
+    danger:{bg:"#fdf3f2",bd:"#f0d8d4",ic:"🔻",c:"#b0524a"},
+    warn:{bg:"#fef9ec",bd:"#f5e4b8",ic:"⚠️",c:"#b08442"},
+    good:{bg:"#f0f5ee",bd:"#cfe0c4",ic:"📈",c:"#5a7d5a"},
+  };
+  let html=`<div style="margin-bottom:18px">
+    <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">🔔 异动预警（对比上次监测）</div>`;
+  alerts.forEach(a=>{
+    const s=styles[a.level]||styles.warn;
+    html+=`<div style="display:flex;gap:8px;align-items:flex-start;background:${s.bg};border:1px solid ${s.bd};border-radius:8px;padding:10px 14px;margin-bottom:6px">
+      <span style="font-size:15px">${s.ic}</span>
+      <span style="font-size:13px;color:${s.c};line-height:1.6">${escHtml(a.msg)}</span>
+    </div>`;
+  });
+  html+=`</div>`;
+  el.innerHTML=html;
 }
 
 // 引用源分析：告诉商家 AI 信任哪些网站，该去哪发内容
