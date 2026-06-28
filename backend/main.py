@@ -1737,6 +1737,69 @@ async def keyword_opportunities(brand_id: int, user: User = Depends(current_user
     return result
 
 
+# 发布平台映射：根据关键词意图，推荐最该发的平台
+def _publish_platforms(mode: str):
+    if mode == "domestic":
+        return [
+            {"name": "知乎", "why": "AI高频引用，专业问答最易被收录", "how": "在相关问题下回答，或开品牌专栏写深度内容"},
+            {"name": "百度（百科/百家号）", "why": "中文权威源，AI信任度高", "how": "做品牌百科词条 + 百家号发科普内容"},
+            {"name": "小红书", "why": "消费决策类AI爱引用", "how": "做真实测评/种草笔记，带关键词"},
+        ]
+    return [
+        {"name": "Reddit", "why": "海外AI高频引用的讨论源", "how": "在相关subreddit真实参与讨论"},
+        {"name": "Quora", "why": "英文问答，AI常引用", "how": "回答相关问题，自然带出品牌"},
+        {"name": "行业媒体/独立站", "why": "建立权威背书", "how": "投稿行业媒体或优化自己官网的FAQ页"},
+    ]
+
+
+@app.get("/api/brands/{brand_id}/battle-plan")
+async def battle_plan(brand_id: int, user: User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+    """7天上推荐作战包：
+    把"挑词→内容方向→发布平台→7天行动表"编排成一个可执行计划。
+    复用关键词分析能力，不新增监测、不碰现有数据。"""
+    brand = _owned_brand(brand_id, user, session)
+    mode = getattr(brand, "mode", "outbound")
+    # 1. 调关键词分析，挑出"低竞争+高意图"的速效词
+    kw_result = await analyze_keyword_opportunities(
+        industry=brand.industry or brand.product or brand.name,
+        brand_name=brand.name, product=brand.product, mode=mode, count=12,
+    )
+    if kw_result.get("error"):
+        raise HTTPException(500, "作战包生成失败，请重试")
+    keywords = kw_result.get("keywords", [])
+    # 速效词 = 竞争度低(<50) 且 意图偏购买/品牌寻找，按商机分排序
+    quick_win = [
+        k for k in keywords
+        if k.get("competition", 100) < 50
+        and k.get("intent") in ("购买决策", "品牌寻找", "问题解决")
+    ]
+    quick_win.sort(key=lambda k: k.get("opportunity_score", 0), reverse=True)
+    target_keywords = quick_win[:2] if quick_win else keywords[:2]
+    # 2. 发布平台
+    platforms = _publish_platforms(mode)
+    # 3. 7天行动表
+    kw_names = "、".join(k.get("keyword", "") for k in target_keywords) or "你的核心词"
+    timeline = [
+        {"day": "Day 1-2", "title": "挑词 + 建库",
+         "tasks": [f"锁定速效词：{kw_names}", "确保品牌知识库已建好（内容工作台 → AI自动提取）"]},
+        {"day": "Day 3-4", "title": "生成结构化内容",
+         "tasks": ["用内容工作台，针对速效词一键生成内容", "确认内容含小标题、FAQ问答、权威数据", "复制Schema/FAQ代码备用"]},
+        {"day": "Day 5-6", "title": "精准发布",
+         "tasks": [f"把内容发到：{platforms[0]['name']}、{platforms[1]['name']}", "官网FAQ页放上结构化内容和Schema代码", "确保关键信息不藏在图片/JS里"]},
+        {"day": "Day 7", "title": "复测验证",
+         "tasks": ["回见微再监测一次", "对比提及率是否提升", "看AI是否开始在答案里提到你"]},
+    ]
+    return {
+        "brand": brand.name,
+        "target_keywords": target_keywords,
+        "platforms": platforms,
+        "timeline": timeline,
+        "honest_note": "诚实提醒：冷门高意图词约1周可见效；热门大词需要持续积累。这套流程把你上推荐的概率做到最高，但不保证必上——做了大概率有效，谁也不能保证100%。",
+        "summary": kw_result.get("top_advice", ""),
+    }
+
+
 # ----------------------------- 工具 -----------------------------
 
 def _owned_brand(brand_id: int, user: User, session: Session) -> Brand:
