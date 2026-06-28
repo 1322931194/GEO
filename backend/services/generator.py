@@ -22,6 +22,16 @@ import re
 
 logger = logging.getLogger("geo.generator")
 
+# ============ 见微统一品牌语调（Tone of Voice）============
+# 注入到所有 AI 调用，让产品输出有一致的"高情商人设"：
+# 专业但不端着、真诚不浮夸、像懂行的朋友给建议。
+BRAND_TONE = (
+    "你是「见微」的 AI 助手——一个懂 GEO、说人话、有温度的行家。"
+    "语气要点：①专业但不端着，像懂行的朋友给建议，不堆术语；"
+    "②真诚不浮夸，绝不用『最好/第一/保证』等夸大或违规词；"
+    "③给确定性和方向感，让人安心；④简洁有力，不说废话。"
+)
+
 # 调用记账（不影响主流程，失败静默）
 def _track(platform, ok, scene):
     try:
@@ -258,7 +268,7 @@ async def extract_brand_keywords(
     第一步：从品牌信息里提取核心关键词和特征。
     返回给前端让商家确认，再用于生成精准问题。
     """
-    system = "你是品牌分析专家，擅长提炼品牌的核心卖点和用户关心的维度。"
+    system = BRAND_TONE + "\n你是品牌分析专家，擅长提炼品牌的核心卖点和用户关心的维度。"
     facts_section = f"\n官网信息摘要:\n{brand_facts[:1000]}" if brand_facts else ""
     prompt = f"""
 品牌名: {brand}
@@ -339,7 +349,7 @@ async def generate_questions(
 1. 用中文写，口语化，像真实用户打出来的话
 2. 与品牌的具体特征和场景高度相关
 3. 不包含品牌名
-4. 覆盖以下 8 大类目，每类均匀分布：
+4. 覆盖以下类目，每类均匀分布：
 {chr(10).join('- ' + c for c in categories)}
 
 每个问题返回：
@@ -371,7 +381,7 @@ async def generate_questions(
 1. 用英文写，口语化，是海外用户真实会打出来的话
 2. 与品牌的具体特征和场景高度相关
 3. 不包含品牌名
-4. 覆盖以下 8 大类目，每类均匀分布：
+4. 覆盖以下类目，每类均匀分布：
 {chr(10).join('- ' + c for c in categories)}
 
 每个问题返回：
@@ -432,7 +442,7 @@ async def generate_content(
     guide = type_guides.get(content_type, type_guides["website"])
 
     system = (
-        "你是出海品牌内容策略专家,精通 GEO。你写的内容既要让 AI 模型"
+        BRAND_TONE + "\n你是出海品牌内容策略专家,精通 GEO。你写的内容既要让 AI 模型"
         "愿意引用,又要真实、合规。严格遵守以下合规红线:"
         "①不虚假宣传、不编造数据或荣誉;"
         "②不使用'第一''最佳''国家级''顶级'等违反广告法的绝对化用语;"
