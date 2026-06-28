@@ -2432,16 +2432,38 @@ function renderIndustryBenchmark(b){
   const content = document.getElementById("dashContent");
   let html='';
   if(!b.has_benchmark){
-    // 样本积累中
+    // 样本积累中 + 显示行业经验参考基准
     const pct = Math.round((b.sample_count/b.needed)*100);
+    const seed=b.seed_baseline;
+    let seedHtml='';
+    if(seed){
+      const myRate=b.my_rate||0;
+      const pos = myRate>=seed.top?"已达头部水平":myRate>=seed.avg?"高于行业平均":myRate>=seed.entry?"处于起步阶段":"低于行业起步线";
+      const posColor = myRate>=seed.avg?"var(--good)":myRate>=seed.entry?"var(--warn)":"var(--bad)";
+      seedHtml=`
+        <div style="background:var(--bg);border-radius:10px;padding:16px;margin-top:14px">
+          <div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">${b.seed_note}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--good)">${seed.top}%</div><div style="font-size:11px;color:var(--ink-soft)">头部品牌</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--warn)">${seed.avg}%</div><div style="font-size:11px;color:var(--ink-soft)">行业平均</div></div>
+            <div style="text-align:center"><div style="font-size:20px;font-weight:800;color:var(--ink-soft)">${seed.entry}%</div><div style="font-size:11px;color:var(--ink-soft)">起步线</div></div>
+          </div>
+          <div style="text-align:center;padding-top:12px;border-top:1px solid var(--line)">
+            <span style="font-size:13px;color:var(--ink-soft)">你的提及率 </span>
+            <span style="font-size:18px;font-weight:800;color:${posColor}">${myRate}%</span>
+            <span style="font-size:13px;color:${posColor};font-weight:600"> · ${pos}</span>
+          </div>
+        </div>`;
+    }
     html=`
       <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📊 行业大盘排名</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${b.message}</p>
-        <div style="height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin-bottom:8px">
+        ${seedHtml}
+        <div style="height:10px;background:#f0f0f0;border-radius:5px;overflow:hidden;margin:16px 0 8px">
           <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--brand),var(--cyan))"></div>
         </div>
-        <div style="font-size:12px;color:var(--ink-soft)">${b.industry} · 已收集 ${b.sample_count}/${b.needed} 个品牌</div>
+        <div style="font-size:12px;color:var(--ink-soft)">真实样本：已收集 ${b.sample_count}/${b.needed} 个品牌，攒齐后显示真实大盘</div>
       </div>`;
   } else {
     // 有大盘数据
@@ -3161,14 +3183,56 @@ function renderScore(rep){
         <div style="font-size:13px;font-weight:600;color:var(--ink);margin-top:6px">${c.label}</div>
         <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;line-height:1.4">${c.hint}</div>
       </div>`).join("");
+    // 用同一份六维数据画雷达图（和指标卡数据完全一致，消除"数据割裂"）
+    const radarDims=[
+      {name:"露出占比", val:Math.min(100,m.brand_exposure)},
+      {name:"关键词覆盖", val:Math.min(100,m.keyword_coverage)},
+      {name:"信源覆盖", val:Math.min(100,m.authority_citations*10)},
+      {name:"语料匹配", val:Math.min(100,m.corpus_match)},
+      {name:"竞品压制", val:Math.min(100,m.rival_pressure)},
+      {name:"平台覆盖", val:Math.min(100,m.platforms_covered*12)},
+    ];
+    const radarSvg=buildRadarSvg(radarDims);
     el.innerHTML+=`
     <div style="margin-bottom:20px">
       <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 GEO 指标看板</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
-        ${cardHtml}
+      <div style="display:grid;grid-template-columns:1fr;gap:16px">
+        <div style="display:flex;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">${radarSvg}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+          ${cardHtml}
+        </div>
       </div>
     </div>`;
   }
+}
+
+// 画六维雷达图（SVG，墨色和纸风）—— 与指标看板共用同一份数据
+function buildRadarSvg(dims){
+  const N=dims.length, cx=150, cy=140, R=100, levels=4;
+  const pt=(i,r)=>{
+    const ang=(Math.PI*2*i/N)-Math.PI/2;
+    return [cx+r*Math.cos(ang), cy+r*Math.sin(ang)];
+  };
+  let grid="";
+  for(let l=1;l<=levels;l++){
+    const r=R*l/levels;
+    let pts=[];
+    for(let i=0;i<N;i++){const[x,y]=pt(i,r);pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);}
+    grid+=`<polygon points="${pts.join(' ')}" fill="none" stroke="#e8e3d8" stroke-width="1"/>`;
+  }
+  let axes="",labels="";
+  for(let i=0;i<N;i++){
+    const[x,y]=pt(i,R);
+    axes+=`<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="#e8e3d8" stroke-width="1"/>`;
+    const[lx,ly]=pt(i,R+22);
+    labels+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" fill="#6b655b" text-anchor="middle" dominant-baseline="middle">${dims[i].name}</text>`;
+  }
+  let dataPts=[];
+  for(let i=0;i<N;i++){const[x,y]=pt(i,R*dims[i].val/100);dataPts.push(`${x.toFixed(1)},${y.toFixed(1)}`);}
+  const dataPoly=`<polygon points="${dataPts.join(' ')}" fill="rgba(90,125,90,.25)" stroke="#5a7d5a" stroke-width="2"/>`;
+  let dots="";
+  for(let i=0;i<N;i++){const[x,y]=pt(i,R*dims[i].val/100);dots+=`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3" fill="#5a7d5a"/>`;}
+  return `<svg width="300" height="300" viewBox="0 0 300 300">${grid}${axes}${labels}${dataPoly}${dots}</svg>`;
 }
 
 // 异动预警渲染（对标 Goodie Catch shifts）
