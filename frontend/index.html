@@ -470,6 +470,10 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   .geo-why-grid{grid-template-columns:1fr}
   .dist-stats{grid-template-columns:1fr}
   .dist-divider{width:60%;height:1px;margin:24px auto}
+  /* 侧边栏隐藏后，主内容区占满 + 显示移动端底部导航 */
+  .main-area,.app-main{margin-left:0 !important;width:100% !important}
+  .mobile-nav{display:flex !important}
+  #appView{padding-bottom:64px}
 }
 @media(max-width:640px){
   .flow-grid,.plans,.mode-select,.metrics{grid-template-columns:1fr}
@@ -479,7 +483,38 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   .lp-nav-links{gap:12px}
   .geo-after-grid{grid-template-columns:1fr}
   .geo-term{font-size:44px}
+  /* 报告/看板的双列内联布局，手机改单列 */
+  .metrics{grid-template-columns:1fr 1fr;gap:10px}
+  .platforms{grid-template-columns:1fr !important}
+  /* 触摸友好：按钮和点击区加大 */
+  button,.btn-action,.btn-cyan,.btn-ghost,.btn-primary{min-height:44px}
+  /* 表格横向滚动，避免挤爆 */
+  table{display:block;overflow-x:auto;white-space:nowrap}
 }
+@media(max-width:480px){
+  .lp-stats{grid-template-columns:1fr 1fr;gap:10px}
+  .metrics{grid-template-columns:1fr 1fr}
+  h1{font-size:26px !important}
+  .sec-title{font-size:18px !important}
+  .lp-hero{padding-top:90px}
+  /* 弹窗在小屏占满更多宽度 */
+  .modal-card{max-width:94vw !important}
+}
+
+/* 移动端底部导航（替代隐藏的侧边栏，解决手机无法切换功能的致命问题）*/
+.mobile-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:900;
+  background:var(--panel,#fbf9f4);border-top:1px solid var(--line,#e8e3d8);
+  padding:6px 0 calc(6px + env(safe-area-inset-bottom));
+  justify-content:space-around;align-items:center;
+}
+.mobile-nav .mn-item{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:4px;background:none;border:none;cursor:pointer;color:var(--ink-soft,#6b655b);
+  font-size:10px;font-family:inherit;
+}
+.mobile-nav .mn-item.active{color:var(--matcha,#5a7d5a)}
+.mobile-nav .mn-item .mn-ic{font-size:19px}
 </style>
 </head>
 <body>
@@ -796,8 +831,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
           <input id="authEmail" type="email" placeholder="your@brand.com">
         </div>
         <div class="field">
-          <label>密码（至少 6 位）</label>
-          <input id="authPw" type="password" placeholder="设置登录密码" onkeydown="if(event.key==='Enter')doAuth()">
+          <label>密码（至少 8 位，含字母和数字）</label>
+          <input id="authPw" type="password" placeholder="至少8位，字母+数字" onkeydown="if(event.key==='Enter')doAuth()">
         </div>
         <button class="btn-cyan" style="width:100%;padding:13px" onclick="doAuth()" id="authBtn">免费开始 AI 品牌体检 →</button>
         <p id="authErr" class="auth-err" style="margin-top:12px"></p>
@@ -1118,7 +1153,9 @@ async function doAuth(){
   const emailOk=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   if(!email){err.textContent="请填写邮箱地址";return}
   if(!emailOk){err.textContent="邮箱格式不正确，请检查";return}
-  if(password.length<6){err.textContent="密码至少需要6位";return}
+  const isReg = authMode!=="login";
+  if(isReg && password.length<8){err.textContent="密码至少需要8位";return}
+  if(isReg && (/^\d+$/.test(password)||/^[a-zA-Z]+$/.test(password))){err.textContent="密码需包含字母和数字";return}
   const btn=document.getElementById("authBtn");
   const btnText=btn.textContent;
   btn.textContent="请稍候…";btn.disabled=true;
@@ -1151,10 +1188,31 @@ function enterApp(planInfo){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
+  // 注入移动端底部导航（解决手机上侧边栏被隐藏、无法切换功能的致命问题）
+  injectMobileNav();
   // 登录后自动加载历史品牌
   loadMyBrands();
   // 首次进入显示新手引导
   maybeShowOnboarding();
+}
+
+// 移动端底部导航
+function injectMobileNav(){
+  if(document.getElementById("mobileNav")) return;
+  const items=[
+    {key:"flow", ic:"🎯", label:"监测"},
+    {key:"dash", ic:"📊", label:"看板"},
+    {key:"ws",   ic:"🧠", label:"创作"},
+    {key:"ref",  ic:"🎁", label:"推广"},
+    {key:"price",ic:"✨", label:"升级"},
+  ];
+  const nav=document.createElement("nav");
+  nav.id="mobileNav";
+  nav.className="mobile-nav";
+  nav.innerHTML=items.map(it=>
+    `<button class="mn-item${it.key==='flow'?' active':''}" data-key="${it.key}" onclick="navTo('${it.key}')"><span class="mn-ic">${it.ic}</span>${it.label}</button>`
+  ).join("");
+  document.getElementById("appView").appendChild(nav);
 }
 
 // 显示登录页（从营销页进入）
@@ -1218,6 +1276,10 @@ function navTo(key){
     const el=document.getElementById(n); if(el) el.classList.remove("active");
   });
   const navEl=document.getElementById(cfg.nav); if(navEl) navEl.classList.add("active");
+  // 同步移动端底部导航高亮
+  document.querySelectorAll("#mobileNav .mn-item").forEach(b=>{
+    b.classList.toggle("active", b.dataset.key===key);
+  });
   // 面包屑
   const cr=document.getElementById("mainCrumb");
   if(cr) cr.innerHTML=cfg.crumb+'<span class="sub">'+cfg.sub+'</span>';
@@ -2523,11 +2585,11 @@ async function goMonitor(){
       document.querySelector("#panel3 .loading").innerHTML=`
         <div style="max-width:420px;margin:0 auto;text-align:center">
           <div style="font-size:48px;margin-bottom:16px">🔒</div>
-          <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">查看完整 AI 能见度报告</h3>
+          <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">你的专属报告已经准备好了</h3>
           <p style="color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7">
-            你的问题集已生成完毕。<br>
-            支付 <b style="color:var(--brand);font-size:18px">¥9.9</b> 解锁本次完整监测报告，<br>
-            包含 AI 推荐率、竞品分析、缺口诊断、提升方案。
+            我们已经帮你问遍了各大 AI，结果就在这份报告里。<br>
+            解锁只要 <b style="color:var(--brand);font-size:18px">¥9.9</b>，<br>
+            看清 AI 推荐率、竞品分析、缺口诊断和提升方案。
           </p>
           <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px;text-align:left">
             <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥9.9 体验版包含：</div>
