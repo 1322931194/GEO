@@ -237,10 +237,16 @@ def register(req: RegisterReq, request: Request, session: Session = Depends(get_
     _rate_limit(f"register:{_client_ip(request)}", max_calls=5, window_sec=3600)
     # 邮箱标准化：去空格、转小写，避免后续登录因大小写/空格不匹配
     email = req.email.strip().lower()
-    if not email or "@" not in email:
+    # 邮箱格式校验（基本正则）
+    import re as _re
+    if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         raise HTTPException(400, "邮箱格式不正确")
-    if len(req.password) < 6:
-        raise HTTPException(400, "密码至少需要6位")
+    # 密码强度：至少8位，且不能是纯数字或纯字母（防弱密码）
+    pw = req.password
+    if len(pw) < 8:
+        raise HTTPException(400, "密码至少需要8位")
+    if pw.isdigit() or pw.isalpha():
+        raise HTTPException(400, "密码需包含字母和数字，更安全")
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
         raise HTTPException(400, "该邮箱已注册")
@@ -283,6 +289,8 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
     _rate_limit(f"login:{_client_ip(request)}", max_calls=10, window_sec=300)
     # 邮箱标准化，与注册保持一致
     email = req.email.strip().lower()
+    # 同账号失败锁定：单个邮箱5分钟内最多8次尝试，防撞库（针对特定账号的暴力破解）
+    _rate_limit(f"login_acct:{email}", max_calls=8, window_sec=300)
     user = session.exec(select(User).where(User.email == email)).first()
     if not user or not _verify_pw(req.password, user.password_hash):
         raise HTTPException(401, "邮箱或密码错误")
