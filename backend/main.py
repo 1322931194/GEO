@@ -1756,19 +1756,46 @@ def _publish_platforms(mode: str):
 async def battle_plan(brand_id: int, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
     """7天上推荐作战包：
-    把"挑词→内容方向→发布平台→7天行动表"编排成一个可执行计划。
-    复用关键词分析能力，不新增监测、不碰现有数据。"""
+    核心 = 用「本品牌最近一次监测里 AI 真实引用的源」作为精确发布目标，
+    而不是通用猜测。挑词→真实信源→7天行动表，编排成可执行计划。
+    复用已有数据，不新增监测、不碰现有数据。"""
     brand = _owned_brand(brand_id, user, session)
     mode = getattr(brand, "mode", "outbound")
-    # 1. 调关键词分析，挑出"低竞争+高意图"的速效词
+
+    # === 关键：取本品牌最近一次报告里 AI 真实引用的源 ===
+    last_report = session.exec(
+        select(Report).where(Report.brand_id == brand.id)
+        .order_by(Report.generated_at.desc())
+    ).first()
+    real_targets = []          # AI 真实引用、但本品牌还没露出的高价值源
+    real_present = []          # AI 引用且已有本品牌的源（守住）
+    has_real_data = False
+    if last_report and last_report.full_json:
+        try:
+            full = json.loads(last_report.full_json)
+            cts = full.get("citation_targets", []) or []
+            has_real_data = len(cts) > 0
+            for ct in cts:
+                item = {
+                    "source": ct.get("source", ""),
+                    "cited_count": ct.get("cited_count", 0),
+                    "advice": _source_action(ct.get("source", "")),
+                }
+                if ct.get("brand_present"):
+                    real_present.append(item)
+                else:
+                    real_targets.append(item)
+            # 按被引用次数排序（AI 越常引用 = 越该攻克）
+            real_targets.sort(key=lambda x: -x["cited_count"])
+        except Exception:
+            has_real_data = False
+
+    # === 关键词：挑速效词 ===
     kw_result = await analyze_keyword_opportunities(
         industry=brand.industry or brand.product or brand.name,
         brand_name=brand.name, product=brand.product, mode=mode, count=12,
     )
-    if kw_result.get("error"):
-        raise HTTPException(500, "作战包生成失败，请重试")
-    keywords = kw_result.get("keywords", [])
-    # 速效词 = 竞争度低(<50) 且 意图偏购买/品牌寻找，按商机分排序
+    keywords = kw_result.get("keywords", []) if not kw_result.get("error") else []
     quick_win = [
         k for k in keywords
         if k.get("competition", 100) < 50
@@ -1776,9 +1803,17 @@ async def battle_plan(brand_id: int, user: User = Depends(current_user),
     ]
     quick_win.sort(key=lambda k: k.get("opportunity_score", 0), reverse=True)
     target_keywords = quick_win[:2] if quick_win else keywords[:2]
-    # 2. 发布平台
-    platforms = _publish_platforms(mode)
-    # 3. 7天行动表
+
+    # === 发布目标：真实信源优先，否则降级到行业通用建议 ===
+    if has_real_data and real_targets:
+        publish_targets = real_targets[:6]
+        targets_source = "real"   # 来自真实监测数据
+        top_names = "、".join(t["source"] for t in publish_targets[:2])
+    else:
+        publish_targets = _publish_platforms(mode)  # 行业通用建议（降级）
+        targets_source = "fallback"
+        top_names = "、".join(p["name"] for p in publish_targets[:2])
+
     kw_names = "、".join(k.get("keyword", "") for k in target_keywords) or "你的核心词"
     timeline = [
         {"day": "Day 1-2", "title": "挑词 + 建库",
@@ -1786,18 +1821,54 @@ async def battle_plan(brand_id: int, user: User = Depends(current_user),
         {"day": "Day 3-4", "title": "生成结构化内容",
          "tasks": ["用内容工作台，针对速效词一键生成内容", "确认内容含小标题、FAQ问答、权威数据", "复制Schema/FAQ代码备用"]},
         {"day": "Day 5-6", "title": "精准发布",
-         "tasks": [f"把内容发到：{platforms[0]['name']}、{platforms[1]['name']}", "官网FAQ页放上结构化内容和Schema代码", "确保关键信息不藏在图片/JS里"]},
+         "tasks": [f"把内容发到 AI 真实引用的源：{top_names}", "官网FAQ页放上结构化内容和Schema代码", "确保关键信息不藏在图片/JS里"]},
         {"day": "Day 7", "title": "复测验证",
          "tasks": ["回见微再监测一次", "对比提及率是否提升", "看AI是否开始在答案里提到你"]},
     ]
+
+    note = ("以上发布目标，来自 AI 在回答你所在行业问题时**真实引用过的信息源**（按引用频次排序），"
+            "不是通用猜测。攻克这些源 = 在 AI 已经信任的地方让它看到你。"
+            if targets_source == "real"
+            else "你还没有监测数据，以下是行业通用建议。**先做一次监测**，系统就能告诉你 AI 在你这个行业实际引用了哪些精确的源——那才是最该攻克的目标。")
+
     return {
         "brand": brand.name,
         "target_keywords": target_keywords,
-        "platforms": platforms,
+        "publish_targets": publish_targets,
+        "targets_source": targets_source,         # real=真实数据 / fallback=通用建议
+        "present_sources": real_present[:5],      # AI已引用且有你的源（守住）
         "timeline": timeline,
+        "targets_note": note,
         "honest_note": "诚实提醒：冷门高意图词约1周可见效；热门大词需要持续积累。这套流程把你上推荐的概率做到最高，但不保证必上——做了大概率有效，谁也不能保证100%。",
         "summary": kw_result.get("top_advice", ""),
     }
+
+
+def _source_action(src: str) -> str:
+    """把引用源翻译成具体发布动作（后端版，与前端 sourceAdvice 对应）"""
+    s = (src or "").lower()
+    rules = [
+        ("zhihu", "去知乎相关问题下回答，或开品牌专栏"),
+        ("baidu", "做百度百科词条 / 百家号内容"),
+        ("xiaohongshu", "在小红书做测评/种草笔记"), ("xhs", "在小红书做测评/种草笔记"),
+        ("weibo", "在微博发布或找 KOL 提及"),
+        ("reddit", "参与相关 subreddit 讨论"),
+        ("quora", "在 Quora 回答相关问题"),
+        ("g2", "建立有真实评价的产品资料页"), ("capterra", "建立有真实评价的产品资料页"),
+        ("wikipedia", "完善维基词条（需符合收录标准）"), ("wiki", "完善维基词条"),
+        ("youtube", "做视频内容或找博主合作"), ("bilibili", "做B站视频或找UP主合作"),
+        ("linkedin", "在领英发布行业内容"),
+        ("zhihu.com", "去知乎布局问答"),
+        ("amazon", "优化电商平台产品详情和评价"),
+        ("taobao", "优化店铺详情和评价"), ("tmall", "优化天猫详情和评价"),
+        ("jd", "优化京东产品详情和评价"),
+        ("dianping", "优化大众点评店铺信息和评价"), ("meituan", "优化美团商户信息"),
+        ("xinyang", "在新氧布局案例和口碑"),
+    ]
+    for key, act in rules:
+        if key in s:
+            return act
+    return f"争取在 {src} 发布内容或被提及"
 
 
 # ----------------------------- 工具 -----------------------------
