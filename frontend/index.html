@@ -835,6 +835,13 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
           <label>密码（至少 8 位，含字母和数字）</label>
           <input id="authPw" type="password" placeholder="至少8位，字母+数字" onkeydown="if(event.key==='Enter')doAuth()">
         </div>
+        <div class="field" id="codeField" style="display:none">
+          <label>邮箱验证码</label>
+          <div style="display:flex;gap:8px">
+            <input id="authCode" type="text" placeholder="6位验证码" maxlength="6" style="flex:1">
+            <button class="btn-ghost" id="sendCodeBtn" style="white-space:nowrap;padding:0 16px" onclick="sendEmailCode()">获取验证码</button>
+          </div>
+        </div>
         <button class="btn-cyan" style="width:100%;padding:13px" onclick="doAuth()" id="authBtn">免费开始 AI 品牌体检 →</button>
         <p id="authErr" class="auth-err" style="margin-top:12px"></p>
         <div style="text-align:center;font-size:12px;color:var(--ink-faint)">客服微信：<b style="color:var(--cyan)">jenly222</b></div>
@@ -1145,6 +1152,7 @@ function switchTab(m){
     tl.className="auth-tab";
   }
   document.getElementById("authBtn").textContent=m==="login"?"登录 →":"免费开始 AI 品牌体检 →";
+  if(typeof updateCodeFieldVisibility==="function") updateCodeFieldVisibility();
 }
 async function api(path,opts={}){
   opts.headers={...(opts.headers||{}),"Content-Type":"application/json"};
@@ -1164,6 +1172,47 @@ async function api(path,opts={}){
 }
 
 // ===== 账号 =====
+// 检测后端是否要求邮箱验证，决定显示验证码框
+let _requireEmailVerify=false;
+async function checkAuthConfig(){
+  try{
+    const c=await api("/api/auth-config");
+    _requireEmailVerify=!!c.require_email_verify;
+    updateCodeFieldVisibility();
+  }catch(e){ /* 失败默认不要求，不影响注册 */ }
+}
+function updateCodeFieldVisibility(){
+  const cf=document.getElementById("codeField");
+  if(!cf) return;
+  // 仅注册模式 + 后端要求验证时显示
+  cf.style.display=(_requireEmailVerify && authMode!=="login")?"block":"none";
+}
+
+// 发送邮箱验证码
+let _codeCountdown=0;
+async function sendEmailCode(){
+  const email=document.getElementById("authEmail").value.trim();
+  const err=document.getElementById("authErr"); err.textContent="";
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ err.textContent="请先填写正确的邮箱"; return; }
+  const btn=document.getElementById("sendCodeBtn");
+  btn.disabled=true; btn.textContent="发送中…";
+  try{
+    const r=await api("/api/send-email-code",{method:"POST",body:JSON.stringify({email})});
+    if(r.dev_mode){ toast("⚠️ 开发模式：验证码在服务器日志里"); }
+    else{ toast("✅ 验证码已发送，请查收邮件"); }
+    // 60秒倒计时
+    _codeCountdown=60;
+    const tick=()=>{
+      if(_codeCountdown<=0){ btn.disabled=false; btn.textContent="获取验证码"; return; }
+      btn.textContent=_codeCountdown+"秒后重试"; _codeCountdown--; setTimeout(tick,1000);
+    };
+    tick();
+  }catch(e){
+    err.textContent=e.message||"发送失败";
+    btn.disabled=false; btn.textContent="获取验证码";
+  }
+}
+
 async function doAuth(){
   const email=document.getElementById("authEmail").value.trim();
   const password=document.getElementById("authPw").value;
@@ -1175,12 +1224,17 @@ async function doAuth(){
   const isReg = authMode!=="login";
   if(isReg && password.length<8){err.textContent="密码至少需要8位";return}
   if(isReg && (/^\d+$/.test(password)||/^[a-zA-Z]+$/.test(password))){err.textContent="密码需包含字母和数字";return}
+  // 验证码（仅注册且开启验证时）
+  const codeField=document.getElementById("codeField");
+  const needCode = isReg && codeField && codeField.style.display!=="none";
+  const emailCode = needCode ? document.getElementById("authCode").value.trim() : "";
+  if(needCode && !emailCode){err.textContent="请填写邮箱验证码";return}
   const btn=document.getElementById("authBtn");
   const btnText=btn.textContent;
   btn.textContent="请稍候…";btn.disabled=true;
   try{
     const data=await api("/api/"+(authMode==="login"?"login":"register"),
-      {method:"POST",body:JSON.stringify({email,password,invite_code:getInviteCode()})});
+      {method:"POST",body:JSON.stringify({email,password,invite_code:getInviteCode(),email_code:emailCode})});
     token=data.token;safeStore.set("geo_token",token);
     if(authMode!=="login"){
       toast("✅ 注册成功，欢迎使用见微！");
@@ -1238,6 +1292,8 @@ function gotoAuth(mode){
   document.getElementById("landingView").classList.add("hidden");
   document.getElementById("authView").classList.remove("hidden");
   if(mode) switchTab(mode);
+  // 检测后端是否要求邮箱验证
+  if(typeof checkAuthConfig==="function") checkAuthConfig();
 }
 // 返回营销页（彻底重置应用内状态，防止状态泄露）
 function gotoLanding(){
