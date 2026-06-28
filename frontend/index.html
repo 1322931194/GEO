@@ -868,6 +868,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <div class="sb-plan" style="margin-bottom:10px">
           <span>当前套餐</span><span class="tag" id="planTag">试用版</span>
         </div>
+        <div id="usageBar" style="font-size:11px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5"></div>
         <div style="display:flex;gap:8px">
           <button class="btn-ghost" style="flex:1;padding:8px;font-size:12px" onclick="reopenOnboarding()">❓ 引导</button>
           <button class="btn-ghost" style="flex:1;padding:8px;font-size:12px" onclick="logout()">退出</button>
@@ -1021,6 +1022,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repPlatformNote"></div>
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
+              <div id="repRivalMatrix"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="repReadiness"></div>
@@ -1256,11 +1258,30 @@ async function doAuth(){
   }
   finally{btn.textContent=btnText;btn.disabled=false}
 }
+// 加载用量条（计费透明）
+async function loadUsageBar(){
+  const el=document.getElementById("usageBar");
+  if(!el) return;
+  try{
+    const me=await api("/api/me");
+    const u=me.usage;
+    if(!u){ el.innerHTML=""; return; }
+    if(u.monitor_remaining===-1){
+      el.innerHTML=`监测次数：<b style="color:var(--matcha)">不限次</b>`;
+    }else{
+      const low=u.monitor_remaining<=1;
+      el.innerHTML=`本期监测：已用 ${u.monitor_used} 次，剩 <b style="color:${low?'var(--bad)':'var(--matcha)'}">${u.monitor_remaining}</b> 次`
+        +(low?` · <span onclick="navTo('price')" style="color:var(--cyan);cursor:pointer">升级</span>`:'');
+    }
+  }catch(e){ /* 静默，不影响主流程 */ }
+}
+
 function enterApp(planInfo){
   document.getElementById("landingView").classList.add("hidden");
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
+  loadUsageBar();
   // 注入移动端底部导航（解决手机上侧边栏被隐藏、无法切换功能的致命问题）
   injectMobileNav();
   // 登录后自动加载历史品牌
@@ -2875,6 +2896,8 @@ function renderReport(rep){
   renderCitations(rep);
   // 主题维度细分（对标 Goodie Segment by topic）
   renderTopics(rep);
+  // 竞品横向抢位矩阵
+  renderRivalMatrix(rep);
   // AI 可读性自检清单（对标 Scrunch，纯增量内容功能）
   renderReadiness(rep);
   // 缺口过大/提及率过低 → 插入深度包导流卡
@@ -2928,6 +2951,41 @@ function renderReadiness(rep){
     <div style="font-size:11.5px;color:var(--ink-faint);margin-top:12px">💡 这是通用优化方向，按你的实际情况执行。做好这些，配合上方"该去哪发内容"的建议，AI 推荐你的概率会明显提升。</div>
   </div>`;
   el.innerHTML=html;
+}
+
+// 竞品横向抢位矩阵：你 vs 各竞品的AI身位排名
+function renderRivalMatrix(rep){
+  const el=document.getElementById("repRivalMatrix");
+  if(!el) return;
+  const shares=rep.competitor_share||{};
+  const names=Object.keys(shares);
+  if(names.length<1){ el.innerHTML=""; return; }
+  // 把"你"和竞品放一起排名（你的份额=提及率）
+  const rows=[{name:rep.brand+"（你）", val:rep.mention_rate, isYou:true}];
+  names.forEach(n=>rows.push({name:n, val:shares[n], isYou:false}));
+  rows.sort((a,b)=>b.val-a.val);
+  const maxVal=Math.max(...rows.map(r=>r.val), 1);
+  const yourRank=rows.findIndex(r=>r.isYou)+1;
+  let barHtml=rows.map((r,i)=>{
+    const w=Math.round(100*r.val/maxVal);
+    const c=r.isYou?"var(--matcha)":"#c9c2b5";
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px">
+        <span style="font-weight:${r.isYou?'700':'500'};color:${r.isYou?'var(--matcha)':'var(--ink-soft)'}">${i+1}. ${escHtml(r.name)}</span>
+        <span style="font-weight:600;color:${r.isYou?'var(--matcha)':'var(--ink-soft)'}">${r.val}%</span>
+      </div>
+      <div style="height:9px;background:#eee;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${w}%;background:${c}"></i></div>
+    </div>`;
+  }).join("");
+  const verdict = yourRank===1
+    ? `🏆 你目前在 AI 推荐中排第 1，领先所有竞品，继续保持！`
+    : `你目前排第 ${yourRank} 名，前面还有 ${yourRank-1} 个竞品。抢占它们的身位 = 把这些客户拿回来。`;
+  el.innerHTML=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚔️ 竞品抢位排行</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">在 AI 的"推荐名单"里，你和竞品的真实身位。排名越靠前，AI 越优先推荐你。</div>
+    ${barHtml}
+    <div style="background:${yourRank===1?'#f0f5ee':'#fffbeb'};border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:8px">${verdict}</div>
+  </div>`;
 }
 
 // 主题维度细分渲染（对标 Goodie Segment by topic）
@@ -3008,6 +3066,32 @@ function renderScore(rep){
       ${dimHtml}
     </div>
   </div>`;
+
+  // GEO 指标看板（明确直观的5个核心数据）
+  const m=rep.dashboard_metrics;
+  if(m){
+    const cards=[
+      {label:"品牌词露出占比", val:m.brand_exposure+"%", hint:"AI回答中提到你的比例", c:m.brand_exposure>=40?"var(--good)":m.brand_exposure>=15?"var(--warn)":"var(--bad)"},
+      {label:"关键词覆盖率", val:m.keyword_coverage+"%", hint:"有多少问题里出现了你", c:m.keyword_coverage>=40?"var(--good)":m.keyword_coverage>=15?"var(--warn)":"var(--bad)"},
+      {label:"权威引用数", val:m.authority_citations, hint:"AI信任的信息源数量", c:"var(--ink)"},
+      {label:"AI语料匹配度", val:m.corpus_match, hint:"被提及时的位置质量(满分100)", c:m.corpus_match>=60?"var(--good)":m.corpus_match>=30?"var(--warn)":"var(--bad)"},
+      {label:"竞品压制力", val:m.rival_pressure+"%", hint:">50%代表你比最强竞品更占优", c:m.rival_pressure>=50?"var(--good)":"var(--bad)"},
+      {label:"覆盖AI引擎", val:m.platforms_covered+"个", hint:"本次监测的AI平台数", c:"var(--ink)"},
+    ];
+    let cardHtml=cards.map(c=>`
+      <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+        <div style="font-size:24px;font-weight:800;color:${c.c};line-height:1.1">${c.val}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ink);margin-top:6px">${c.label}</div>
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;line-height:1.4">${c.hint}</div>
+      </div>`).join("");
+    el.innerHTML+=`
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 GEO 指标看板</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        ${cardHtml}
+      </div>
+    </div>`;
+  }
 }
 
 // 异动预警渲染（对标 Goodie Catch shifts）
