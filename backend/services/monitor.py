@@ -129,6 +129,7 @@ class VisibilityReport:
     avg_position_score: float                    # 平均位置分(0-100,越靠前分越高)
     competitor_share: dict = field(default_factory=dict)   # 各竞品抢走的份额
     source_count: int = 0
+    citation_targets: list = field(default_factory=list)   # 高价值引用节点(对标Similarweb)
     platform_breakdown: dict = field(default_factory=dict) # 各平台分别的提及率
     gaps: list = field(default_factory=list)               # 发现的缺口(可一键修复)
     raw_results: list = field(default_factory=list)
@@ -489,10 +490,28 @@ def _aggregate(brand, questions, competitors, available, results,
         hits = sum(1 for r in ok if c in r.competitors_mentioned)
         comp_share[c] = round(100 * hits / answered, 1) if answered else 0.0
 
-    # 引用来源去重
+    # 引用来源去重 + 影响力分析（对标 Similarweb 引用分析：找出AI信任的高价值节点）
     all_sources = set()
+    source_freq = {}        # 每个源被引用的次数（频次=影响力）
+    source_with_brand = {}  # 该源出现的回答里，是否提到了本品牌
     for r in ok:
-        all_sources.update(r.cited_sources)
+        for src in r.cited_sources:
+            all_sources.add(src)
+            source_freq[src] = source_freq.get(src, 0) + 1
+            # 如果这条回答提到了品牌，说明品牌已在该源的语境中露出
+            if r.brand_mentioned:
+                source_with_brand[src] = True
+            else:
+                source_with_brand.setdefault(src, False)
+    # 生成"高价值节点"清单：被AI高频引用、但品牌还没出现的源 = 优先攻克目标
+    citation_targets = []
+    for src, freq in sorted(source_freq.items(), key=lambda x: -x[1]):
+        citation_targets.append({
+            "source": src,
+            "cited_count": freq,                          # 被AI引用次数=影响力
+            "brand_present": source_with_brand.get(src, False),  # 品牌是否已露出
+        })
+    citation_targets = citation_targets[:15]  # 取影响力最高的15个
 
     # 各平台分别的提及率
     platform_breakdown = {}
@@ -544,6 +563,7 @@ def _aggregate(brand, questions, competitors, available, results,
         avg_position_score=avg_position,
         competitor_share=comp_share,
         source_count=len(all_sources),
+        citation_targets=citation_targets,
         platform_breakdown=platform_breakdown,
         gaps=sorted(gaps, key=lambda g: 0 if g["priority"] == "high" else 1),
         raw_results=[r.__dict__ for r in results],
