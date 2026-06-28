@@ -1027,6 +1027,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repCitations"></div>
               <div id="repReadiness"></div>
               <div id="repSOP"></div>
+              <div id="repBattle"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2928,6 +2929,7 @@ function renderReport(rep){
   renderReadiness(rep);
   // 保姆级作战 SOP（根据本次报告生成一步步该做什么）
   renderSOP(rep);
+  renderBattleEntry();
   // 缺口过大/提及率过低 → 插入深度包导流卡
   renderDeepPackCta(rep);
   loadImprovePlan();
@@ -2951,6 +2953,65 @@ function sourceAdvice(src){
   if(s.includes("amazon")||s.includes("taobao")||s.includes("jd")) return "优化电商平台的产品详情和评价";
   if(s.includes("zhidao")||s.includes("wenda")) return "在问答平台布局相关问题";
   return "争取在该网站发布内容或被提及";
+}
+
+// 7天上推荐作战包：入口卡（点击才加载，避免每次烧token）
+function renderBattleEntry(){
+  const el=document.getElementById("repBattle");
+  if(!el) return;
+  el.innerHTML=`<div class="section-card" style="margin-top:20px;background:var(--ink);color:#f4f1ea">
+    <div style="font-weight:700;font-size:16px;margin-bottom:6px">🚀 7天上推荐作战包</div>
+    <div style="font-size:13px;color:rgba(244,241,234,.75);line-height:1.6;margin-bottom:14px">
+      想真正"上 AI 推荐"？点下方生成你的专属作战包：自动挑出最易快速见效的关键词、给出内容方向、精确到平台的发布清单，配一张7天行动表。照着做就行。
+    </div>
+    <button class="btn-primary" id="battleBtn" style="font-size:13px;padding:8px 18px" onclick="loadBattlePlan()">⚡ 生成我的7天作战包</button>
+  </div>`;
+}
+
+async function loadBattlePlan(){
+  const el=document.getElementById("repBattle");
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先选择品牌"); return; }
+  const btn=document.getElementById("battleBtn");
+  if(btn){ btn.disabled=true; btn.textContent="AI 正在生成作战包…"; }
+  try{
+    const d=await api(`/api/brands/${bid}/battle-plan`);
+    // 关键词卡
+    let kwHtml=(d.target_keywords||[]).map(k=>`
+      <div style="background:#322d25;border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;color:#a8c48c">${escHtml(k.keyword||"")}</div>
+        <div style="font-size:12px;color:rgba(244,241,234,.7);margin-top:4px">${escHtml(k.content_direction||k.reason||"")}</div>
+      </div>`).join("");
+    // 平台卡
+    let pfHtml=(d.platforms||[]).map(p=>`
+      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="font-size:14px;font-weight:700;color:var(--ink)">${escHtml(p.name)}</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:3px">为什么：${escHtml(p.why)}</div>
+        <div style="font-size:12px;color:var(--matcha);margin-top:2px">怎么做：${escHtml(p.how)}</div>
+      </div>`).join("");
+    // 7天行动表
+    let tlHtml=(d.timeline||[]).map((t,i)=>`
+      <div style="display:flex;gap:12px;margin-bottom:12px">
+        <div style="flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--matcha);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">${i+1}</div>
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink)">${escHtml(t.day)} · ${escHtml(t.title)}</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-top:3px">${(t.tasks||[]).map(x=>"• "+escHtml(x)).join("<br>")}</div>
+        </div>
+      </div>`).join("");
+    el.innerHTML=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:14px">🚀 你的7天上推荐作战包</div>
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">① 速效关键词（优先攻这些）</div>
+      ${kwHtml||'<div style="font-size:12px;color:var(--ink-soft)">暂无明显速效词，建议从你的核心业务词入手</div>'}
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 8px">② 发到哪（AI信任的平台）</div>
+      ${pfHtml}
+      <div style="font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 10px">③ 7天行动表</div>
+      ${tlHtml}
+      <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#92722a;line-height:1.6;margin-top:8px">${escHtml(d.honest_note||"")}</div>
+    </div>`;
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent="⚡ 生成我的7天作战包"; }
+    toast("生成失败："+(e.message||"请重试"));
+  }
 }
 
 // 保姆级作战 SOP：根据本次报告，生成商家"接下来一步步该做什么"
