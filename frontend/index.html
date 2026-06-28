@@ -104,8 +104,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 /* toast */
 #toastBox{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:3000;
   display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none}
-.toast-item{background:rgba(10,16,24,.95);backdrop-filter:blur(10px);
-  border:1px solid var(--line-2);color:var(--ink);padding:12px 22px;border-radius:var(--r-md);
+.toast-item{background:var(--ink);backdrop-filter:blur(10px);
+  border:1px solid rgba(244,241,234,.15);color:#f4f1ea;padding:12px 22px;border-radius:var(--r-md);
   font-size:14px;box-shadow:var(--sh-lg);animation:toastIn .3s}
 @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 
@@ -400,9 +400,10 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 
 /* toast(JS用#toast) */
 #toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);z-index:3000;
-  background:rgba(10,16,24,.96);backdrop-filter:blur(10px);border:1px solid var(--line-2);
-  color:var(--ink);padding:13px 24px;border-radius:var(--r-md);font-size:14px;
-  box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:.3s;white-space:nowrap}
+  background:var(--ink);backdrop-filter:blur(10px);border:1px solid rgba(244,241,234,.15);
+  color:#f4f1ea;padding:13px 24px;border-radius:var(--r-md);font-size:14px;
+  box-shadow:var(--sh-lg);opacity:0;pointer-events:none;transition:opacity .3s,transform .3s;white-space:nowrap}
+#toast:empty{display:none}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
 
 /* ============ GEO 认知阶梯 ============ */
@@ -1125,7 +1126,12 @@ let chartInstance = null;
 // ===== 工具 =====
 function toast(msg, dur=2800){
   const t=document.getElementById("toast");t.textContent=msg;
-  t.classList.add("show");setTimeout(()=>t.classList.remove("show"),dur);
+  t.classList.add("show");
+  setTimeout(()=>{
+    t.classList.remove("show");
+    // 淡出动画结束后清空内容，让 :empty 生效，彻底不留痕迹
+    setTimeout(()=>{ if(!t.classList.contains("show")) t.textContent=""; }, 320);
+  },dur);
 }
 function switchTab(m){
   authMode=m;
