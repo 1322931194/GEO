@@ -1704,9 +1704,63 @@ function renderContentsTab(d){
   c.innerHTML=html;
 }
 
+// 健壮的复制函数：兼容 HTTPS/HTTP、微信浏览器、手机等各种环境
+function safeCopy(text, okMsg){
+  okMsg = okMsg || "✅ 已复制";
+  // 方案1：现代 clipboard API（需要 HTTPS）
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(text).then(
+      ()=>toast(okMsg),
+      ()=>fallbackCopy(text, okMsg)
+    );
+  } else {
+    fallbackCopy(text, okMsg);
+  }
+}
+function fallbackCopy(text, okMsg){
+  // 方案2：execCommand 降级（兼容老浏览器、HTTP、微信）
+  try{
+    const ta=document.createElement("textarea");
+    ta.value=text;
+    ta.style.cssText="position:fixed;left:-9999px;top:0;opacity:0";
+    ta.setAttribute("readonly","");
+    document.body.appendChild(ta);
+    ta.select();
+    ta.setSelectionRange(0, text.length); // 手机端需要
+    const ok=document.execCommand("copy");
+    document.body.removeChild(ta);
+    if(ok){ toast(okMsg); }
+    else{ showManualCopy(text); }
+  }catch(e){
+    showManualCopy(text);
+  }
+}
+function showManualCopy(text){
+  // 方案3：都失败，弹出文本让用户手动长按复制
+  const modal=document.createElement("div");
+  modal.style.cssText="position:fixed;inset:0;background:rgba(38,34,28,.6);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.onclick=(e)=>{if(e.target===modal)modal.remove();};
+  modal.innerHTML=`<div style="background:var(--panel);border-radius:14px;max-width:420px;width:100%;padding:22px">
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px">长按下方文字全选复制</div>
+    <textarea readonly style="width:100%;height:200px;padding:12px;border:1px solid var(--line);border-radius:8px;font-size:13px;font-family:inherit;line-height:1.6" onclick="this.select()">${text.replace(/</g,'&lt;')}</textarea>
+    <button class="btn-ghost" style="width:100%;margin-top:12px" onclick="this.closest('div[style*=fixed]').remove()">关闭</button>
+  </div>`;
+  document.body.appendChild(modal);
+}
+
+function formatContent(body){
+  if(!body) return "";
+  let t=body.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  t=t.replace(/^##\s*(.+)$/gm,'<div style="font-size:15px;font-weight:700;color:var(--ink);margin:14px 0 6px">$1</div>');
+  t=t.replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+  t=t.replace(/\n/g,"<br>");
+  return t;
+}
+
 function copyContent(id){
   const ta=document.getElementById("content_"+id);
-  navigator.clipboard.writeText(ta.value).then(()=>toast("✅ 全文已复制，去发布吧！"));
+  if(!ta){ toast("内容未找到"); return; }
+  safeCopy(ta.value, "✅ 全文已复制，去发布吧！");
 }
 
 async function togglePublished(id){
@@ -1733,7 +1787,7 @@ function showApprovalLink(url){
     <div style="font-size:19px;font-weight:800;margin-bottom:8px">审批链接已生成</div>
     <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:20px">把下面的链接发给老板（微信/钉钉都行）。<br>老板点开就是一个极简页面，只有"同意发布"和"打回重写"两个按钮，无需登录。</div>
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;font-size:12px;color:var(--ink);word-break:break-all;margin-bottom:16px;font-family:monospace">${url}</div>
-    <button class="btn-cyan" style="width:100%;padding:13px;margin-bottom:10px" onclick="navigator.clipboard.writeText('${url}').then(()=>toast('✅ 链接已复制'))">📋 复制链接发给老板</button>
+    <button class="btn-cyan" style="width:100%;padding:13px;margin-bottom:10px" onclick="safeCopy('${url}','✅ 链接已复制')">📋 复制链接发给老板</button>
     <button class="btn-ghost" style="width:100%" onclick="this.closest('div[style*=fixed]').remove()">关闭</button>
   </div>`;
   document.body.appendChild(modal);
@@ -1829,7 +1883,7 @@ function renderReferral(d){
 
 function copyInviteLink(){
   const inp = document.getElementById("inviteLink");
-  navigator.clipboard.writeText(inp.value).then(()=>toast("✅ 邀请链接已复制，去分享吧！"));
+  safeCopy(inp.value,"✅ 邀请链接已复制，去分享吧！");
 }
 
 function backFromReferral(){
@@ -2391,7 +2445,7 @@ async function showTrackingCode(bid){
         </div>
         <p style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px">${d.install_guide}</p>
         <div style="background:var(--ink);color:#e2e8f0;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;line-height:1.6;margin-bottom:14px" id="trackCode">${d.tracking_code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-        <button class="btn-primary" style="width:100%" onclick="navigator.clipboard.writeText(document.getElementById('trackCode').innerText).then(()=>toast('✅ 追踪代码已复制'))">📋 复制追踪代码</button>
+        <button class="btn-primary" style="width:100%" onclick="safeCopy(document.getElementById('trackCode').innerText,'✅ 追踪代码已复制')">📋 复制追踪代码</button>
         <div style="background:#f0f4ff;border-radius:8px;padding:12px;margin-top:14px;font-size:12px;color:var(--brand-ink);line-height:1.6">
           💡 安装后，访客从 ChatGPT、Perplexity、DeepSeek 等 AI 平台点链接进入你官网时会被自动记录。回到这个看板就能看到 AI 给你带来了多少真实访客。
         </div>
@@ -2870,7 +2924,7 @@ async function genContent(question, idx){
     area.innerHTML=`<div class="content-out">
       <h3>📄 ${c.title||"已生成内容"}</h3>
       ${renderComplianceShield(c.compliance)}
-      <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,"").replace(/\*\*/g,"")}</div>
+      <div class="body-text">${formatContent(c.body||"")}</div>
       ${c.publish_tip?`<div class="tip">💡 ${c.publish_tip}</div>`:""}
       <div class="action-order" style="margin-top:14px">
         <div class="ao-title">📤 行动工单：把这篇内容发到这些地方，AI 才能"看到"你</div>
@@ -2896,7 +2950,7 @@ async function genContent(question, idx){
 
 function copyContent(btn){
   const text=btn.closest(".content-out").querySelector(".body-text").innerText;
-  navigator.clipboard.writeText(text).then(()=>toast("✅ 已复制到剪贴板"));
+  safeCopy(text,"✅ 已复制到剪贴板");
 }
 
 // ===== 提升方案 =====
@@ -2973,7 +3027,7 @@ async function genTaskContent(target,ctype){
     area.innerHTML=`<div class="content-out">
       <h3>📄 ${c.title||"已生成内容"}</h3>
       ${renderComplianceShield(c.compliance)}
-      <div class="body-text">${(c.body||"").replace(/</g,"&lt;").replace(/##\s*/g,"").replace(/\*\*/g,"")}</div>
+      <div class="body-text">${formatContent(c.body||"")}</div>
       ${c.publish_tip?`<div class="tip">💡 ${c.publish_tip}</div>`:""}
       <div class="action-order" style="margin-top:14px">
         <div class="ao-title">📤 行动工单：发到这些地方效果最好</div>
@@ -3311,7 +3365,7 @@ async function genSchemaFaq(){
         ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--good);margin-top:10px">💡 ${data.publish_tip}</div>`:''}
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:linear-gradient(135deg,var(--good),#047857)"
-            onclick="navigator.clipboard.writeText(document.querySelector('pre').innerText).then(()=>toast('✅ Schema 代码已复制'))">
+            onclick="safeCopy(document.querySelector('pre').innerText,'✅ Schema 代码已复制')">
             📋 复制 Schema 代码
           </button>
         </div>
