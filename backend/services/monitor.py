@@ -136,6 +136,10 @@ class VisibilityReport:
     gaps: list = field(default_factory=list)               # 发现的缺口(可一键修复)
     raw_results: list = field(default_factory=list)
     sample_note: str = ""                        # 采样口径说明(合规要求,必须标注)
+    geo_score: int = 0                           # GEO综合评分(0-100)
+    geo_grade: str = ""                          # 等级:优秀/良好/待提升/危险
+    geo_grade_desc: str = ""                     # 等级说明
+    geo_score_detail: dict = field(default_factory=dict)  # 各维度得分
 
 
 # ----------------------------------------------------------------------------
@@ -556,6 +560,41 @@ def _aggregate(brand, questions, competitors, available, results,
         f"数据为采样估计，建议监测 2-3 次观察稳定趋势。"
     )
 
+    # ===== 见微 GEO 综合评分（0-100）=====
+    # 把已有的多个指标聚合成一个总分，让报告更专业、更有"工具感"。
+    # 纯计算，不新增任何监测，不改动现有数据。
+    # 权重：提及率40% + 位置分20% + 竞品优势20% + 信源覆盖20%
+    # ① 提及率得分（直接用百分比）
+    s_mention = mention_rate
+    # ② 位置分（已是0-100）
+    s_position = avg_position
+    # ③ 竞品优势：你的提及率 vs 最强竞品份额，相对表现
+    top_comp_share = max(comp_share.values()) if comp_share else 0
+    if mention_rate + top_comp_share > 0:
+        s_competitor = round(100 * mention_rate / (mention_rate + top_comp_share), 1)
+    else:
+        s_competitor = 0
+    # ④ 信源覆盖：被引用源数量，封顶10个算满分
+    s_source = min(100, len(all_sources) * 10)
+    # 加权综合
+    geo_score = round(
+        s_mention * 0.4 + s_position * 0.2 + s_competitor * 0.2 + s_source * 0.2
+    )
+    geo_score = max(0, min(100, geo_score))
+    # 等级
+    if geo_score >= 75:
+        geo_grade, geo_grade_desc = "优秀", "AI 已经很认可你，继续保持领先"
+    elif geo_score >= 50:
+        geo_grade, geo_grade_desc = "良好", "有一定基础，重点补强弱项可冲优秀"
+    elif geo_score >= 25:
+        geo_grade, geo_grade_desc = "待提升", "AI 对你印象不深，需系统优化内容"
+    else:
+        geo_grade, geo_grade_desc = "危险", "AI 几乎不推荐你，急需行动占位"
+    geo_score_detail = {
+        "mention": round(s_mention), "position": round(s_position),
+        "competitor": round(s_competitor), "source": round(s_source),
+    }
+
     return VisibilityReport(
         brand=brand,
         generated_at=datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(),
@@ -570,4 +609,8 @@ def _aggregate(brand, questions, competitors, available, results,
         gaps=sorted(gaps, key=lambda g: 0 if g["priority"] == "high" else 1),
         raw_results=[r.__dict__ for r in results],
         sample_note=sample_note,
+        geo_score=geo_score,
+        geo_grade=geo_grade,
+        geo_grade_desc=geo_grade_desc,
+        geo_score_detail=geo_score_detail,
     )
