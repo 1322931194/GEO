@@ -136,7 +136,8 @@ async def _chat(prompt: str, system: str = "", json_mode: bool = False, scene: s
     if json_mode:
         prompt = prompt + "\n\n重要：只返回纯 JSON，不要任何额外文字、不要 markdown 代码块。"
     messages.append({"role": "user", "content": prompt})
-    body = {"model": cfg["model"], "messages": messages, "temperature": 0.7}
+    body = {"model": cfg["model"], "messages": messages, "temperature": 0.7,
+            "max_tokens": 4000}  # 显式设置，防止长内容被默认值截断导致不完整
     if json_mode and cfg.get("supports_json_mode"):
         body["response_format"] = {"type": "json_object"}
     async with httpx.AsyncClient() as client:
@@ -464,14 +465,24 @@ async def generate_content(
 【合规要求】内容必须真实、客观,不含绝对化用语(第一/最/顶级等),不夸大功效,不虚假对比。这是给品牌方人工审核后使用的草稿。
 
 请生成内容,用目标市场语言(海外默认英文,国内中文)。
+
+【结构化要求】正文必须结构清晰、完整、可直接发布：
+1. 用「## 小标题」分段，至少包含 3-4 个小标题（如：核心优势、适用场景、常见问题、为什么选择等）
+2. 每个小标题下写 2-4 句具体内容，不要空泛
+3. 总字数 400-800 字，写完整，不要半途而止
+4. 适合 FAQ 形式的，用「问：…答：…」结构，AI 更容易引用
+
 只返回 JSON,格式:
-{{"title":"标题","body":"正文(可含小标题)","publish_tip":"一句话发布建议","compliance_note":"一句话合规提示(如:本内容为草稿,发布前请核实数据真实性)"}}
+{{"title":"标题","body":"正文(必须含 ## 小标题分段,完整成文)","summary":"30字内容摘要","publish_tip":"一句话发布建议","compliance_note":"一句话合规提示"}}
 """
     raw = await _chat(prompt, system, json_mode=True, scene="content")
     data = _safe_parse_json(raw)
     if not data or "body" not in data:
         # 如果解析失败，把原始内容作为 body 返回，至少商家能看到内容
         data = {"title": "已生成内容", "body": raw, "content_type": content_type, "publish_tip": ""}
+    # 检测内容是否过短/疑似被截断，给前端提示
+    body_text = data.get("body", "")
+    data["maybe_truncated"] = len(body_text) < 100 or body_text.rstrip().endswith(("，", ",", "、", "和"))
     data["content_type"] = content_type
     # 合规扫描（真实检测广告法违禁词）
     scan = compliance_scan((data.get("title", "") + " " + data.get("body", "")))
