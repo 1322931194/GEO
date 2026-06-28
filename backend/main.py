@@ -36,11 +36,41 @@ from services.knowledge import build_knowledge_base
 from services.optimizer import diagnose_score, build_action_plan, compare_reports, estimate_monthly_loss
 from services.keyword_opportunity import analyze_keyword_opportunities
 
-JWT_SECRET = os.getenv("JWT_SECRET", secrets.token_hex(32))
+import logging as _logging
+_sec_logger = _logging.getLogger("geo.security")
+
+# JWT 密钥：生产环境必须通过环境变量配置，否则每次重启会让所有用户登出
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    JWT_SECRET = secrets.token_hex(32)
+    _sec_logger.warning(
+        "⚠️ 未配置 JWT_SECRET 环境变量！当前使用临时密钥，"
+        "服务重启后所有用户将被强制登出。生产环境请务必在 Render 配置 JWT_SECRET。"
+    )
+
 app = FastAPI(title="GEO 雷达 API", version="1.0.0")
 
+# CORS：限制允许的来源，防止恶意网站盗用用户 token 调用 API。
+# 通过 ALLOWED_ORIGINS 环境变量配置（逗号分隔），未配置则用默认白名单。
+_allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+if _allowed_origins_env:
+    _allowed_origins = [o.strip() for o in _allowed_origins_env.split(",") if o.strip()]
+else:
+    # 默认白名单：你的线上域名 + 本地开发
+    _allowed_origins = [
+        "https://geo-radar.onrender.com",
+        "https://jianwei.uno",
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+    ]
+
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=_allowed_origins,
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 from services.call_tracker import drain as _drain_calls, cost_of as _cost_of
@@ -183,8 +213,12 @@ def _gen_invite_code() -> str:
     return "".join(secrets.choice(chars) for _ in range(6))
 
 
-def _make_token(user_id: int) -> str:
-    payload = {"uid": user_id, "exp": datetime.utcnow() + timedelta(days=30)}
+def _make_token(user_id: int, token_version: int = 0) -> str:
+    payload = {
+        "uid": user_id,
+        "tv": token_version,   # token版本号，改密码时旧token失效
+        "exp": datetime.utcnow() + timedelta(days=30),
+    }
     return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
 
@@ -200,6 +234,9 @@ def current_user(authorization: str = Header(None),
     user = session.get(User, payload["uid"])
     if not user:
         raise HTTPException(401, "用户不存在")
+    # token版本校验：改密码后旧token的tv会对不上，强制失效（防token被盗后长期有效）
+    if payload.get("tv", 0) != getattr(user, "token_version", 0):
+        raise HTTPException(401, "登录状态已失效，请重新登录")
     return user
 
 
@@ -279,7 +316,7 @@ def register(req: RegisterReq, request: Request, session: Session = Depends(get_
         session.add(ref)
         session.commit()
 
-    return {"token": _make_token(user.id), "plan": user.plan,
+    return {"token": _make_token(user.id, getattr(user, "token_version", 0)), "plan": user.plan,
             "plan_info": plan_of(user)}
 
 
@@ -299,7 +336,7 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
         user.password_hash = _make_pw_hash(req.password)
         session.add(user)
         session.commit()
-    return {"token": _make_token(user.id), "plan": user.plan,
+    return {"token": _make_token(user.id, getattr(user, "token_version", 0)), "plan": user.plan,
             "plan_info": plan_of(user)}
 
 
