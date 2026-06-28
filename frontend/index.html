@@ -591,7 +591,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   <div class="lp-stats">
     <div class="lp-stat glass"><div class="num">89%</div><div class="desc">B2B 买家用 AI 做采购研究</div><div class="src">Forrester 2024</div></div>
     <div class="lp-stat glass"><div class="num">25%</div><div class="desc">传统搜索流量将下降（预测）</div><div class="src">Gartner（2026 预测）</div></div>
-    <div class="lp-stat glass"><div class="num">多平台</div><div class="desc">AI 平台同步监测覆盖</div><div class="src">国内外双引擎</div></div>
+    <div class="lp-stat glass"><div class="num">7%</div><div class="desc">AI 推荐流量转化率（高于传统搜索 5%）</div><div class="src">Similarweb</div></div>
     <div class="lp-stat glass"><div class="num">30 秒</div><div class="desc">出体检结果</div><div class="src">即时反馈</div></div>
   </div>
 
@@ -1012,6 +1012,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repPlatformNote"></div>
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
+              <div id="repCitations"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2773,11 +2774,49 @@ function renderReport(rep){
   document.getElementById("repNote").textContent="📊 "+rep.sample_note;
   document.getElementById("contentArea").innerHTML="";
 
+  // 引用源影响力分析（对标 Similarweb 引用分析）
+  renderCitations(rep);
   // 缺口过大/提及率过低 → 插入深度包导流卡
   renderDeepPackCta(rep);
   loadImprovePlan();
   loadProgress();
   loadMonthlyLoss();
+}
+
+// 引用源分析：告诉商家 AI 信任哪些网站，该去哪发内容
+function renderCitations(rep){
+  const el=document.getElementById("repCitations");
+  if(!el) return;
+  const targets=rep.citation_targets||[];
+  if(!targets.length){ el.innerHTML=""; return; }
+  // 品牌还没出现的高影响力源 = 优先攻克目标
+  const todo=targets.filter(t=>!t.brand_present);
+  const done=targets.filter(t=>t.brand_present);
+  let html=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">📡 AI 信任的信息源（引用分析）</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">AI 回答时会引用它信任的网站来背书。想被 AI 推荐，你的品牌要出现在这些"高信誉节点"上。下面是 AI 在你所在领域引用最多的源。</div>`;
+  if(todo.length){
+    html+=`<div style="font-size:13px;font-weight:600;color:var(--clay);margin-bottom:8px">🎯 优先攻克（AI 高频引用，但还没有你）</div>`;
+    html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">`;
+    todo.slice(0,8).forEach(t=>{
+      html+=`<div style="display:flex;align-items:center;justify-content:space-between;background:#fdf3f2;border:1px solid #f0d8d4;border-radius:8px;padding:9px 12px">
+        <span style="font-size:13px;font-weight:600;word-break:break-all">${escHtml(t.source)}</span>
+        <span style="font-size:11px;color:var(--clay);white-space:nowrap;margin-left:8px">被引用 ${t.cited_count} 次</span>
+      </div>`;
+    });
+    html+=`</div>`;
+    html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6">💡 行动建议：想办法在以上网站发布或被提及（投稿、合作、问答、评测），让 AI 在这些它信任的地方"看到"你。</div>`;
+  }
+  if(done.length){
+    html+=`<div style="font-size:13px;font-weight:600;color:var(--good);margin:14px 0 8px">✅ 已露出（你已出现在这些 AI 信任的源）</div>`;
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    done.slice(0,8).forEach(t=>{
+      html+=`<span style="font-size:12px;background:#f0f5ee;color:var(--good);border-radius:6px;padding:4px 10px">${escHtml(t.source)}</span>`;
+    });
+    html+=`</div>`;
+  }
+  html+=`</div>`;
+  el.innerHTML=html;
 }
 
 // 缺口过大时，导流高意向客户到客服深度包
