@@ -244,12 +244,25 @@ def plan_of(user: User) -> dict:
     return PLANS.get(user.plan, PLANS["trial"])
 
 
+# 一次性/临时邮箱域名黑名单（垃圾注册最常用，拦掉它们零摩擦防滥用）
+DISPOSABLE_EMAIL_DOMAINS = {
+    "mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com",
+    "temp-mail.org", "throwawaymail.com", "yopmail.com", "getnada.com",
+    "trashmail.com", "maildrop.cc", "fakeinbox.com", "sharklasers.com",
+    "guerrillamailblock.com", "dispostable.com", "mailnesia.com", "mintemail.com",
+    "tempinbox.com", "spamgourmet.com", "mytemp.email", "tempmailo.com",
+    "33mail.com", "emailondeck.com", "mohmal.com", "linshiyouxiang.net",
+    "0-mail.com", "1secmail.com", "mail-temp.com", "burnermail.io",
+}
+
+
 # ----------------------------- 请求模型 -----------------------------
 
 class RegisterReq(BaseModel):
     email: str
     password: str
     invite_code: str = ""   # 邀请码（可选，分销用）
+    email_code: str = ""    # 邮箱验证码（仅启用邮箱验证时需要）
 
 class BrandReq(BaseModel):
     name: str
@@ -268,6 +281,34 @@ class GenContentReq(BaseModel):
 
 # ----------------------------- 账号接口 -----------------------------
 
+class SendCodeReq(BaseModel):
+    email: str
+
+@app.post("/api/send-email-code")
+def send_email_code(req: SendCodeReq, request: Request):
+    """获取邮箱验证码（仅当启用邮箱验证时有效）。"""
+    from services.email_verify import is_email_verify_enabled, send_code
+    if not is_email_verify_enabled():
+        return {"ok": True, "enabled": False}  # 未启用，前端无需走验证码
+    # 限流：同IP每小时最多10次
+    _rate_limit(f"sendcode:{_client_ip(request)}", max_calls=10, window_sec=3600)
+    email = req.email.strip().lower()
+    import re as _re
+    if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(400, "邮箱格式不正确")
+    ok, msg = send_code(email)
+    if not ok:
+        raise HTTPException(400, msg)
+    return {"ok": True, "enabled": True, "dev_mode": msg == "dev"}
+
+
+@app.get("/api/auth-config")
+def auth_config():
+    """前端查询是否需要邮箱验证（决定要不要显示验证码输入框）。"""
+    from services.email_verify import is_email_verify_enabled
+    return {"require_email_verify": is_email_verify_enabled()}
+
+
 @app.post("/api/register")
 def register(req: RegisterReq, request: Request, session: Session = Depends(get_session)):
     # 限流：同一IP每小时最多注册5个账号，防批量注册
@@ -278,6 +319,10 @@ def register(req: RegisterReq, request: Request, session: Session = Depends(get_
     import re as _re
     if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         raise HTTPException(400, "邮箱格式不正确")
+    # 拦截一次性/临时邮箱（垃圾注册最常用），真实用户无感
+    domain = email.split("@")[-1]
+    if domain in DISPOSABLE_EMAIL_DOMAINS:
+        raise HTTPException(400, "请使用常用邮箱注册（不支持临时邮箱）")
     # 密码强度：至少8位，且不能是纯数字或纯字母（防弱密码）
     pw = req.password
     if len(pw) < 8:
@@ -287,6 +332,12 @@ def register(req: RegisterReq, request: Request, session: Session = Depends(get_
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
         raise HTTPException(400, "该邮箱已注册")
+
+    # 邮箱验证码校验（仅当 REQUIRE_EMAIL_VERIFY=true 时启用，默认关闭不影响转化）
+    from services.email_verify import is_email_verify_enabled, verify_code
+    if is_email_verify_enabled():
+        if not verify_code(email, req.email_code):
+            raise HTTPException(400, "验证码错误或已过期，请重新获取")
 
     # 处理邀请码：找到推荐人
     referrer = None
