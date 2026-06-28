@@ -393,8 +393,28 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
 
 @app.get("/api/me")
 def me(user: User = Depends(current_user)):
-    return {"email": user.email, "plan": user.plan, "plan_info": plan_of(user),
-            "trial_ends_at": user.trial_ends_at}
+    plan = plan_of(user)
+    monitor_limit = plan.get("monitor_limit", 999)
+    used = getattr(user, "monitor_count", 0) or 0
+    # 用量透明：让商家清楚扣费逻辑和剩余额度
+    if monitor_limit >= 999:
+        remaining_text = "不限次"
+        remaining = -1
+    else:
+        remaining = max(0, monitor_limit - used)
+        remaining_text = f"{remaining} 次"
+    return {
+        "email": user.email, "plan": user.plan, "plan_info": plan,
+        "trial_ends_at": user.trial_ends_at,
+        "usage": {
+            "monitor_used": used,              # 已用监测次数
+            "monitor_limit": monitor_limit,    # 套餐总次数
+            "monitor_remaining": remaining,    # 剩余次数（-1=不限）
+            "remaining_text": remaining_text,
+            "samples_per_question": plan.get("samples", 1),  # 每题采样次数
+            "billing_note": "计费方式：按「完整监测」次数计。一次监测 = 用问题集跑一遍所有已配置的AI平台。内容生成、知识库提取不单独计费。",
+        },
+    }
 
 
 # ----------------------------- 品牌接口 -----------------------------
