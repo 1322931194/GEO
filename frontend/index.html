@@ -1026,6 +1026,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="repReadiness"></div>
+              <div id="repSOP"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2177,22 +2178,25 @@ async function loadROI(){
     const html=`
     <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
-        <div style="font-size:14px;font-weight:600">💰 ROI 转化归因</div>
-        <button class="btn-ghost" style="font-size:12px;padding:6px 14px" onclick="showAddConversion()">+ 登记一笔转化</button>
+        <div style="font-size:14px;font-weight:600">💰 AI 带来的真实回报</div>
+        <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="showAddConversion()">+ 登记一笔成交</button>
+      </div>
+      <div style="background:#fffbeb;border:1px solid #f5e4b8;border-radius:8px;padding:10px 14px;font-size:12px;color:#92722a;line-height:1.6;margin-bottom:14px">
+        💡 重要说明：AI 经常不带链接、或用户看完总结就直接行动了，所以「自动追踪到的访客」只是 <b>AI 真实影响的冰山一角</b>，实际远不止这些。最准的方式是：你知道哪个客户是看了 AI 推荐来的，就点「登记一笔成交」记下来。
       </div>
       ${(d.visits||d.conversions)?`
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px;margin-bottom:16px">
-          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800">${d.visits}</div><div style="font-size:11px;color:var(--ink-soft)">AI 访客</div></div>
-          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--cyan)">${d.conversions}</div><div style="font-size:11px;color:var(--ink-soft)">转化数</div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800">${d.visits}</div><div style="font-size:11px;color:var(--ink-soft)">可追踪访客<br><span style="font-size:9px;color:var(--ink-faint)">(仅点击的)</span></div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--cyan)">${d.conversions}</div><div style="font-size:11px;color:var(--ink-soft)">登记成交</div></div>
           <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--warn)">${d.conversion_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">转化率</div></div>
-          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--good)">¥${d.total_value}</div><div style="font-size:11px;color:var(--ink-soft)">转化价值</div></div>
+          <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--good)">¥${d.total_value}</div><div style="font-size:11px;color:var(--ink-soft)">成交价值</div></div>
         </div>
-        ${srcRows?`<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--ink-soft)"><th style="padding:6px">来源平台</th><th>访客</th><th>转化</th><th>价值</th></tr>${srcRows}</table>`:''}
+        ${srcRows?`<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--ink-soft)"><th style="padding:6px">来源平台</th><th>访客</th><th>成交</th><th>价值</th></tr>${srcRows}</table>`:''}
         <div style="font-size:11px;color:var(--ink-faint);margin-top:12px">${d.note}</div>
       `:`
         <div style="text-align:center;padding:24px;color:var(--ink-soft)">
-          <div style="font-size:14px;margin-bottom:8px">还没有转化数据</div>
-          <div style="font-size:12px;line-height:1.6">安装追踪代码后，AI 访客的留资/下单会自动归因；<br>也可以点上方"登记一笔转化"手动记录，看清 AI 带来的真实回报。</div>
+          <div style="font-size:14px;margin-bottom:8px">还没有成交记录</div>
+          <div style="font-size:12px;line-height:1.6">最实用的方式：当你成交了一个客户、且知道他是看了 AI 推荐来的，<br>就点上方"登记一笔成交"记下来。日积月累，就有了 AI 带来真实回报的铁证。</div>
         </div>
       `}
     </div>`;
@@ -2831,10 +2835,10 @@ function renderReport(rep){
       <div class="val" style="color:var(--bad)">${topComp?topComp[1]:0}%</div>
       <div class="delta">${topComp?"主要被 "+topComp[0]+" 占据":"暂无竞品压制"}</div>
     </div>
-    <div class="metric blue">
+    <div class="metric blue" style="cursor:pointer" onclick="document.getElementById('repCitations')?.scrollIntoView({behavior:'smooth'})">
       <div class="lab">被引用来源数</div>
       <div class="val">${rep.source_count}</div>
-      <div class="delta">AI 引用的外部站点</div>
+      <div class="delta" style="color:var(--cyan)">👇 点击看该攻克哪些 →</div>
     </div>`;
 
   // 提及率为0的危机横幅（把尴尬的0变成成交钩子）
@@ -2900,6 +2904,8 @@ function renderReport(rep){
   renderRivalMatrix(rep);
   // AI 可读性自检清单（对标 Scrunch，纯增量内容功能）
   renderReadiness(rep);
+  // 保姆级作战 SOP（根据本次报告生成一步步该做什么）
+  renderSOP(rep);
   // 缺口过大/提及率过低 → 插入深度包导流卡
   renderDeepPackCta(rep);
   loadImprovePlan();
@@ -2923,6 +2929,77 @@ function sourceAdvice(src){
   if(s.includes("amazon")||s.includes("taobao")||s.includes("jd")) return "优化电商平台的产品详情和评价";
   if(s.includes("zhidao")||s.includes("wenda")) return "在问答平台布局相关问题";
   return "争取在该网站发布内容或被提及";
+}
+
+// 保姆级作战 SOP：根据本次报告，生成商家"接下来一步步该做什么"
+function renderSOP(rep){
+  const el=document.getElementById("repSOP");
+  if(!el) return;
+  const steps=[];
+  const rate=rep.mention_rate||0;
+  const gaps=rep.gaps||[];
+  const targets=(rep.citation_targets||[]).filter(t=>!t.brand_present);
+  const topics=rep.by_topic||[];
+
+  // 第1步：根据提及率定基调
+  if(rate<15){
+    steps.push({n:1,t:"先止血：AI 几乎不推你",
+      d:`你的提及率只有 ${rate}%，属于危险区。当务之急是让 AI"知道你存在"。重点做下面 2-3 步，别贪多。`,
+      action:null});
+  }else if(rate<45){
+    steps.push({n:1,t:"有基础，重点补强弱项",
+      d:`提及率 ${rate}%，AI 对你有印象但不够深。下面针对性补强，性价比最高。`,
+      action:null});
+  }else{
+    steps.push({n:1,t:"表现不错，巩固并扩大领先",
+      d:`提及率 ${rate}%，AI 比较认可你。继续保持内容更新，盯住竞品别被反超。`,
+      action:null});
+  }
+
+  // 第2步：补内容缺口（如果有）
+  if(gaps.length){
+    const topGap=gaps[0];
+    steps.push({n:steps.length+1,t:`补内容缺口：${gaps.length} 个问题 AI 没提到你`,
+      d:`最该补的是「${escHtml((topGap.question||'').slice(0,30))}…」这类问题。`,
+      action:{label:"🧠 去内容工作台一键生成",fn:"navTo('ws')"}});
+  }
+
+  // 第3步：攻克引用源（如果有）
+  if(targets.length){
+    const t0=targets[0];
+    steps.push({n:steps.length+1,t:`占领信息源：${t0.source} 等 ${targets.length} 个`,
+      d:`AI 高频引用这些网站但还没有你。${sourceAdvice(t0.source)}。这是让 AI"看到你"最快的路。`,
+      action:{label:"📡 查看完整攻克清单",fn:"document.getElementById('repCitations')?.scrollIntoView({behavior:'smooth'})"}});
+  }
+
+  // 第4步：补最弱主题（如果有）
+  if(topics.length>=2){
+    const weakest=topics[0];
+    steps.push({n:steps.length+1,t:`补强最弱主题：${escHtml(weakest.topic)}`,
+      d:`你在「${escHtml(weakest.topic)}」主题上提及率最低（${weakest.rate}%）。围绕这个主题集中写 2-3 篇内容。`,
+      action:null});
+  }
+
+  // 第5步：固定动作
+  steps.push({n:steps.length+1,t:"7 天后再测一次",
+    d:"GEO 是持续战。发了内容后过一周再监测，看提及率有没有涨，形成「测→改→再测」的循环。",
+    action:null});
+
+  let stepHtml=steps.map(s=>`
+    <div style="display:flex;gap:14px;margin-bottom:16px">
+      <div style="flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--ink);color:#f4f1ea;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700">${s.n}</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">${s.t}</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6">${s.d}</div>
+        ${s.action?`<button class="btn-primary" style="font-size:12px;padding:6px 14px;margin-top:8px" onclick="${s.action.fn}">${s.action.label}</button>`:''}
+      </div>
+    </div>`).join("");
+
+  el.innerHTML=`<div class="section-card" style="margin-top:20px;background:linear-gradient(135deg,#fbf9f4,#f4f1ea)">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 你的专属作战 SOP</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">不用想"接下来干啥"——根据你这次的报告，我帮你排好了优先级。照着做就行。</div>
+    ${stepHtml}
+  </div>`;
 }
 
 // AI 可读性自检清单（对标 Scrunch：让官网更容易被 AI 读懂引用）
