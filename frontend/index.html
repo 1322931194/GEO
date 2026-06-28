@@ -1150,6 +1150,15 @@ async function api(path,opts={}){
   opts.headers={...(opts.headers||{}),"Content-Type":"application/json"};
   if(token) opts.headers["Authorization"]="Bearer "+token;
   const r=await fetch(API+path,opts);
+  if(r.status===401){
+    // token失效/过期：清除并跳回登录，避免用户卡在报错页
+    safeStore.remove("geo_token");
+    token=null;
+    const e=await r.json().catch(()=>({detail:"登录已过期"}));
+    toast("⚠️ "+(e.detail||"登录已过期，请重新登录"));
+    setTimeout(()=>{ try{ resetAppState(); }catch(_){}; gotoAuth("login"); }, 800);
+    throw new Error(e.detail||"登录已过期");
+  }
   if(!r.ok){const e=await r.json().catch(()=>({detail:"请求失败"}));throw new Error(e.detail)}
   return r.json();
 }
