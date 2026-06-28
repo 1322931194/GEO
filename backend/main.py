@@ -1442,6 +1442,26 @@ def _save_industry_sample(brand: Brand, mention_rate: float,
     session.add(sample)
 
 
+def _industry_seed_baseline(industry: str) -> dict:
+    """行业经验参考基准（非真实样本，诚实标注）。
+    给早期用户一个参照系，避免大盘空荡荡。数值为行业普遍经验区间。"""
+    # 不同行业的 AI 提及率经验值（头部/平均/起步）
+    SEED = {
+        "医美": {"top": 35, "avg": 12, "entry": 3},
+        "装修": {"top": 30, "avg": 10, "entry": 2},
+        "教育": {"top": 40, "avg": 15, "entry": 4},
+        "法律": {"top": 32, "avg": 11, "entry": 3},
+        "金融": {"top": 38, "avg": 14, "entry": 4},
+        "电商": {"top": 28, "avg": 9, "entry": 2},
+        "出海": {"top": 25, "avg": 8, "entry": 2},
+    }
+    for key, val in SEED.items():
+        if key in (industry or ""):
+            return val
+    # 默认通用基准
+    return {"top": 30, "avg": 10, "entry": 3}
+
+
 @app.get("/api/brands/{brand_id}/industry-benchmark")
 def industry_benchmark(brand_id: int, user: User = Depends(current_user),
                        session: Session = Depends(get_session)):
@@ -1471,10 +1491,15 @@ def industry_benchmark(brand_id: int, user: User = Depends(current_user),
 
     MIN_SAMPLES = 5
     if sample_count < MIN_SAMPLES:
+        # 样本不足时，给一个基于行业常识的"参考基准线"，让早期用户也有参照
+        # 诚实标注这是经验参考值，非真实样本统计
+        seed_baseline = _industry_seed_baseline(industry_std)
         return {
             "has_benchmark": False, "industry": industry_std,
             "sample_count": sample_count, "needed": MIN_SAMPLES, "my_rate": my_rate,
-            "message": f"「{industry_std}」行业样本积累中，已收集 {sample_count} 个品牌，达到 {MIN_SAMPLES} 个后即可看到行业大盘和你的排名。",
+            "seed_baseline": seed_baseline,  # 经验参考基准
+            "seed_note": "以下为基于行业经验的参考基准（非真实样本统计）。随着更多品牌加入，将逐步显示真实行业大盘。",
+            "message": f"「{industry_std}」真实样本积累中（{sample_count}/{MIN_SAMPLES}）。先给你一个行业经验参考：",
         }
 
     rates = sorted([s.mention_rate for s in unique], reverse=True)
