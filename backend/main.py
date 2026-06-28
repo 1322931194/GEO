@@ -437,7 +437,15 @@ async def gen_questions(brand_id: int, user: User = Depends(current_user),
 async def monitor(brand_id: int, user: User = Depends(current_user),
                   session: Session = Depends(get_session)):
     brand = _owned_brand(brand_id, user, session)
-    questions = [q["question"] for q in json.loads(brand.questions_json or "[]")]
+    q_list = json.loads(brand.questions_json or "[]")
+    questions = [q["question"] for q in q_list]
+    # 问题→主题 映射（用于主题维度细分，对标 Goodie Segment by topic）
+    q_to_topic = {}
+    for q in q_list:
+        topic = q.get("category", "") or "其他"
+        # 简化主题名（去掉括号说明，取核心词）
+        topic = topic.split("（")[0].split("(")[0].strip()
+        q_to_topic[q["question"]] = topic
     if not questions:
         raise HTTPException(400, "请先生成问题集再开始监测")
 
@@ -469,6 +477,81 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     # 更新监测次数
     user.monitor_count = user_count + 1
     session.add(user)
+
+    # ===== 异动预警（对标 Goodie 的 Catch shifts）=====
+    # 对比上一次报告：提及率骤降 / 冒出新竞品 / 竞品份额激增 → 主动预警
+    alerts = []
+    try:
+        prev = session.exec(
+            select(Report).where(Report.brand_id == brand.id)
+            .order_by(Report.generated_at.desc())
+        ).first()
+        if prev:
+            # ① 提及率变化
+            prev_rate = prev.mention_rate or 0
+            delta = round(report.mention_rate - prev_rate, 1)
+            if delta <= -5:
+                alerts.append({
+                    "type": "down", "level": "danger",
+                    "msg": f"提及率下降了 {abs(delta)} 个百分点（{prev_rate}% → {report.mention_rate}%），AI 推荐你的概率在降低，需尽快补内容。"
+                })
+            elif delta >= 5:
+                alerts.append({
+                    "type": "up", "level": "good",
+                    "msg": f"提及率上升了 {delta} 个百分点（{prev_rate}% → {report.mention_rate}%），优化见效了，继续保持！"
+                })
+            # ② 新竞品出现
+            try:
+                prev_comps = set(json.loads(prev.competitor_share_json or "{}").keys())
+                now_comps = set(report.competitor_share.keys())
+                new_comps = now_comps - prev_comps
+                if new_comps:
+                    alerts.append({
+                        "type": "new_competitor", "level": "warn",
+                        "msg": f"出现了新的竞争对手：{('、'.join(list(new_comps)[:3]))}。AI 开始推荐它们，建议关注。"
+                    })
+                # ③ 竞品份额激增（某竞品涨了≥10个点）
+                prev_share = json.loads(prev.competitor_share_json or "{}")
+                for comp, share in report.competitor_share.items():
+                    rise = share - prev_share.get(comp, 0)
+                    if rise >= 10:
+                        alerts.append({
+                            "type": "competitor_surge", "level": "warn",
+                            "msg": f"{comp} 的 AI 声量份额激增了 {round(rise)} 个百分点，正在快速抢占你的市场。"
+                        })
+                        break
+            except Exception:
+                pass
+    except Exception:
+        pass
+    report.alerts = alerts  # 挂到报告上返回前端
+
+    # ===== 主题维度细分（对标 Goodie Segment by topic）=====
+    # 把问题按主题聚合，算每个主题的提及率，让报告从"平台级"升到"主题级"
+    try:
+        topic_stats = {}
+        for r in (report.raw_results or []):
+            if r.get("error"):
+                continue
+            q = r.get("question", "")
+            topic = q_to_topic.get(q, "其他")
+            if topic not in topic_stats:
+                topic_stats[topic] = {"total": 0, "mentioned": 0}
+            topic_stats[topic]["total"] += 1
+            if r.get("brand_mentioned"):
+                topic_stats[topic]["mentioned"] += 1
+        by_topic = []
+        for topic, st in topic_stats.items():
+            if st["total"] > 0:
+                by_topic.append({
+                    "topic": topic,
+                    "rate": round(100 * st["mentioned"] / st["total"], 1),
+                    "total": st["total"],
+                })
+        by_topic.sort(key=lambda x: x["rate"])  # 表现最差的排前面（最该优化）
+        report.by_topic = by_topic
+    except Exception:
+        report.by_topic = []
 
     rec = Report(
         brand_id=brand.id, mention_rate=report.mention_rate,
