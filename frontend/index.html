@@ -2982,13 +2982,26 @@ async function loadBattlePlan(){
         <div style="font-size:14px;font-weight:700;color:#a8c48c">${escHtml(k.keyword||"")}</div>
         <div style="font-size:12px;color:rgba(244,241,234,.7);margin-top:4px">${escHtml(k.content_direction||k.reason||"")}</div>
       </div>`).join("");
-    // 平台卡
-    let pfHtml=(d.platforms||[]).map(p=>`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px">
-        <div style="font-size:14px;font-weight:700;color:var(--ink)">${escHtml(p.name)}</div>
-        <div style="font-size:12px;color:var(--ink-soft);margin-top:3px">为什么：${escHtml(p.why)}</div>
-        <div style="font-size:12px;color:var(--matcha);margin-top:2px">怎么做：${escHtml(p.how)}</div>
-      </div>`).join("");
+    // 发布目标（真实引用源 优先）
+    const isReal = d.targets_source==="real";
+    let pfHtml=(d.publish_targets||[]).map(p=>{
+      const name = p.source || p.name || "";
+      const advice = p.advice || p.how || "";
+      const cited = (p.cited_count!==undefined) ? `<span style="font-size:11px;color:var(--clay);white-space:nowrap">AI引用 ${p.cited_count} 次</span>` : "";
+      return `<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+          <div style="font-size:14px;font-weight:700;color:var(--ink);word-break:break-all">${escHtml(name)}</div>
+          ${cited}
+        </div>
+        <div style="font-size:12px;color:var(--matcha);margin-top:4px">→ ${escHtml(advice)}</div>
+        ${p.why?`<div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">${escHtml(p.why)}</div>`:''}
+      </div>`;
+    }).join("");
+    // 已露出的源（守住）
+    let presentHtml = "";
+    if((d.present_sources||[]).length){
+      presentHtml = `<div style="font-size:12px;color:var(--good);margin-top:8px">✅ 这些源 AI 已经在引用且提到了你，继续保持：${d.present_sources.map(s=>escHtml(s.source)).join("、")}</div>`;
+    }
     // 7天行动表
     let tlHtml=(d.timeline||[]).map((t,i)=>`
       <div style="display:flex;gap:12px;margin-bottom:12px">
@@ -3002,8 +3015,13 @@ async function loadBattlePlan(){
       <div style="font-weight:700;font-size:16px;margin-bottom:14px">🚀 你的7天上推荐作战包</div>
       <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:8px">① 速效关键词（优先攻这些）</div>
       ${kwHtml||'<div style="font-size:12px;color:var(--ink-soft)">暂无明显速效词，建议从你的核心业务词入手</div>'}
-      <div style="font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 8px">② 发到哪（AI信任的平台）</div>
+      <div style="display:flex;align-items:center;gap:8px;margin:14px 0 8px">
+        <span style="font-size:13px;font-weight:700;color:var(--ink)">② 发到哪</span>
+        ${isReal?'<span style="font-size:11px;background:var(--matcha);color:#fff;padding:2px 8px;border-radius:10px">AI 真实引用的源</span>':'<span style="font-size:11px;background:#e8e3d8;color:var(--ink-soft);padding:2px 8px;border-radius:10px">行业通用建议</span>'}
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px;background:${isReal?'#eaf0e6':'#fffbeb'};padding:8px 12px;border-radius:6px">${(d.targets_note||"").replace(/\*\*/g,'')}</div>
       ${pfHtml}
+      ${presentHtml}
       <div style="font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 10px">③ 7天行动表</div>
       ${tlHtml}
       <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#92722a;line-height:1.6;margin-top:8px">${escHtml(d.honest_note||"")}</div>
