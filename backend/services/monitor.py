@@ -140,6 +140,7 @@ class VisibilityReport:
     geo_grade: str = ""                          # 等级:优秀/良好/待提升/危险
     geo_grade_desc: str = ""                     # 等级说明
     geo_score_detail: dict = field(default_factory=dict)  # 各维度得分
+    dashboard_metrics: dict = field(default_factory=dict)  # GEO看板明确指标
 
 
 # ----------------------------------------------------------------------------
@@ -595,6 +596,36 @@ def _aggregate(brand, questions, competitors, available, results,
         "competitor": round(s_competitor), "source": round(s_source),
     }
 
+    # ===== GEO 看板明确指标（商家一眼看懂的直观数据）=====
+    # 全部用已采集的数据计算，不新增任何监测调用
+    ok_results = [r for r in results if not r.get("error")] if results and isinstance(results[0], dict) else ok
+    total_ans = len(ok) if ok else answered
+    # ① 品牌词露出占比：有多少次AI回答提到了你
+    brand_exposure = round(mention_rate, 1)
+    # ② 权威数据引用数：AI 引用的不重复信息源数量
+    authority_citations = len(all_sources)
+    # ③ 关键词覆盖率：有多少个监测问题里至少出现过一次品牌
+    q_covered = set()
+    q_total = set()
+    for r in ok:
+        q_total.add(r.question)
+        if r.brand_mentioned:
+            q_covered.add(r.question)
+    keyword_coverage = round(100 * len(q_covered) / len(q_total), 1) if q_total else 0
+    # ④ AI 语料匹配度：被提及时的平均位置质量（位置越靠前=越匹配AI口味）
+    corpus_match = round(avg_position, 1)
+    # ⑤ 竞品压制力：你 vs 最强竞品（>50%=你占优）
+    rival_pressure = round(s_competitor, 1)
+
+    dashboard_metrics = {
+        "brand_exposure": brand_exposure,        # 品牌词露出占比 %
+        "authority_citations": authority_citations,  # 权威数据引用数 个
+        "keyword_coverage": keyword_coverage,    # 关键词覆盖率 %
+        "corpus_match": corpus_match,            # AI语料匹配度 0-100
+        "rival_pressure": rival_pressure,        # 竞品压制力 %
+        "platforms_covered": len(platform_breakdown),  # 覆盖AI引擎数
+    }
+
     return VisibilityReport(
         brand=brand,
         generated_at=datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(),
@@ -613,4 +644,5 @@ def _aggregate(brand, questions, competitors, available, results,
         geo_grade=geo_grade,
         geo_grade_desc=geo_grade_desc,
         geo_score_detail=geo_score_detail,
+        dashboard_metrics=dashboard_metrics,
     )
