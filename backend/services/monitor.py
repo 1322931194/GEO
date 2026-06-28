@@ -130,6 +130,8 @@ class VisibilityReport:
     competitor_share: dict = field(default_factory=dict)   # 各竞品抢走的份额
     source_count: int = 0
     citation_targets: list = field(default_factory=list)   # 高价值引用节点(对标Similarweb)
+    alerts: list = field(default_factory=list)             # 异动预警(对标Goodie Catch shifts)
+    by_topic: list = field(default_factory=list)           # 主题维度细分(对标Goodie Segment by topic)
     platform_breakdown: dict = field(default_factory=dict) # 各平台分别的提及率
     gaps: list = field(default_factory=list)               # 发现的缺口(可一键修复)
     raw_results: list = field(default_factory=list)
