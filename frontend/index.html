@@ -855,7 +855,6 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <div class="sb-item active" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
         <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
         <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
-        <div class="sb-item" id="navRef" onclick="navTo('ref')"><span class="ic">🎁</span>我的推广</div>
         <div class="sb-item" id="navPrice" onclick="navTo('price')"><span class="ic">✨</span>升级套餐</div>
       </nav>
       <div class="sb-foot">
@@ -1214,7 +1213,6 @@ function injectMobileNav(){
     {key:"flow", ic:"🎯", label:"监测"},
     {key:"dash", ic:"📊", label:"看板"},
     {key:"ws",   ic:"🧠", label:"创作"},
-    {key:"ref",  ic:"🎁", label:"推广"},
     {key:"price",ic:"✨", label:"升级"},
   ];
   const nav=document.createElement("nav");
@@ -1695,24 +1693,44 @@ function renderContentsTab(d){
       const pending=ct.status==='pending_approval';
       const statusLabel=pub?'已发布':pending?'待老板确认':'草稿';
       const statusStyle=pub?'background:var(--good-soft);color:var(--good)':pending?'background:var(--warn-soft);color:var(--warn)':'background:#f1f5f9;color:var(--ink-soft)';
+      const fullText=(ct.title?ct.title+'\n\n':'')+(ct.body||'');
+      const bodyId='wsbody_'+ct.id;
       html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
           <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
           <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${statusStyle}">${statusLabel}</span>
         </div>
-        <div style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:12px;max-height:120px;overflow:hidden">${escHtml((ct.body||'').slice(0,300))}${(ct.body||'').length>300?'…':''}</div>
+        <div id="${bodyId}" class="ws-body" style="font-size:13.5px;color:var(--ink);line-height:1.75;margin-bottom:8px;max-height:160px;overflow:hidden;position:relative">
+          ${formatContent(ct.body||'')}
+          <div class="ws-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#fff)"></div>
+        </div>
+        <button class="btn-ghost" style="font-size:12px;padding:5px 12px;margin-bottom:10px" onclick="toggleWsBody('${bodyId}',this)">展开全文 ▾</button>
         ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
         <div style="background:#fffbeb;border-radius:6px;padding:8px 10px;font-size:11px;color:var(--warn);margin-bottom:10px">⚠️ 此为AI生成草稿,发布前请核实数据真实性,避免使用"第一""最佳"等违规用语</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="copyContent(${ct.id})">📋 复制全文</button>
+          <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick='safeCopy(${JSON.stringify(fullText)},"✅ 全文已复制，去发布吧！")'>📋 复制全文</button>
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="togglePublished(${ct.id})">${pub?'标为草稿':'标为已发布'}</button>
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--cyan);border-color:var(--cyan)" onclick="submitApproval(${ct.id})">📲 提交老板审批</button>
         </div>
-        <textarea id="content_${ct.id}" style="position:absolute;left:-9999px">${escHtml(ct.title||'')}\n\n${escHtml(ct.body||'')}</textarea>
       </div>`;
     });
   }
   c.innerHTML=html;
+}
+
+function toggleWsBody(id, btn){
+  const el=document.getElementById(id);
+  if(!el) return;
+  const expanded=el.style.maxHeight==='none';
+  if(expanded){
+    el.style.maxHeight='160px';
+    const fade=el.querySelector('.ws-fade'); if(fade) fade.style.display='block';
+    btn.textContent='展开全文 ▾';
+  } else {
+    el.style.maxHeight='none';
+    const fade=el.querySelector('.ws-fade'); if(fade) fade.style.display='none';
+    btn.textContent='收起 ▴';
+  }
 }
 
 // 健壮的复制函数：兼容 HTTPS/HTTP、微信浏览器、手机等各种环境
