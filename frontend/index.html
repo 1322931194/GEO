@@ -1015,6 +1015,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repGaps"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
+              <div id="repReadiness"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2782,11 +2783,59 @@ function renderReport(rep){
   renderCitations(rep);
   // 主题维度细分（对标 Goodie Segment by topic）
   renderTopics(rep);
+  // AI 可读性自检清单（对标 Scrunch，纯增量内容功能）
+  renderReadiness(rep);
   // 缺口过大/提及率过低 → 插入深度包导流卡
   renderDeepPackCta(rep);
   loadImprovePlan();
   loadProgress();
   loadMonthlyLoss();
+}
+
+// 根据引用源类型给出针对性动作建议（学 Peec 的 Act on Insights）
+function sourceAdvice(src){
+  const s=(src||"").toLowerCase();
+  if(s.includes("zhihu")) return "去知乎相关问题下回答，或开品牌专栏";
+  if(s.includes("baidu")) return "做百度百科词条 / 百家号内容";
+  if(s.includes("xiaohongshu")||s.includes("xhs")) return "在小红书做测评/种草笔记";
+  if(s.includes("weibo")) return "在微博发布或找 KOL 提及";
+  if(s.includes("reddit")) return "参与相关 subreddit 讨论";
+  if(s.includes("g2")||s.includes("capterra")) return "建立有真实评价的产品资料页";
+  if(s.includes("wikipedia")||s.includes("wiki")) return "完善维基词条（需符合收录标准）";
+  if(s.includes("youtube")||s.includes("bilibili")) return "做视频内容或找 UP 主合作";
+  if(s.includes("linkedin")) return "在领英发布行业内容";
+  if(s.includes("quora")) return "在 Quora 回答相关问题";
+  if(s.includes("amazon")||s.includes("taobao")||s.includes("jd")) return "优化电商平台的产品详情和评价";
+  if(s.includes("zhidao")||s.includes("wenda")) return "在问答平台布局相关问题";
+  return "争取在该网站发布内容或被提及";
+}
+
+// AI 可读性自检清单（对标 Scrunch：让官网更容易被 AI 读懂引用）
+function renderReadiness(rep){
+  const el=document.getElementById("repReadiness");
+  if(!el) return;
+  const items=[
+    {t:"关键信息不藏在 JavaScript 后面", d:"价格、服务、联系方式要能直接看到（服务端渲染），否则 AI 抓不到"},
+    {t:"页面顶部放一句话摘要", d:"开头说清「这页是给谁的、讲什么」，AI 最爱抓摘要"},
+    {t:"用清晰的标题", d:"用「价格」「常见问题」「服务范围」这种直白标题，别用创意词"},
+    {t:"明确的 FAQ 问答", d:"把客户常问的问题用「问：…答：…」写出来，AI 最容易引用"},
+    {t:"价格用具体数字", d:"写「￥1980/年」而不是「价格优惠」，AI 需要确定的事实"},
+    {t:"一个主题一个权威页面", d:"别把信息散在十个页面，集中成一个「定义页」"},
+  ];
+  let html=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">🤖 AI 可读性自检（让 AI 更容易推荐你）</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">对 AI 来说，你的官网不是"网页"而是"数据"。按下面几点优化官网，AI 更容易读懂、引用、推荐你。对照检查，做到的打勾。</div>
+    <div style="display:flex;flex-direction:column;gap:8px">`;
+  items.forEach((it,i)=>{
+    html+=`<label style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;background:var(--bg);border-radius:8px;padding:10px 12px">
+      <input type="checkbox" style="margin-top:3px;width:16px;height:16px;flex-shrink:0;accent-color:var(--matcha)">
+      <span><span style="font-size:13.5px;font-weight:600;color:var(--ink)">${it.t}</span><br><span style="font-size:12px;color:var(--ink-soft);line-height:1.5">${it.d}</span></span>
+    </label>`;
+  });
+  html+=`</div>
+    <div style="font-size:11.5px;color:var(--ink-faint);margin-top:12px">💡 这是通用优化方向，按你的实际情况执行。做好这些，配合上方"该去哪发内容"的建议，AI 推荐你的概率会明显提升。</div>
+  </div>`;
+  el.innerHTML=html;
 }
 
 // 主题维度细分渲染（对标 Goodie Segment by topic）
@@ -2855,13 +2904,17 @@ function renderCitations(rep){
     html+=`<div style="font-size:13px;font-weight:600;color:var(--clay);margin-bottom:8px">🎯 优先攻克（AI 高频引用，但还没有你）</div>`;
     html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">`;
     todo.slice(0,8).forEach(t=>{
-      html+=`<div style="display:flex;align-items:center;justify-content:space-between;background:#fdf3f2;border:1px solid #f0d8d4;border-radius:8px;padding:9px 12px">
-        <span style="font-size:13px;font-weight:600;word-break:break-all">${escHtml(t.source)}</span>
-        <span style="font-size:11px;color:var(--clay);white-space:nowrap;margin-left:8px">被引用 ${t.cited_count} 次</span>
+      const advice=sourceAdvice(t.source);
+      html+=`<div style="background:#fdf3f2;border:1px solid #f0d8d4;border-radius:8px;padding:9px 12px">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:13px;font-weight:600;word-break:break-all">${escHtml(t.source)}</span>
+          <span style="font-size:11px;color:var(--clay);white-space:nowrap;margin-left:8px">被引用 ${t.cited_count} 次</span>
+        </div>
+        ${advice?`<div style="font-size:11.5px;color:var(--matcha);margin-top:4px">→ ${advice}</div>`:''}
       </div>`;
     });
     html+=`</div>`;
-    html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6">💡 行动建议：想办法在以上网站发布或被提及（投稿、合作、问答、评测），让 AI 在这些它信任的地方"看到"你。</div>`;
+    html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6">💡 总策略：想办法在以上网站发布或被提及（投稿、合作、问答、评测），让 AI 在这些它信任的地方"看到"你。</div>`;
   }
   if(done.length){
     html+=`<div style="font-size:13px;font-weight:600;color:var(--good);margin:14px 0 8px">✅ 已露出（你已出现在这些 AI 信任的源）</div>`;
