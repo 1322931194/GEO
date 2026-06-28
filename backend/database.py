@@ -56,6 +56,7 @@ class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(index=True, unique=True)
     password_hash: str
+    token_version: int = Field(default=0)   # token版本号，改密码/强制登出时+1使旧token失效
     plan: str = Field(default="trial")
     monitor_count: int = Field(default=0)   # 累计监测次数（试用版限制用）
     is_admin: bool = Field(default=False)   # 管理员标记
@@ -224,6 +225,7 @@ def _auto_migrate():
         ("user", "invite_code", "VARCHAR DEFAULT ''"),
         ("user", "referred_by", "INTEGER DEFAULT 0"),
         ("user", "monitor_count", "INTEGER DEFAULT 0"),
+        ("user", "token_version", "INTEGER DEFAULT 0"),
         ("user", "is_admin", "BOOLEAN DEFAULT FALSE"),
         ("user", "trial_ends_at", "TIMESTAMP"),
         ("brand", "track_id", "VARCHAR DEFAULT ''"),
