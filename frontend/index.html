@@ -992,6 +992,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                 <canvas id="lineChart" height="80"></canvas>
                 <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
               </div>
+              <div id="repScore"></div>
               <div id="repAlerts"></div>
               <div id="repCrisis"></div>
               <div class="metrics" id="repMetrics"></div>
@@ -2686,6 +2687,8 @@ async function goMonitor(){
 
 // ===== 第4步：渲染报告 =====
 function renderReport(rep){
+  // GEO 综合评分（对标 SheepGeo 的 GEM 评分，让报告更专业）
+  renderScore(rep);
   // 异动预警（对标 Goodie Catch shifts）
   renderAlerts(rep);
   document.getElementById("repDate").textContent=
@@ -2862,6 +2865,60 @@ function renderTopics(rep){
   html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:12px">💡 建议：优先补「${escHtml(weakest.topic)}」主题的内容（当前提及率最低 ${weakest.rate}%），这是性价比最高的优化点。</div>`;
   html+=`</div>`;
   el.innerHTML=html;
+}
+
+// GEO 综合评分卡（对标 SheepGeo GEM 评分，墨色和纸风环形仪表）
+function renderScore(rep){
+  const el=document.getElementById("repScore");
+  if(!el || rep.geo_score===undefined || rep.geo_score===null){ if(el)el.innerHTML=""; return; }
+  const score=rep.geo_score;
+  const grade=rep.geo_grade||"";
+  const desc=rep.geo_grade_desc||"";
+  const d=rep.geo_score_detail||{};
+  // 颜色按等级
+  let c;
+  if(score>=75) c="#5a7d5a";
+  else if(score>=50) c="#b08442";
+  else if(score>=25) c="#c4843a";
+  else c="#b0524a";
+  // 环形进度（SVG）
+  const r=52, circ=2*Math.PI*r, off=circ*(1-score/100);
+  const dims=[
+    {name:"提及率", val:d.mention||0},
+    {name:"位置分", val:d.position||0},
+    {name:"竞品优势", val:d.competitor||0},
+    {name:"信源覆盖", val:d.source||0},
+  ];
+  let dimHtml=dims.map(x=>`
+    <div style="text-align:center;flex:1">
+      <div style="font-size:18px;font-weight:700;color:var(--ink)">${x.val}</div>
+      <div style="font-size:11px;color:var(--ink-soft)">${x.name}</div>
+    </div>`).join("");
+  el.innerHTML=`
+  <div style="background:var(--ink);border-radius:16px;padding:24px;margin-bottom:20px;color:var(--paper,#f4f1ea)">
+    <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;justify-content:center">
+      <div style="position:relative;width:128px;height:128px;flex-shrink:0">
+        <svg width="128" height="128" viewBox="0 0 128 128">
+          <circle cx="64" cy="64" r="${r}" fill="none" stroke="rgba(244,241,234,.15)" stroke-width="10"/>
+          <circle cx="64" cy="64" r="${r}" fill="none" stroke="${c}" stroke-width="10"
+            stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${off}"
+            transform="rotate(-90 64 64)" style="transition:stroke-dashoffset 1s ease"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:34px;font-weight:800;line-height:1;color:${c}">${score}</div>
+          <div style="font-size:11px;color:rgba(244,241,234,.6);margin-top:2px">GEO 总分</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="display:inline-block;background:${c};color:#fff;font-size:13px;font-weight:700;padding:3px 14px;border-radius:20px;margin-bottom:8px">${grade}</div>
+        <div style="font-size:14px;line-height:1.6;color:rgba(244,241,234,.85)">${escHtml(desc)}</div>
+        <div style="font-size:11px;color:rgba(244,241,234,.5);margin-top:8px">综合提及率、位置、竞品优势、信源覆盖四维加权得出</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:20px;padding-top:18px;border-top:1px solid rgba(244,241,234,.12)">
+      ${dimHtml}
+    </div>
+  </div>`;
 }
 
 // 异动预警渲染（对标 Goodie Catch shifts）
