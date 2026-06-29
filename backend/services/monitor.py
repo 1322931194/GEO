@@ -153,7 +153,7 @@ async def _call_openai(client, cfg, prompt, key):
         headers={"Authorization": f"Bearer {key}"},
         json={"model": cfg["model"], "messages": [{"role": "user", "content": prompt}],
               "temperature": 0.7, "max_tokens": 800},
-        timeout=60,
+        timeout=30,
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
@@ -163,7 +163,7 @@ async def _call_gemini(client, cfg, prompt, key):
     r = await client.post(
         f"{cfg['url']}?key={key}",
         json={"contents": [{"parts": [{"text": prompt}]}]},
-        timeout=60,
+        timeout=30,
     )
     r.raise_for_status()
     return r.json()["candidates"][0]["content"]["parts"][0]["text"]
@@ -175,7 +175,7 @@ async def _call_claude(client, cfg, prompt, key):
         headers={"x-api-key": key, "anthropic-version": "2023-06-01"},
         json={"model": cfg["model"], "max_tokens": 800,
               "messages": [{"role": "user", "content": prompt}]},
-        timeout=60,
+        timeout=30,
     )
     r.raise_for_status()
     return r.json()["content"][0]["text"]
@@ -186,7 +186,7 @@ async def _call_perplexity(client, cfg, prompt, key):
         cfg["url"],
         headers={"Authorization": f"Bearer {key}"},
         json={"model": cfg["model"], "messages": [{"role": "user", "content": prompt}]},
-        timeout=60,
+        timeout=30,
     )
     r.raise_for_status()
     return r.json()["choices"][0]["message"]["content"]
@@ -386,12 +386,19 @@ async def run_monitoring(
 
     results: list[AnswerResult] = []
 
+    # 并发上限：一次性发太多请求会触发平台限流(429)，反而更慢。
+    # 限制同时最多 20 个并发，平衡速度和稳定性。
+    sem = asyncio.Semaphore(20)
+    async def _bounded_query(client, pid, cfg, q, brand, competitors):
+        async with sem:
+            return await _one_query(client, pid, cfg, q, brand, competitors)
+
     async with httpx.AsyncClient() as client:
         tasks = []
         for q in questions:
             for pid, cfg in available.items():
                 for _ in range(samples_per_question):
-                    tasks.append(_one_query(client, pid, cfg, q, brand, competitors))
+                    tasks.append(_bounded_query(client, pid, cfg, q, brand, competitors))
         gathered = await asyncio.gather(*tasks, return_exceptions=True)
         for g in gathered:
             if isinstance(g, AnswerResult):
@@ -417,7 +424,7 @@ async def run_monitoring(
                 if q in q_mentioned and not q_mentioned[q]:
                     # 用最便宜的1个平台补采样1次确认
                     for pid, cfg in list(available.items())[:1]:
-                        retry_tasks.append(_one_query(client, pid, cfg, q, brand, competitors))
+                        retry_tasks.append(_bounded_query(client, pid, cfg, q, brand, competitors))
                         retry_meta.append(q)
             if retry_tasks:
                 retried = await asyncio.gather(*retry_tasks, return_exceptions=True)
