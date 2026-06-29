@@ -2872,6 +2872,12 @@ function renderGuide(rep){
 }
 
 // ===== 第4步：渲染报告 =====
+// 展开/收起某平台的真实问答证据
+function togglePfEvid(id){
+  const el=document.getElementById(id);
+  if(el) el.style.display = el.style.display==="none" ? "block" : "none";
+}
+
 function renderReport(rep){
   // 报告导读：先告诉商家这份报告怎么看
   renderGuide(rep);
@@ -2934,14 +2940,43 @@ function renderReport(rep){
     }
   }
   const pbEntries = Object.entries(rep.platform_breakdown||{});
+  // 把 raw_results 按平台分组，给每个平台挂上"真实问答证据"
+  const rawByPlatform = {};
+  (rep.raw_results||[]).forEach(r=>{
+    if(r.error) return;
+    const label = r.platform_label || r.platform || "";
+    if(!rawByPlatform[label]) rawByPlatform[label]=[];
+    rawByPlatform[label].push(r);
+  });
   document.getElementById("repPlatforms").innerHTML=
-    pbEntries.map(([nm,rt])=>{
+    pbEntries.map(([nm,rt],pi)=>{
       const c=rt>=45?"var(--good)":rt>=30?"var(--warn)":"var(--bad)";
       const s=rt>=45?"✓ 良好":rt>=30?"待提升":"偏低";
+      // 这个平台问了几个问题、提到几次
+      const raws = rawByPlatform[nm]||[];
+      const total = raws.length;
+      const hit = raws.filter(r=>r.brand_mentioned).length;
+      const basisText = total>0
+        ? `基于 ${total} 个问题，AI 提到你 ${hit} 次`
+        : `本次未采集到该平台数据`;
+      const evidId = `pfevid_${pi}`;
+      const evidBtn = total>0
+        ? `<button onclick="togglePfEvid('${evidId}')" style="background:none;border:none;color:var(--matcha);font-size:12px;cursor:pointer;padding:0;margin-top:6px">👁 看 AI 具体怎么回答的 ▾</button>`
+        : '';
+      // 证据：列出问题 + AI是否提到（最多5条）
+      const evidRows = raws.slice(0,5).map(r=>`
+        <div style="border-bottom:1px solid var(--line);padding:8px 0">
+          <div style="font-size:12.5px;color:var(--ink);font-weight:600">Q：${escHtml((r.question||"").slice(0,40))}</div>
+          <div style="font-size:12px;color:${r.brand_mentioned?'var(--good)':'var(--bad)'};margin-top:3px">${r.brand_mentioned?'✅ AI 提到了你':'❌ AI 没提到你'}${r.competitors_mentioned&&r.competitors_mentioned.length?'　|　提到了竞品：'+escHtml(r.competitors_mentioned.slice(0,3).join("、")):''}</div>
+        </div>`).join("");
       return`<div class="pf">
         <div class="nm">${nm}<span class="pf-badge" style="background:${rt>=45?"#d1fae5":rt>=30?"#fef3c7":"#fee2e2"};color:${c}">${s}</span></div>
         <div class="bar"><i style="width:${rt}%;background:${c}"></i></div>
-        <div class="rt">${rt}% 提及率</div></div>`;
+        <div class="rt">${rt}% 提及率</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:4px">${basisText}</div>
+        ${evidBtn}
+        <div id="${evidId}" style="display:none;background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:8px">${evidRows||'<div style="font-size:12px;color:var(--ink-soft)">暂无明细</div>'}</div>
+      </div>`;
     }).join("");
   // 诚实提示：只监测了1个平台 / 平台太少时，告诉用户去配更多密钥
   const pfNoteEl = document.getElementById("repPlatformNote");
@@ -3232,14 +3267,21 @@ function renderTopics(rep){
     const tag=t.rate>=45?"强":t.rate>=20?"中":"弱";
     html+=`<div style="margin-bottom:10px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span style="font-size:13px;font-weight:600">${escHtml(t.topic)}</span>
+        <span style="font-size:13px;font-weight:600">${escHtml(t.topic)} <span style="font-size:11px;color:var(--ink-faint);font-weight:400">（问了${t.total||0}个相关问题）</span></span>
         <span style="font-size:12px;color:${c};font-weight:600">${t.rate}% <span style="font-size:10px;background:${t.rate>=45?'#f0f5ee':t.rate>=20?'#fef9ec':'#fdf3f2'};padding:1px 6px;border-radius:4px;margin-left:4px">${tag}</span></span>
       </div>
       <div style="height:7px;background:#eee;border-radius:4px;overflow:hidden"><i style="display:block;height:100%;width:${t.rate}%;background:${c}"></i></div>
     </div>`;
   });
-  const weakest=topics[0];
-  html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:12px">💡 建议：优先补「${escHtml(weakest.topic)}」主题的内容（当前提及率最低 ${weakest.rate}%），这是性价比最高的优化点。</div>`;
+  // 全是0时，解释为什么（避免商家误以为工具坏了）
+  const allZero = topics.every(t=>t.rate===0);
+  if(allZero){
+    html+=`<div style="background:#fdf3f2;border-radius:8px;padding:12px 14px;font-size:12.5px;color:var(--ink);line-height:1.7;margin-top:12px">
+      ❗ <b>为什么每个主题都是 0？</b><br>因为在这些主题的相关问题里，AI 一次都没有主动提到你。这不是工具出错——恰恰说明：<b>无论客户从哪个角度问，AI 都想不起你。</b>这正是最该解决的问题：先让 AI 在任意一个主题上"认识"你。</div>`;
+  }else{
+    const weakest=topics[0];
+    html+=`<div style="background:var(--matcha-soft,#eaf0e6);border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:12px">💡 建议：优先补「${escHtml(weakest.topic)}」主题的内容（当前提及率最低 ${weakest.rate}%），这是性价比最高的优化点。</div>`;
+  }
   html+=`</div>`;
   el.innerHTML=html;
 }
@@ -3282,6 +3324,13 @@ function renderScore(rep){
     plainTalk = `危险！AI 几乎不推你。100 个客户问 AI，几乎都被推给了别人，你是"隐形"的。`;
     ptColor = "#b0524a"; ptAction = "当务之急：先让 AI 知道你存在。";
   }
+  // 这个分数基于什么数据算出来的（让商家信服，不空洞）
+  const answeredQ = rep.answered_queries || 0;
+  const pfCount = Object.keys(rep.platform_breakdown||{}).length;
+  const mentionedQ = Math.round((rep.mention_rate||0)/100*answeredQ);
+  const basisLine = answeredQ>0
+    ? `📊 这个结论基于：我们模拟真实客户，在 ${pfCount} 个 AI 平台上问了 ${answeredQ} 次，其中只有 ${mentionedQ} 次 AI 主动提到了你。`
+    : '';
   el.innerHTML=`
   <div style="background:var(--ink);border-radius:16px;padding:24px;margin-bottom:20px;color:var(--paper,#f4f1ea)">
     <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;justify-content:center">
@@ -3309,7 +3358,8 @@ function renderScore(rep){
   </div>
   <div style="background:#fff;border:1px solid var(--line);border-left:4px solid ${ptColor};border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700;color:var(--ink);line-height:1.6;margin-bottom:6px">💬 这个分数说明：${plainTalk}</div>
-    <div style="font-size:13px;color:${ptColor};font-weight:600">👉 ${ptAction}</div>
+    <div style="font-size:13px;color:${ptColor};font-weight:600;margin-bottom:${basisLine?'10px':'0'}">👉 ${ptAction}</div>
+    ${basisLine?`<div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;background:var(--bg);border-radius:8px;padding:10px 14px">${basisLine}<br><span style="color:var(--ink-faint)">下方「各平台表现」可以点开看 AI 具体怎么回答的。</span></div>`:''}
   </div>`;
 
   // GEO 指标看板（明确直观的5个核心数据）
