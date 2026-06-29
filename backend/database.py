@@ -27,27 +27,33 @@ PLANS = {
     "trial": {
         "name": "免费试用", "price_cny": 0, "brands": 1,
         "questions": 20, "samples": 1, "platforms": 4, "freq": "once",
-        "monitor_limit": 0,   # 0=不能监测，必须付9.9才能看报告
+        "monitor_limit": 0,   # 0=不能监测，必须付费才能看报告
+        "battle_limit": 0, "content_limit": 0,
     },
     "starter_trial": {
-        "name": "9.9元体验", "price_cny": 9.9, "brands": 1,
+        "name": "39.9体验", "price_cny": 39.9, "brands": 1,
         "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
-        "monitor_limit": 1,   # 只能跑1次完整监测
+        "monitor_limit": 1,   # 1次完整监测（走完整流程）
+        "battle_limit": 1,    # 慷慨版：体验1次7天作战包
+        "content_limit": 1,   # 慷慨版：体验1次内容生成
     },
     "starter": {
         "name": "专业版", "price_cny": 1980, "brands": 3,
         "questions": 50, "samples": 1, "platforms": 4, "freq": "weekly",
         "monitor_limit": 4,   # 每月4次
+        "battle_limit": 999, "content_limit": 999,  # 不限
     },
     "pro": {
         "name": "企业版", "price_cny": 3980, "brands": 5,
         "questions": 150, "samples": 2, "platforms": 4, "freq": "daily",
         "monitor_limit": 999,  # 不限
+        "battle_limit": 999, "content_limit": 999,
     },
     "business": {
         "name": "旗舰版", "price_cny": 9800, "brands": 10,
         "questions": 999, "samples": 3, "platforms": 4, "freq": "daily",
         "monitor_limit": 999,  # 不限
+        "battle_limit": 999, "content_limit": 999,
     },
 }
 
@@ -59,6 +65,8 @@ class User(SQLModel, table=True):
     token_version: int = Field(default=0)   # token版本号，改密码/强制登出时+1使旧token失效
     plan: str = Field(default="trial")
     monitor_count: int = Field(default=0)   # 累计监测次数（试用版限制用）
+    battle_count: int = Field(default=0)     # 累计作战包生成次数（额度控制）
+    content_count: int = Field(default=0)    # 累计内容生成次数（额度控制）
     is_admin: bool = Field(default=False)   # 管理员标记
     invite_code: str = Field(default="", index=True)  # 自己的专属邀请码
     referred_by: int = Field(default=0)     # 被谁推荐（推荐人用户ID，0=无）
@@ -225,6 +233,8 @@ def _auto_migrate():
         ("user", "invite_code", "VARCHAR DEFAULT ''"),
         ("user", "referred_by", "INTEGER DEFAULT 0"),
         ("user", "monitor_count", "INTEGER DEFAULT 0"),
+        ("user", "battle_count", "INTEGER DEFAULT 0"),
+        ("user", "content_count", "INTEGER DEFAULT 0"),
         ("user", "token_version", "INTEGER DEFAULT 0"),
         ("user", "is_admin", "BOOLEAN DEFAULT FALSE"),
         ("user", "trial_ends_at", "TIMESTAMP"),
