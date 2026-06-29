@@ -199,7 +199,7 @@ def _jload(s, default=None):
 COMMISSION_RATE = 0.35
 # 套餐价格（用于算佣金）
 PLAN_PRICES = {
-    "starter_trial": 9.9,
+    "starter_trial": 39.9,
     "starter": 1980,
     "pro": 3980,
     "business": 2999,
@@ -1557,6 +1557,12 @@ def industry_stats_public(session: Session = Depends(get_session)):
 async def gen_content(req: GenContentReq, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
     brand = _owned_brand(req.brand_id, user, session)
+    # 额度检查：体验版可用1次，专业版以上不限
+    _cplan = plan_of(user)
+    _climit = _cplan.get("content_limit", 0)
+    _cused = getattr(user, "content_count", 0) or 0
+    if _climit < 999 and _cused >= _climit:
+        raise HTTPException(403, "内容生成体验次数已用完。升级专业版可不限次生成符合AI口味的优质内容。")
     # 融合知识库：把知识库条目拼进品牌资料，让生成内容更准、更像品牌
     kb_items = session.exec(
         select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)
@@ -1579,6 +1585,9 @@ async def gen_content(req: GenContentReq, user: User = Depends(current_user),
         body=result.get("body", ""), publish_tip=result.get("publish_tip", ""),
     )
     session.add(gc)
+    # 内容生成计数+1
+    user.content_count = _cused + 1
+    session.add(user)
     session.commit()
     return result
 
@@ -1762,6 +1771,13 @@ async def battle_plan(brand_id: int, user: User = Depends(current_user),
     brand = _owned_brand(brand_id, user, session)
     mode = getattr(brand, "mode", "outbound")
 
+    # 额度检查：体验版可用1次，专业版以上不限
+    _bplan = plan_of(user)
+    _blimit = _bplan.get("battle_limit", 0)
+    _bused = getattr(user, "battle_count", 0) or 0
+    if _blimit < 999 and _bused >= _blimit:
+        raise HTTPException(403, "作战包体验次数已用完。升级专业版可不限次生成专属作战计划，持续帮你上推荐。")
+
     # === 关键：取本品牌最近一次报告里 AI 真实引用的源 ===
     last_report = session.exec(
         select(Report).where(Report.brand_id == brand.id)
@@ -1830,6 +1846,11 @@ async def battle_plan(brand_id: int, user: User = Depends(current_user),
             "不是通用猜测。攻克这些源 = 在 AI 已经信任的地方让它看到你。"
             if targets_source == "real"
             else "你还没有监测数据，以下是行业通用建议。**先做一次监测**，系统就能告诉你 AI 在你这个行业实际引用了哪些精确的源——那才是最该攻克的目标。")
+
+    # 成功生成，计数+1（额度控制）
+    user.battle_count = _bused + 1
+    session.add(user)
+    session.commit()
 
     return {
         "brand": brand.name,
@@ -2776,7 +2797,7 @@ def admin_cost_estimate(key: str):
     # 各套餐的典型配置（问题数 × 平台数）
     scenarios = [
         {"name": "模拟器(免费,1次)", "questions": 1, "platforms": 3, "cost_level": "cheap"},
-        {"name": "¥9.9体验版(30问)", "questions": 30, "platforms": 3, "cost_level": "cheap"},
+        {"name": "¥39.9体验版(30问)", "questions": 30, "platforms": 3, "cost_level": "cheap"},
         {"name": "基础版单次(50问)", "questions": 50, "platforms": 4, "cost_level": "cheap"},
         {"name": "基础版/月(4次)", "questions": 50, "platforms": 4, "cost_level": "cheap", "times": 4},
         {"name": "专业版/月(估20次)", "questions": 50, "platforms": 4, "cost_level": "cheap", "times": 20},
@@ -2794,7 +2815,7 @@ def admin_cost_estimate(key: str):
             "total_cost": monthly_cost,
         })
     # 套餐价格对照
-    plan_prices = {"starter_trial": 9.9, "starter": 1980, "pro": 3980, "business": 9800}
+    plan_prices = {"starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
     return {
         "scenarios": results,
         "plan_prices": plan_prices,
@@ -2942,7 +2963,7 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <input type="email" id="email" placeholder="客户注册邮箱">
 <label>套餐</label>
 <select id="plan">
-<option value="starter_trial">¥9.9体验版（1次监测）</option>
+<option value="starter_trial">¥39.9体验版（1次监测，含作战包+内容）</option>
 <option value="starter">专业版¥1980/季</option>
 <option value="pro">企业版¥3980/年（不限次）</option>
 <option value="business">旗舰版¥9800/年</option>
@@ -3050,7 +3071,7 @@ async function upgrade(){
     loadUsers();
   }catch(e){show('upR','❌'+e.message,false);}
 }
-const PN={trial:'免费',starter_trial:'¥9.9',starter:'基础',pro:'专业',business:'企业'};
+const PN={trial:'免费',starter_trial:'¥39.9',starter:'基础',pro:'专业',business:'企业'};
 async function loadUsers(){
   const t=document.getElementById('users');t.innerHTML='加载中…';
   try{
