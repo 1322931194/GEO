@@ -645,7 +645,11 @@ def _aggregate(brand, questions, competitors, available, results,
         citation_targets=citation_targets,
         platform_breakdown=platform_breakdown,
         gaps=sorted(gaps, key=lambda g: 0 if g["priority"] == "high" else 1),
-        raw_results=[r.__dict__ for r in results],
+        raw_results=[
+            {**r.__dict__,
+             "platform_label": (PLATFORMS.get(r.platform, {}).get("label", r.platform))}
+            for r in results
+        ],
         sample_note=sample_note,
         geo_score=geo_score,
         geo_grade=geo_grade,
