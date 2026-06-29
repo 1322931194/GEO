@@ -548,7 +548,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <button class="btn-action" onclick="document.getElementById('simulator-section')?.scrollIntoView({behavior:'smooth'})">免费试一下 AI 推不推你 →</button>
         <button class="btn-ghost" style="padding:13px 24px" onclick="gotoAuth('reg')">注册看完整报告</button>
       </div>
-      <div class="lp-cta-note">下方可免费试用 · 完整监测报告注册后 ¥9.9 解锁</div>
+      <div class="lp-cta-note">下方可免费试用 · 完整监测报告注册后 ¥39.9 解锁</div>
     </div>
 
     <!-- signature: AI 模拟聊天框 -->
@@ -822,7 +822,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       <button class="auth-back" onclick="gotoLanding()">← 返回首页</button>
       <div class="auth-card glass">
         <h2>开始 AI 品牌体检</h2>
-        <div class="sub">免费注册，¥9.9 解锁完整报告</div>
+        <div class="sub">免费注册，¥39.9 解锁完整报告</div>
         <div class="auth-tabs">
           <button id="tabLogin" class="auth-tab" onclick="switchTab('login')">已有账号</button>
           <button id="tabReg" class="auth-tab active" onclick="switchTab('reg')">免费注册</button>
@@ -1077,17 +1077,17 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
             <div class="plans">
               <div class="plan">
                 <div class="plan-name">体验版</div>
-                <div class="plan-price">¥9.9<span>/次</span></div>
-                <div class="plan-desc">首次体验，看清你的品牌 AI 能见度现状</div>
-                <ul class="plan-features"><li>1 次完整监测</li><li>1 个品牌</li><li>30 个问题场景</li><li>国内/出海双引擎</li><li>完整能见度报告</li><li>缺口诊断+提升方案</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('starter_trial')">立即开通 ¥9.9</button>
+                <div class="plan-price">¥39.9<span>/次</span></div>
+                <div class="plan-desc">花一顿饭钱，走完一整套 GEO 流程</div>
+                <ul class="plan-features"><li>1 次完整监测</li><li>GEO 评分 + 竞品抢位</li><li>对话快照·活体证据</li><li><b>7天上推荐作战包 ×1</b></li><li><b>内容生成 ×1</b></li><li>国内/出海双引擎</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('starter_trial')">立即开通 ¥39.9</button>
               </div>
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
                 <div class="plan-name">专业版</div>
                 <div class="plan-price">¥1,980<span>/季</span></div>
-                <div class="plan-desc">持续监测优化，适合品牌方与营销团队</div>
-                <ul class="plan-features"><li>3 个品牌</li><li>50 个问题场景</li><li>国内/出海双引擎</li><li>每月 4 次监测</li><li>历史折线战报 + 健康度雷达</li><li>一键生成内容 + 行动工单</li><li>高管级 PDF 汇报导出</li><li>专属顾问支持</li></ul>
+                <div class="plan-desc">持续上推荐，适合要真正见效的商家</div>
+                <ul class="plan-features"><li>3 个品牌</li><li>每月 4 次监测</li><li><b>不限次作战包 + 内容生成</b></li><li>历史趋势追踪 + 复测对比</li><li>引用源攻克清单 + 作战SOP</li><li>健康度雷达 + 高管PDF</li><li>专属顾问支持</li></ul>
                 <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('starter')">开通专业版</button>
               </div>
               <div class="plan">
@@ -2784,21 +2784,21 @@ async function goMonitor(){
           <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">你的专属报告已经准备好了</h3>
           <p style="color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7">
             我们已经帮你问遍了各大 AI，结果就在这份报告里。<br>
-            解锁只要 <b style="color:var(--brand);font-size:18px">¥9.9</b>，<br>
+            解锁只要 <b style="color:var(--brand);font-size:18px">¥39.9</b>，<br>
             看清 AI 推荐率、竞品分析、缺口诊断和提升方案。
           </p>
           <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px;text-align:left">
-            <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥9.9 体验版包含：</div>
+            <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥39.9 体验版，带你走完整套流程：</div>
             <div style="font-size:13px;color:var(--ink-soft);line-height:2">
-              ✅ 1次完整 AI 能见度监测<br>
-              ✅ 多平台覆盖（国内/出海双引擎）<br>
-              ✅ 品牌提及率 + 竞品对比<br>
-              ✅ 内容缺口诊断 + 提升方案<br>
-              ✅ 一键生成补救内容
+              ✅ 1次完整 AI 能见度监测（多平台·国内/出海）<br>
+              ✅ GEO 综合评分 + 竞品抢位排行<br>
+              ✅ 对话快照·活体证据（看 AI 真实怎么说你）<br>
+              ✅ <b style="color:var(--brand)">7天上推荐作战包</b>（告诉你发什么、发到哪）<br>
+              ✅ <b style="color:var(--brand)">1次内容生成</b>（符合 AI 口味的优质初稿）
             </div>
           </div>
           <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:16px">
-            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥9.9，发送截图给客服开通：</div>
+            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥39.9，发送截图给客服开通：</div>
             <div style="font-size:16px;font-weight:700;color:var(--brand)">微信客服：jenly222</div>
             <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发送截图后 5 分钟内开通，7×24 小时服务</div>
           </div>
