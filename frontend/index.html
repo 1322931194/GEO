@@ -1165,7 +1165,24 @@ function switchTab(m){
 async function api(path,opts={}){
   opts.headers={...(opts.headers||{}),"Content-Type":"application/json"};
   if(token) opts.headers["Authorization"]="Bearer "+token;
-  const r=await fetch(API+path,opts);
+  // 可选超时：传 opts.timeoutMs 启用。超时后中断请求，避免无限转圈。
+  let timer=null;
+  if(opts.timeoutMs){
+    const ctrl=new AbortController();
+    opts.signal=ctrl.signal;
+    timer=setTimeout(()=>ctrl.abort(), opts.timeoutMs);
+  }
+  let r;
+  try{
+    r=await fetch(API+path,opts);
+  }catch(err){
+    if(timer) clearTimeout(timer);
+    if(err.name==="AbortError"){
+      throw new Error("请求超时，可能是网络慢或服务繁忙，请重试");
+    }
+    throw err;
+  }
+  if(timer) clearTimeout(timer);
   if(r.status===401){
     // token失效/过期：清除并跳回登录，避免用户卡在报错页
     safeStore.remove("geo_token");
@@ -2769,13 +2786,27 @@ async function goMonitor(){
     spans.forEach((s,idx)=>{s.style.background=idx===(mi%platformLabels.length)?"var(--brand-soft)":"#fff";s.style.color=idx===(mi%platformLabels.length)?"var(--brand-ink)":"var(--ink-soft)"});
   },1800);
   try{
-    const rep=await api("/api/brands/"+currentBrandId+"/monitor",{method:"POST"});
+    const rep=await api("/api/brands/"+currentBrandId+"/monitor",{method:"POST",timeoutMs:240000});
     clearInterval(mt);
     renderReport(rep);
     setStep(4);
     loadHistoryChart();
   }catch(e){
     clearInterval(mt);
+    if(e.message && e.message.indexOf("超时")>=0){
+      document.getElementById("monMsg").textContent="";
+      document.getElementById("monPlatforms").innerHTML="";
+      document.querySelector("#panel3 .loading").innerHTML=`
+        <div style="max-width:420px;margin:0 auto;text-align:center">
+          <div style="font-size:48px;margin-bottom:16px">⏱️</div>
+          <h3 style="font-size:18px;font-weight:700;margin-bottom:8px">监测耗时较长</h3>
+          <p style="color:var(--ink-soft);font-size:14px;margin-bottom:20px;line-height:1.7">
+            可能是某个 AI 平台响应慢，或服务正在唤醒。<br>这种情况通常重试一次就好。
+          </p>
+          <button class="btn-cyan" style="padding:12px 28px" onclick="goMonitor()">重新监测</button>
+        </div>`;
+      return;
+    }
     if(e.message==="UPGRADE_REQUIRED"){
       // 显示付费墙
       document.getElementById("monMsg").textContent="";
