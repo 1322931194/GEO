@@ -944,6 +944,9 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               </div>
               <div id="modeHint" style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px">👆 请先选择你的市场，系统会自动切换对应的 AI 平台</div>
               <div id="brandForm" class="hidden">
+                <div style="background:#eaf0e6;border-radius:10px;padding:12px 16px;font-size:13px;color:var(--ink);line-height:1.7;margin-bottom:16px">
+                  💡 <b>这一步在干嘛？</b> 填好你的品牌信息，我们就会模拟你的真实客户，拿着各种问题去问 8 大 AI，看 AI 推不推你。信息填得越全，模拟越准。
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                   <div class="field"><label>品牌名 <span style="color:var(--bad)">*</span></label><input id="bName" placeholder="如 优品茶叶"></div>
                   <div class="field"><label>所属行业 <span style="color:var(--bad)">*</span></label><input id="bIndustry" placeholder="如 茶叶/餐饮/电商"></div>
@@ -1000,6 +1003,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                 <canvas id="lineChart" height="80"></canvas>
                 <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
               </div>
+              <div id="repGuide"></div>
               <div id="repScore"></div>
               <div id="repAlerts"></div>
               <div id="repCrisis"></div>
@@ -2822,8 +2826,26 @@ async function goMonitor(){
   }
 }
 
+// ===== 报告导读：告诉商家这份报告怎么看 =====
+function renderGuide(rep){
+  const el=document.getElementById("repGuide");
+  if(!el) return;
+  el.innerHTML=`<div style="background:linear-gradient(135deg,#fbf9f4,#f4f1ea);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:20px">
+    <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px">📖 这份报告怎么看？（30秒读懂）</div>
+    <div style="font-size:13px;color:var(--ink-soft);line-height:1.9">
+      我们刚刚模拟了你的客户去问 8 大 AI（"推荐你这行靠谱的"），看 AI 到底推不推你。下面这份报告，从上往下回答 4 个问题：<br>
+      <b style="color:var(--ink)">① 我现在行不行？</b>（看总分和提及率）　
+      <b style="color:var(--ink)">② 证据呢？</b>（看 AI 真实对话截图）<br>
+      <b style="color:var(--ink)">③ 问题在哪？</b>（看哪些客户问题没推你）　
+      <b style="color:var(--ink)">④ 我该干嘛？</b>（看7天作战包，照着做）
+    </div>
+  </div>`;
+}
+
 // ===== 第4步：渲染报告 =====
 function renderReport(rep){
+  // 报告导读：先告诉商家这份报告怎么看
+  renderGuide(rep);
   // GEO 综合评分（对标 SheepGeo 的 GEM 评分，让报告更专业）
   renderScore(rep);
   // 异动预警（对标 Goodie Catch shifts）
@@ -3155,14 +3177,15 @@ function renderRivalMatrix(rep){
       <div style="height:9px;background:#eee;border-radius:5px;overflow:hidden"><i style="display:block;height:100%;width:${w}%;background:${c}"></i></div>
     </div>`;
   }).join("");
+  const topRival = rows.find(r=>!r.isYou);
   const verdict = yourRank===1
-    ? `🏆 你目前在 AI 推荐中排第 1，领先所有竞品，继续保持！`
-    : `你目前排第 ${yourRank} 名，前面还有 ${yourRank-1} 个竞品。抢占它们的身位 = 把这些客户拿回来。`;
+    ? `🏆 你排第 1！AI 推荐里你领先所有竞品，继续保持。`
+    : `😰 你排第 ${yourRank} 名，前面有 ${yourRank-1} 个竞品比你更常被 AI 推荐${topRival?`，尤其是「${escHtml(topRival.name)}」`:''}。这意味着：客户问 AI 时，更多人被推给了他们，不是你。把他们的身位抢过来 = 把这些客户拿回来。`;
   el.innerHTML=`<div class="section-card" style="margin-top:20px">
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚔️ 竞品抢位排行</div>
-    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">在 AI 的"推荐名单"里，你和竞品的真实身位。排名越靠前，AI 越优先推荐你。</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚔️ 你和竞品，谁更常被 AI 推荐？</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">这是 AI 推荐名单里的真实排名。排越前，客户问 AI 时越容易被推到。</div>
     ${barHtml}
-    <div style="background:${yourRank===1?'#f0f5ee':'#fffbeb'};border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-top:8px">${verdict}</div>
+    <div style="background:${yourRank===1?'#f0f5ee':'#fdf3f2'};border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);line-height:1.65;margin-top:8px">${verdict}</div>
   </div>`;
 }
 
@@ -3214,11 +3237,22 @@ function renderScore(rep){
     {name:"竞品优势", val:d.competitor||0},
     {name:"信源覆盖", val:d.source||0},
   ];
-  let dimHtml=dims.map(x=>`
-    <div style="text-align:center;flex:1">
-      <div style="font-size:18px;font-weight:700;color:var(--ink)">${x.val}</div>
-      <div style="font-size:11px;color:var(--ink-soft)">${x.name}</div>
-    </div>`).join("");
+  // 把分数翻译成商家听得懂的"一句话结论"
+  const mr = (rep.dashboard_metrics && rep.dashboard_metrics.brand_exposure) || (d.mention||0);
+  let plainTalk, ptColor, ptAction;
+  if(score>=75){
+    plainTalk = `AI 挺认你的！100 个客户问 AI，约 ${Math.round(mr)} 个能被推荐到你。`;
+    ptColor = "#5a7d5a"; ptAction = "继续保持，盯住竞品别被反超。";
+  }else if(score>=50){
+    plainTalk = `AI 对你有印象，但不够深。100 个客户问 AI，约 ${Math.round(mr)} 个被推到你，其余被推给了别人。`;
+    ptColor = "#b08442"; ptAction = "这是机会期：补点内容，提升空间很大。";
+  }else if(score>=25){
+    plainTalk = `情况不太妙。100 个客户问 AI，只有约 ${Math.round(mr)} 个被推到你，大量生意被竞品拿走了。`;
+    ptColor = "#c4843a"; ptAction = "得抓紧了，再不做差距会越拉越大。";
+  }else{
+    plainTalk = `危险！AI 几乎不推你。100 个客户问 AI，几乎都被推给了别人，你是"隐形"的。`;
+    ptColor = "#b0524a"; ptAction = "当务之急：先让 AI 知道你存在。";
+  }
   el.innerHTML=`
   <div style="background:var(--ink);border-radius:16px;padding:24px;margin-bottom:20px;color:var(--paper,#f4f1ea)">
     <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;justify-content:center">
@@ -3243,18 +3277,22 @@ function renderScore(rep){
     <div style="display:flex;gap:8px;margin-top:20px;padding-top:18px;border-top:1px solid rgba(244,241,234,.12)">
       ${dimHtml}
     </div>
+  </div>
+  <div style="background:#fff;border:1px solid var(--line);border-left:4px solid ${ptColor};border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:20px">
+    <div style="font-size:15px;font-weight:700;color:var(--ink);line-height:1.6;margin-bottom:6px">💬 这个分数说明：${plainTalk}</div>
+    <div style="font-size:13px;color:${ptColor};font-weight:600">👉 ${ptAction}</div>
   </div>`;
 
   // GEO 指标看板（明确直观的5个核心数据）
   const m=rep.dashboard_metrics;
   if(m){
     const cards=[
-      {label:"品牌词露出占比", val:m.brand_exposure+"%", hint:"AI回答中提到你的比例", c:m.brand_exposure>=40?"var(--good)":m.brand_exposure>=15?"var(--warn)":"var(--bad)"},
-      {label:"关键词覆盖率", val:m.keyword_coverage+"%", hint:"有多少问题里出现了你", c:m.keyword_coverage>=40?"var(--good)":m.keyword_coverage>=15?"var(--warn)":"var(--bad)"},
-      {label:"权威引用数", val:m.authority_citations, hint:"AI信任的信息源数量", c:"var(--ink)"},
-      {label:"AI语料匹配度", val:m.corpus_match, hint:"被提及时的位置质量(满分100)", c:m.corpus_match>=60?"var(--good)":m.corpus_match>=30?"var(--warn)":"var(--bad)"},
-      {label:"竞品压制力", val:m.rival_pressure+"%", hint:">50%代表你比最强竞品更占优", c:m.rival_pressure>=50?"var(--good)":"var(--bad)"},
-      {label:"覆盖AI引擎", val:m.platforms_covered+"个", hint:"本次监测的AI平台数", c:"var(--ink)"},
+      {label:"AI提到你的比例", val:m.brand_exposure+"%", hint:`AI回答里，${m.brand_exposure}%的情况提到了你`, c:m.brand_exposure>=40?"var(--good)":m.brand_exposure>=15?"var(--warn)":"var(--bad)"},
+      {label:"问题覆盖率", val:m.keyword_coverage+"%", hint:`客户常问的问题里，${m.keyword_coverage}%出现了你`, c:m.keyword_coverage>=40?"var(--good)":m.keyword_coverage>=15?"var(--warn)":"var(--bad)"},
+      {label:"AI信任的源", val:m.authority_citations, hint:"AI推荐时参考了这么多网站(你要去这些地方露脸)", c:"var(--ink)"},
+      {label:"露出质量", val:m.corpus_match, hint:"被提到时排在前面还是后面(满分100，越高越靠前)", c:m.corpus_match>=60?"var(--good)":m.corpus_match>=30?"var(--warn)":"var(--bad)"},
+      {label:"对比最强竞品", val:m.rival_pressure+"%", hint:m.rival_pressure>=50?"你比最强竞品更常被AI推荐👍":"最强竞品比你更常被推荐，要追", c:m.rival_pressure>=50?"var(--good)":"var(--bad)"},
+      {label:"扫描了几个AI", val:m.platforms_covered+"个", hint:"这次帮你查了这么多AI平台", c:"var(--ink)"},
     ];
     let cardHtml=cards.map(c=>`
       <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
@@ -3274,7 +3312,8 @@ function renderScore(rep){
     const radarSvg=buildRadarSvg(radarDims);
     el.innerHTML+=`
     <div style="margin-bottom:20px">
-      <div style="font-size:14px;font-weight:700;margin-bottom:12px">📊 GEO 指标看板</div>
+      <div style="font-size:14px;font-weight:700;margin-bottom:4px">📊 拆开看，你的 6 个体检指标</div>
+      <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">每个数字都翻译成了大白话，点开就懂</div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px">
         <div style="display:flex;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">${radarSvg}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
