@@ -372,13 +372,18 @@ async def run_monitoring(
         )
         available = {p: available[p] for p in sorted_pids[:max_platforms]}
     elif mode != "domestic":
-        # 海外模式：准确性优先，必须保证主流海外平台在内
-        # 优先级：先放主流海外(chatgpt/gemini/perplexity)，再用便宜的补足
-        priority = ["chatgpt", "gemini", "perplexity", "deepseek", "qwen", "claude"]
+        # 海外模式：准确性优先，但要避免全被失败的海外平台占满导致无数据。
+        # 策略：海外主流 + 国产兜底混合，保证至少有能成功返回的平台。
+        priority = ["chatgpt", "gemini", "perplexity", "deepseek", "qwen", "claude", "kimi", "doubao"]
         ordered = [p for p in priority if p in available]
-        # 加上其他没列到的
         ordered += [p for p in available if p not in ordered]
-        available = {p: available[p] for p in ordered[:max_platforms]}
+        # 确保国产兜底平台(通常更稳定)至少有1-2个入选，不被海外平台挤掉
+        domestic_backup = [p for p in ordered if p in DOMESTIC_PLATFORMS]
+        picked = ordered[:max_platforms]
+        if not any(p in DOMESTIC_PLATFORMS for p in picked) and domestic_backup:
+            # 如果选中的全是海外平台，强制把1个国产兜底平台塞进来
+            picked = picked[:max(1, max_platforms-1)] + domestic_backup[:1]
+        available = {p: available[p] for p in picked}
     else:
         # 国内非经济模式：限制平台数防token爆炸
         if len(available) > max_platforms:
