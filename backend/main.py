@@ -573,10 +573,13 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
         raise HTTPException(403, "UPGRADE_REQUIRED")
 
     competitors = [c.strip() for c in brand.competitors.split(",") if c.strip()]
+    _is_trial = plan_now.get("price_cny", 0) < 100
     report = await run_monitoring(
         brand.name, questions, competitors,
         samples_per_question=plan["samples"],
         mode=getattr(brand, "mode", "outbound"),
+        max_platforms=4,                    # 限4个平台，控制耗时
+        skip_resample=_is_trial,            # 体验版跳过补采样，首次更快
     )
 
     # 监测全失败保护：如果一条 AI 回答都没成功，说明 API 配置/网络有问题，
