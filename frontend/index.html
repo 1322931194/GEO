@@ -994,7 +994,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div class="loading" style="padding:40px 0">
                 <div class="spinner"></div>
                 <p style="font-size:16px;font-weight:600;margin:16px 0 8px" id="monMsg">正在向 AI 发送查询，采集品牌提及…</p>
-                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">后台正在向 AI 发送真实查询，约需 1-3 分钟</p>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">正在让真实的 AI 平台回答你客户的问题，约 1-2 分钟。这是真查询，不是估算，所以需要一点时间 ☕</p>
                 <div id="monPlatforms" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
               </div>
             </div>
@@ -2787,8 +2787,8 @@ async function goMonitor(){
   monPf.innerHTML=platformLabels.map(p=>`<span style="background:#fff;border:1px solid var(--line);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--ink-soft)">${p}</span>`).join("")
     +`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;width:100%">实际监测平台以你配置的 API 密钥为准</div>`;
   const msgs=[
-    ...platformLabels.map(p=>`正在向 ${p} 发送查询…`),
-    "正在解析 AI 回答中的品牌提及…","正在识别竞品出现情况…","正在生成报告…"
+    ...platformLabels.map(p=>`正在让 ${p} 回答你客户的问题…`),
+    "正在分析 AI 有没有提到你…","正在看 AI 推荐了哪些竞品…","正在整理你的专属报告…"
   ];
   let mi=0;
   const mt=setInterval(()=>{
@@ -2824,28 +2824,36 @@ async function goMonitor(){
       document.getElementById("monMsg").textContent="";
       document.getElementById("monPlatforms").innerHTML="";
       document.querySelector("#panel3 .loading").innerHTML=`
-        <div style="max-width:420px;margin:0 auto;text-align:center">
+        <div style="max-width:440px;margin:0 auto;text-align:center">
           <div style="font-size:48px;margin-bottom:16px">🔒</div>
-          <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">你的专属报告已经准备好了</h3>
-          <p style="color:var(--ink-soft);font-size:14px;margin-bottom:24px;line-height:1.7">
-            我们已经帮你问遍了各大 AI，结果就在这份报告里。<br>
-            解锁只要 <b style="color:var(--brand);font-size:18px">¥39.9</b>，<br>
-            看清 AI 推荐率、竞品分析、缺口诊断和提升方案。
+          <h3 style="font-size:20px;font-weight:700;margin-bottom:8px">你的专属报告已经生成好了</h3>
+          <p style="color:var(--ink-soft);font-size:14px;margin-bottom:20px;line-height:1.7">
+            我们已经模拟你的客户，问遍了各大 AI——<br>
+            <b style="color:var(--ink)">结果就在这份报告里，差一步就能看到。</b>
           </p>
-          <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px;text-align:left">
-            <div style="font-weight:600;font-size:14px;margin-bottom:12px">¥39.9 体验版，带你走完整套流程：</div>
+          <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:16px;text-align:left">
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">¥39.9 解锁，带你走完整套流程：</div>
+            <div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">一顿饭钱，看清现状 + 拿到解决方案</div>
             <div style="font-size:13px;color:var(--ink-soft);line-height:2">
-              ✅ 1次完整 AI 能见度监测（多平台·国内/出海）<br>
-              ✅ GEO 综合评分 + 竞品抢位排行<br>
-              ✅ 对话快照·活体证据（看 AI 真实怎么说你）<br>
-              ✅ <b style="color:var(--brand)">7天上推荐作战包</b>（告诉你发什么、发到哪）<br>
-              ✅ <b style="color:var(--brand)">1次内容生成</b>（符合 AI 口味的优质初稿）
+              ✅ 8大AI平台完整监测 + GEO评分<br>
+              ✅ <b style="color:var(--brand)">活体证据</b>：看AI真实推荐了谁<br>
+              ✅ 竞品对比 + 内容缺口诊断<br>
+              ✅ <b style="color:var(--brand)">7天上推荐作战包</b>：发什么、发到哪<br>
+              ✅ <b style="color:var(--brand)">1次内容生成</b>：复制就能发
             </div>
           </div>
-          <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:16px">
-            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥39.9，发送截图给客服开通：</div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;font-size:12px;color:var(--ink-soft)">
+            <div style="flex:1;background:#f6f5f2;border-radius:8px;padding:10px 8px">投一天广告<br><b style="color:var(--ink);font-size:14px">¥几百+</b></div>
+            <div style="flex:1;background:#f6f5f2;border-radius:8px;padding:10px 8px">漏掉1个客户<br><b style="color:var(--ink);font-size:14px">¥几千+</b></div>
+            <div style="flex:1;background:#eef7ee;border:1px solid var(--brand);border-radius:8px;padding:10px 8px">见微体验<br><b style="color:var(--brand);font-size:14px">¥39.9</b></div>
+          </div>
+          <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:14px">
+            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥39.9，发截图给客服开通：</div>
             <div style="font-size:16px;font-weight:700;color:var(--brand)">微信客服：jenly222</div>
-            <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发送截图后 5 分钟内开通，7×24 小时服务</div>
+            <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发截图后 5 分钟内开通 · 7×24 小时</div>
+          </div>
+          <div style="font-size:12px;color:var(--ink-faint);line-height:1.6;margin-bottom:16px">
+            💡 我们不吹"必上推荐"，但帮你把概率做到最高。<br>看完报告觉得不值，随时找客服反馈。
           </div>
           <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
             <button class="btn-primary" style="font-size:14px;padding:11px 24px"
