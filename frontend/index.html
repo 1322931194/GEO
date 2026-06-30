@@ -1021,17 +1021,18 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                   </div>
                 </div>
               </div>
+              <div id="repProof"></div>
               <div class="section-title">📊 各 AI 平台表现</div>
               <div class="platforms" id="repPlatforms"></div>
               <div id="repPlatformNote"></div>
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
               <div id="repRivalMatrix"></div>
+              <div id="repBattle"></div>
+              <div id="repSOP"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="repReadiness"></div>
-              <div id="repSOP"></div>
-              <div id="repBattle"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2859,14 +2860,37 @@ async function goMonitor(){
 function renderGuide(rep){
   const el=document.getElementById("repGuide");
   if(!el) return;
-  el.innerHTML=`<div style="background:linear-gradient(135deg,#fbf9f4,#f4f1ea);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:20px">
+  // 算出最扎心的一句话核心结论
+  const mr = rep.mention_rate || 0;
+  const answeredQ = rep.answered_queries || 0;
+  const hitQ = Math.round(mr/100*answeredQ);
+  let headline, hColor, hSub;
+  if(mr>=45){
+    headline = `AI 比较认你 👍`;
+    hColor = "#5a7d5a";
+    hSub = `客户问 AI 时，约 ${Math.round(mr)}% 的情况能被推到你。继续保持，盯紧竞品。`;
+  }else if(mr>=15){
+    headline = `AI 对你印象不深 ⚠️`;
+    hColor = "#b08442";
+    hSub = `我们模拟客户问了 ${answeredQ} 次，只有 ${hitQ} 次 AI 提到你。大量客户被推给了别人——但这是机会期，能补上。`;
+  }else{
+    headline = `AI 几乎不推你 🔴`;
+    hColor = "#b0524a";
+    hSub = `我们模拟客户问了 ${answeredQ} 次，只有 ${hitQ} 次 AI 提到你。也就是说，问 AI 的客户几乎都被推给了竞品。`;
+  }
+  el.innerHTML=`
+  <div style="background:#fff;border:2px solid ${hColor};border-radius:14px;padding:20px 24px;margin-bottom:16px">
+    <div style="font-size:22px;font-weight:800;color:${hColor};margin-bottom:8px">${headline}</div>
+    <div style="font-size:14px;color:var(--ink);line-height:1.7">${hSub}</div>
+  </div>
+  <div style="background:linear-gradient(135deg,#fbf9f4,#f4f1ea);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px">📖 这份报告怎么看？（30秒读懂）</div>
     <div style="font-size:13px;color:var(--ink-soft);line-height:1.9">
-      我们刚刚模拟了你的客户去问 8 大 AI（"推荐你这行靠谱的"），看 AI 到底推不推你。下面这份报告，从上往下回答 4 个问题：<br>
-      <b style="color:var(--ink)">① 我现在行不行？</b>（看总分和提及率）　
-      <b style="color:var(--ink)">② 证据呢？</b>（看 AI 真实对话截图）<br>
-      <b style="color:var(--ink)">③ 问题在哪？</b>（看哪些客户问题没推你）　
-      <b style="color:var(--ink)">④ 我该干嘛？</b>（看7天作战包，照着做）
+      下面这份报告，从上往下回答 4 个问题：<br>
+      <b style="color:var(--ink)">① 我现在行不行？</b>（总分+各平台表现）　
+      <b style="color:var(--ink)">② 证据呢？</b>（点开看 AI 真实怎么回答）<br>
+      <b style="color:var(--ink)">③ 问题在哪？</b>（内容缺口+竞品对比）　
+      <b style="color:var(--ink)">④ 我该干嘛？</b>（7天作战包，照着做）
     </div>
   </div>`;
 }
@@ -2948,6 +2972,32 @@ function renderReport(rep){
     if(!rawByPlatform[label]) rawByPlatform[label]=[];
     rawByPlatform[label].push(r);
   });
+  // 活体证据精选：挑最扎心的——AI提到了竞品但没提你
+  const proofEl = document.getElementById("repProof");
+  if(proofEl){
+    const allRaw = (rep.raw_results||[]).filter(r=>!r.error);
+    // 优先：没提你 + 提了竞品；其次：只是没提你
+    const killer = allRaw.filter(r=>!r.brand_mentioned && r.competitors_mentioned && r.competitors_mentioned.length>0);
+    const justMiss = allRaw.filter(r=>!r.brand_mentioned && (!r.competitors_mentioned || r.competitors_mentioned.length===0));
+    const picks = [...killer, ...justMiss].slice(0,2);
+    if(picks.length>0){
+      const cards = picks.map(r=>`
+        <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+          <div style="font-size:11px;color:var(--ink-faint);margin-bottom:6px">${escHtml(r.platform_label||r.platform||"AI")} · 客户这样问</div>
+          <div style="font-size:13.5px;color:var(--ink);font-weight:600;margin-bottom:8px">"${escHtml((r.question||"").slice(0,50))}"</div>
+          ${r.competitors_mentioned&&r.competitors_mentioned.length?
+            `<div style="font-size:12.5px;color:var(--bad)">❌ AI 推荐了：${escHtml(r.competitors_mentioned.slice(0,3).join("、"))}<span style="color:var(--ink);font-weight:600"> —— 但没有你</span></div>`
+            : `<div style="font-size:12.5px;color:var(--bad)">❌ AI 的回答里没有提到你</div>`}
+        </div>`).join("");
+      proofEl.innerHTML = `
+        <div class="section-title" style="color:var(--bad)">🔴 活体证据：AI 真实推荐了谁</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:12px">这是 AI 回答你客户时的真实情况——不是估算，是 AI 当场说的话。</div>
+        ${cards}
+        <div style="background:#fdf3f2;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:8px">💡 客户问 AI 时看到的就是这些。AI 推了别人没推你，这一单大概率就去了竞品那里。下方「7天作战包」告诉你怎么改变这个局面。</div>`;
+    } else {
+      proofEl.innerHTML = "";
+    }
+  }
   if(pbEntries.length===0){
     // 没有任何平台数据：明确告诉用户原因，而不是默默空白
     const errCount = (rep.raw_results||[]).filter(r=>r.error).length;
@@ -3061,11 +3111,18 @@ function renderBattleEntry(){
   const el=document.getElementById("repBattle");
   if(!el) return;
   el.innerHTML=`<div class="section-card" style="margin-top:20px;background:var(--ink);color:#f4f1ea">
-    <div style="font-weight:700;font-size:16px;margin-bottom:6px">🚀 7天上推荐作战包</div>
-    <div style="font-size:13px;color:rgba(244,241,234,.75);line-height:1.6;margin-bottom:14px">
-      想真正"上 AI 推荐"？点下方生成你的专属作战包：自动挑出最易快速见效的关键词、给出内容方向、精确到平台的发布清单，配一张7天行动表。照着做就行。
+    <div style="font-size:12px;color:#a8c48c;font-weight:600;margin-bottom:6px">✅ 看完了问题，现在看解决方案 ——</div>
+    <div style="font-weight:700;font-size:18px;margin-bottom:8px">🚀 你的专属「7天上推荐作战包」</div>
+    <div style="font-size:13px;color:rgba(244,241,234,.8);line-height:1.7;margin-bottom:8px">
+      前面看到 AI 没推你，别急——这份作战包就是来解决它的。它会给你：
     </div>
-    <button class="btn-primary" id="battleBtn" style="font-size:13px;padding:8px 18px" onclick="loadBattlePlan()">⚡ 生成我的7天作战包</button>
+    <div style="font-size:13px;color:rgba(244,241,234,.9);line-height:1.9;margin-bottom:14px">
+      ① 挑出最容易快速见效的<b style="color:#a8c48c">关键词</b>（不浪费力气）<br>
+      ② 告诉你内容发到哪个 <b style="color:#a8c48c">AI 真实信任的平台</b>（精确到具体网站）<br>
+      ③ 一张<b style="color:#a8c48c">7天行动表</b>，每天做什么都排好，照着做就行
+    </div>
+    <button class="btn-primary" id="battleBtn" style="font-size:14px;padding:10px 22px" onclick="loadBattlePlan()">⚡ 生成我的7天作战包</button>
+    <div style="font-size:11px;color:rgba(244,241,234,.5);margin-top:10px">不用懂技术，跟着做就行</div>
   </div>`;
 }
 
