@@ -585,11 +585,22 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     # 监测全失败保护：如果一条 AI 回答都没成功，说明 API 配置/网络有问题，
     # 不存假的全0报告（会误导用户以为"AI真的没推你"）
     if report.answered_queries == 0:
-        raise HTTPException(
-            503,
-            "AI 监测未能成功获取数据：可能是 AI 平台密钥未配置、余额不足或网络超时。"
-            "请检查服务器的 API 密钥配置后重试。本次不计入监测次数。"
-        )
+        # 分析失败原因，给出针对性提示
+        errs = [r.get("error", "") for r in (report.raw_results or []) if r.get("error")]
+        err_text = " ".join(errs).lower()
+        if "429" in err_text or "rate" in err_text or "frequent" in err_text or "频繁" in err_text:
+            detail = ("AI 平台暂时限流（请求过于频繁）。这通常是临时的，"
+                      "请等 1-2 分钟后重新监测。本次不计入监测次数。")
+        elif "timeout" in err_text or "超时" in err_text or "timed out" in err_text:
+            detail = ("AI 平台响应超时。可能是服务正在唤醒（首次访问较慢）或网络波动，"
+                      "请稍等片刻重新监测一次，通常第二次就好。本次不计入监测次数。")
+        elif "key" in err_text or "auth" in err_text or "401" in err_text or "403" in err_text:
+            detail = ("AI 平台密钥验证失败。请在管理后台「API 密钥自检」检查密钥配置。"
+                      "本次不计入监测次数。")
+        else:
+            detail = ("AI 监测未能成功获取数据：可能是平台繁忙、网络超时或密钥配置问题。"
+                      "请稍等片刻重新监测一次。本次不计入监测次数。")
+        raise HTTPException(503, detail)
 
     # 更新监测次数
     user.monitor_count = user_count + 1
