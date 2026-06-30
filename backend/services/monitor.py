@@ -409,10 +409,17 @@ async def run_monitoring(
             for pid, cfg in available.items():
                 for _ in range(samples_per_question):
                     coros.append(_bounded_query(client, pid, cfg, q, brand, competitors))
-        # 总超时保护：整批最多等 100 秒，到点就用已返回的结果出报告，
+        # 诊断日志：记录监测规模和耗时，便于在 Render 日志排查慢的原因
+        import time as _time
+        _t0 = _time.time()
+        logger.warning("【监测开始】平台=%s 问题数=%d 总请求=%d",
+                       list(available.keys()), len(questions), len(coros))
+        # 总超时保护：整批最多等 80 秒，到点就用已返回的结果出报告，
         # 不让个别慢平台(如未配好的文心)拖死整个监测。
         task_objs = [asyncio.ensure_future(c) for c in coros]
-        done, pending = await asyncio.wait(task_objs, timeout=100)
+        done, pending = await asyncio.wait(task_objs, timeout=80)
+        logger.warning("【监测完成】耗时=%.1f秒 成功=%d 未完成=%d",
+                       _time.time()-_t0, len(done), len(pending))
         for t in pending:
             t.cancel()  # 取消还没完成的慢任务
         if pending:
