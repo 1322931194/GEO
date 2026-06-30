@@ -547,6 +547,12 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     brand = _owned_brand(brand_id, user, session)
     q_list = json.loads(brand.questions_json or "[]")
     questions = [q["question"] for q in q_list]
+    # 性能优化：体验版/免费版首次监测，限制问题数，让"30秒出结果"体验更快、转化更好。
+    # 完整问题集留给专业版以上（深度监测）。
+    plan_now = plan_of(user)
+    if plan_now.get("price_cny", 0) < 100:  # 体验版及以下
+        questions = questions[:12]  # 首次体验只跑12个核心问题，约40秒出结果
+        q_list = q_list[:12]
     # 问题→主题 映射（用于主题维度细分，对标 Goodie Segment by topic）
     q_to_topic = {}
     for q in q_list:
