@@ -585,22 +585,28 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     # 监测全失败保护：如果一条 AI 回答都没成功，说明 API 配置/网络有问题，
     # 不存假的全0报告（会误导用户以为"AI真的没推你"）
     if report.answered_queries == 0:
-        # 分析失败原因，给出针对性提示
-        errs = [r.get("error", "") for r in (report.raw_results or []) if r.get("error")]
-        err_text = " ".join(errs).lower()
+        # 收集每个平台的真实错误（用于诊断）
+        plat_errs = {}
+        for r in (report.raw_results or []):
+            if r.get("error"):
+                lbl = r.get("platform_label") or r.get("platform") or "?"
+                if lbl not in plat_errs:
+                    plat_errs[lbl] = str(r.get("error"))[:120]
+        err_text = " ".join(plat_errs.values()).lower()
         if "429" in err_text or "rate" in err_text or "frequent" in err_text or "频繁" in err_text:
-            detail = ("AI 平台暂时限流（请求过于频繁）。这通常是临时的，"
-                      "请等 1-2 分钟后重新监测。本次不计入监测次数。")
+            reason = "AI 平台暂时限流（请求过于频繁），请等 1-2 分钟后重试。"
         elif "timeout" in err_text or "超时" in err_text or "timed out" in err_text:
-            detail = ("AI 平台响应超时。可能是服务正在唤醒（首次访问较慢）或网络波动，"
-                      "请稍等片刻重新监测一次，通常第二次就好。本次不计入监测次数。")
-        elif "key" in err_text or "auth" in err_text or "401" in err_text or "403" in err_text:
-            detail = ("AI 平台密钥验证失败。请在管理后台「API 密钥自检」检查密钥配置。"
-                      "本次不计入监测次数。")
+            reason = "AI 平台响应超时，请稍等片刻重试一次。"
+        elif "key" in err_text or "auth" in err_text or "401" in err_text or "403" in err_text or "api_key" in err_text:
+            reason = "AI 平台密钥验证失败，请在管理后台「API 密钥自检」检查。"
+        elif "json" in err_text or "parse" in err_text:
+            reason = "AI 返回格式异常，请重试一次。"
         else:
-            detail = ("AI 监测未能成功获取数据：可能是平台繁忙、网络超时或密钥配置问题。"
-                      "请稍等片刻重新监测一次。本次不计入监测次数。")
-        raise HTTPException(503, detail)
+            reason = "AI 监测未能获取数据，请稍等重试。"
+        # 把每个平台的具体错误附在后面，方便排查
+        detail_parts = [f"{k}：{v}" for k, v in plat_errs.items()]
+        diag = "；".join(detail_parts) if detail_parts else "无具体错误信息（可能所有平台都未被调用）"
+        raise HTTPException(503, f"{reason} 本次不计入监测次数。【诊断信息】{diag}")
 
     # 更新监测次数
     user.monitor_count = user_count + 1
