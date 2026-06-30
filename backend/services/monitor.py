@@ -495,7 +495,12 @@ async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerRe
                        queried_at=now_cn.strftime("%Y-%m-%d %H:%M:%S"),
                        node=os.getenv("QUERY_NODE", "上海"))
     try:
-        answer = await _DISPATCH[pid](client, cfg, question, key)
+        # 双保险：除了 httpx 的 timeout=45，再加一层 asyncio 硬超时 50秒，
+        # 防止连接层卡死导致 httpx 超时不生效，让任务永远挂起。
+        answer = await asyncio.wait_for(
+            _DISPATCH[pid](client, cfg, question, key),
+            timeout=50,
+        )
         res.answer_text = answer
         parsed = _analyze_answer(answer, brand, competitors)
         res.brand_mentioned = parsed["brand_mentioned"]
