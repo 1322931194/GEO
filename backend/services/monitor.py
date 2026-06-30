@@ -156,7 +156,11 @@ async def _call_openai(client, cfg, prompt, key):
         timeout=45,
     )
     r.raise_for_status()
-    return r.json()["choices"][0]["message"]["content"]
+    data = r.json()
+    # 容错：有些平台出错时返回的不是标准结构，给出清晰错误而非崩溃
+    if "choices" not in data or not data["choices"]:
+        raise ValueError(f"返回缺少choices字段: {str(data)[:150]}")
+    return data["choices"][0]["message"]["content"]
 
 
 async def _call_gemini(client, cfg, prompt, key):
@@ -392,9 +396,9 @@ async def run_monitoring(
 
     results: list[AnswerResult] = []
 
-    # 并发上限：一次性发太多请求会触发平台限流(429)，反而更慢。
-    # 限制同时最多 20 个并发，平衡速度和稳定性。
-    sem = asyncio.Semaphore(20)
+    # 并发上限：一次性发太多请求会触发平台限流(429)。
+    # 降到 8，大幅降低限流概率（牺牲少量速度换稳定，对国产平台尤其重要）。
+    sem = asyncio.Semaphore(8)
     async def _bounded_query(client, pid, cfg, q, brand, competitors):
         async with sem:
             return await _one_query(client, pid, cfg, q, brand, competitors)
