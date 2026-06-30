@@ -2948,6 +2948,20 @@ function renderReport(rep){
     if(!rawByPlatform[label]) rawByPlatform[label]=[];
     rawByPlatform[label].push(r);
   });
+  if(pbEntries.length===0){
+    // 没有任何平台数据：明确告诉用户原因，而不是默默空白
+    const errCount = (rep.raw_results||[]).filter(r=>r.error).length;
+    document.getElementById("repPlatforms").innerHTML=`
+      <div style="background:#fdf3f2;border:1px solid #f5c6c2;border-radius:10px;padding:16px 18px">
+        <div style="font-size:14px;font-weight:700;color:var(--bad);margin-bottom:8px">⚠️ 本次未采集到平台数据</div>
+        <div style="font-size:13px;color:var(--ink);line-height:1.7">
+          这次监测，所有 AI 平台都没有成功返回结果${errCount?`（${errCount} 个请求失败）`:''}。<br>
+          常见原因：① AI 平台的 API 密钥未配置或失效；② 平台临时限流/超时。<br>
+          建议：<b>稍等片刻后重新监测一次</b>。若反复出现，请在管理后台「API 密钥自检」检查密钥配置。
+        </div>
+        <button class="btn-cyan" style="margin-top:12px;padding:8px 20px;font-size:13px" onclick="goMonitor()">🔄 重新监测</button>
+      </div>`;
+  } else {
   document.getElementById("repPlatforms").innerHTML=
     pbEntries.map(([nm,rt],pi)=>{
       const c=rt>=45?"var(--good)":rt>=30?"var(--warn)":"var(--bad)";
@@ -2978,6 +2992,7 @@ function renderReport(rep){
         <div id="${evidId}" style="display:none;background:var(--bg);border-radius:8px;padding:10px 14px;margin-top:8px">${evidRows||'<div style="font-size:12px;color:var(--ink-soft)">暂无明细</div>'}</div>
       </div>`;
     }).join("");
+  }
   // 诚实提示：只监测了1个平台 / 平台太少时，告诉用户去配更多密钥
   const pfNoteEl = document.getElementById("repPlatformNote");
   if(pfNoteEl){
