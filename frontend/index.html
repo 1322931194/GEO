@@ -2922,12 +2922,46 @@ function togglePfEvid(id){
 }
 
 function renderReport(rep){
-  // 报告导读：先告诉商家这份报告怎么看
-  renderGuide(rep);
-  // GEO 综合评分（对标 SheepGeo 的 GEM 评分，让报告更专业）
-  renderScore(rep);
-  // 异动预警（对标 Goodie Catch shifts）
-  renderAlerts(rep);
+  // 安全执行器：任何单个模块渲染失败，都不影响其他模块和整个报告
+  const safe = (name, fn) => {
+    try { fn(); }
+    catch(err){ console.error("报告模块["+name+"]渲染失败:", err); }
+  };
+  // 防御：确保关键字段有默认值，避免 undefined 导致崩溃
+  rep = rep || {};
+  rep.platform_breakdown = rep.platform_breakdown || {};
+  rep.competitor_share = rep.competitor_share || {};
+  rep.gaps = rep.gaps || [];
+  rep.raw_results = rep.raw_results || [];
+  rep.mention_rate = rep.mention_rate || 0;
+  rep.answered_queries = rep.answered_queries || 0;
+
+  safe("导读", ()=>renderGuide(rep));
+  // 数据完全为空的兜底：避免用户看到一堆空模块，不知道发生了什么
+  if(rep.answered_queries === 0){
+    const guideEl = document.getElementById("repGuide");
+    if(guideEl){
+      guideEl.innerHTML = `
+        <div style="background:#fdf3f2;border:2px solid #f5c6c2;border-radius:14px;padding:24px;text-align:center">
+          <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+          <div style="font-size:18px;font-weight:700;color:var(--bad);margin-bottom:10px">这次监测没能采集到数据</div>
+          <div style="font-size:13.5px;color:var(--ink);line-height:1.8;margin-bottom:18px">
+            所有 AI 平台都没成功返回结果，所以下面的报告是空的。<br>
+            这<b>不是 AI 不推你</b>，而是这次查询没成功（平台繁忙或网络波动）。<br>
+            <b>请用「国内模式」重新监测一次</b>，通常第二次就好。
+          </div>
+          <button class="btn-cyan" style="padding:10px 28px;font-size:14px" onclick="goMonitor()">🔄 重新监测</button>
+        </div>`;
+    }
+    return; // 数据全空时，不再渲染下面那些会显示空白的模块
+  }
+  safe("评分", ()=>renderScore(rep));
+  safe("预警", ()=>renderAlerts(rep));
+  safe("其余模块", ()=>renderReportBody(rep));
+}
+
+// 报告主体（原 renderReport 的剩余部分）
+function renderReportBody(rep){
   document.getElementById("repDate").textContent=
     "生成于 "+new Date(rep.generated_at).toLocaleString("zh-CN")+
     " · 监测 "+Object.keys(rep.platform_breakdown||{}).length+" 大 AI · "+rep.answered_queries+" 次真实查询";
