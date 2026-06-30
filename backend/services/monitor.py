@@ -404,17 +404,27 @@ async def run_monitoring(
             return await _one_query(client, pid, cfg, q, brand, competitors)
 
     async with httpx.AsyncClient() as client:
-        tasks = []
+        coros = []
         for q in questions:
             for pid, cfg in available.items():
                 for _ in range(samples_per_question):
-                    tasks.append(_bounded_query(client, pid, cfg, q, brand, competitors))
-        gathered = await asyncio.gather(*tasks, return_exceptions=True)
-        for g in gathered:
-            if isinstance(g, AnswerResult):
-                results.append(g)
-            else:
-                logger.warning("监测任务异常: %s", g)
+                    coros.append(_bounded_query(client, pid, cfg, q, brand, competitors))
+        # 总超时保护：整批最多等 100 秒，到点就用已返回的结果出报告，
+        # 不让个别慢平台(如未配好的文心)拖死整个监测。
+        task_objs = [asyncio.ensure_future(c) for c in coros]
+        done, pending = await asyncio.wait(task_objs, timeout=100)
+        for t in pending:
+            t.cancel()  # 取消还没完成的慢任务
+        if pending:
+            logger.warning("监测总超时，%d 个任务未完成，用已返回的 %d 条出报告",
+                           len(pending), len(done))
+        for t in done:
+            try:
+                g = t.result()
+                if isinstance(g, AnswerResult):
+                    results.append(g)
+            except Exception as e:
+                logger.warning("监测任务异常: %s", e)
 
         # 智能补采样：AI 回答有随机性，单次采样可能"碰巧没提到品牌"。
         # 对"成功调用但没提到品牌"的问题，自动再补 1 次确认，消除冤枉的 0。
@@ -439,10 +449,17 @@ async def run_monitoring(
                         retry_tasks.append(_bounded_query(client, pid, cfg, q, brand, competitors))
                         retry_meta.append(q)
             if retry_tasks:
-                retried = await asyncio.gather(*retry_tasks, return_exceptions=True)
-                for g in retried:
-                    if isinstance(g, AnswerResult):
-                        results.append(g)
+                retry_objs = [asyncio.ensure_future(t) for t in retry_tasks]
+                rdone, rpending = await asyncio.wait(retry_objs, timeout=20)
+                for t in rpending:
+                    t.cancel()
+                for t in rdone:
+                    try:
+                        g = t.result()
+                        if isinstance(g, AnswerResult):
+                            results.append(g)
+                    except Exception:
+                        pass
 
     return _aggregate(brand, questions, competitors, available, results,
                       samples_per_question)
