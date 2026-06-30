@@ -3237,7 +3237,14 @@ async function loadBattlePlan(){
       <div style="font-size:13px;font-weight:700;color:var(--ink);margin:14px 0 10px">③ 7天行动表</div>
       ${tlHtml}
       <div style="background:#fffbeb;border-radius:8px;padding:10px 14px;font-size:11.5px;color:#92722a;line-height:1.6;margin-top:8px">${escHtml(d.honest_note||"")}</div>
-    </div>`;
+      <div style="background:var(--matcha);border-radius:12px;padding:18px 20px;margin-top:16px;color:#fff">
+        <div style="font-size:15px;font-weight:700;margin-bottom:6px">👉 现在就落地：第一步该做什么</div>
+        <div style="font-size:13px;line-height:1.8;color:rgba(255,255,255,.92);margin-bottom:14px">
+          看完别只收藏。<b>现在就做这一件事</b>：点下方按钮，让 AI 帮你针对速效词「${escHtml((d.target_keywords&&d.target_keywords[0]&&d.target_keywords[0].keyword)||'你的核心词')}」写好一篇内容，<b>复制下来发到上面②说的平台</b>。这就是你上推荐的第一步。
+        </div>
+        <button class="btn-primary" style="background:#fff;color:var(--matcha);font-size:14px;padding:10px 22px;font-weight:700" onclick="navTo('ws')">✍️ 让 AI 帮我写好这篇内容 →</button>
+        <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:10px">写好后，照着「发到哪」复制粘贴发布即可。不会操作随时找客服。</div>
+      </div>`;
   }catch(e){
     if(btn){ btn.disabled=false; btn.textContent="⚡ 生成我的7天作战包"; }
     toast("生成失败："+(e.message||"请重试"));
