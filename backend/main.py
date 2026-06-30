@@ -550,9 +550,10 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
     # 性能优化：体验版/免费版首次监测，限制问题数，让"30秒出结果"体验更快、转化更好。
     # 完整问题集留给专业版以上（深度监测）。
     plan_now = plan_of(user)
-    if plan_now.get("price_cny", 0) < 100:  # 体验版及以下
-        questions = questions[:12]  # 首次体验只跑12个核心问题，约40秒出结果
-        q_list = q_list[:12]
+    _is_trial = plan_now.get("price_cny", 0) < 100
+    if _is_trial:  # 体验版及以下
+        questions = questions[:6]   # 首次只跑6个核心问题，确保30-40秒内出结果
+        q_list = q_list[:6]
     # 问题→主题 映射（用于主题维度细分，对标 Goodie Segment by topic）
     q_to_topic = {}
     for q in q_list:
@@ -573,13 +574,12 @@ async def monitor(brand_id: int, user: User = Depends(current_user),
         raise HTTPException(403, "UPGRADE_REQUIRED")
 
     competitors = [c.strip() for c in brand.competitors.split(",") if c.strip()]
-    _is_trial = plan_now.get("price_cny", 0) < 100
     report = await run_monitoring(
         brand.name, questions, competitors,
         samples_per_question=plan["samples"],
         mode=getattr(brand, "mode", "outbound"),
-        max_platforms=4,                    # 限4个平台，控制耗时
-        skip_resample=_is_trial,            # 体验版跳过补采样，首次更快
+        max_platforms=(3 if _is_trial else 5),   # 体验版限3平台，确保快速完成
+        skip_resample=_is_trial,                  # 体验版跳过补采样，首次更快
     )
 
     # 监测全失败保护：如果一条 AI 回答都没成功，说明 API 配置/网络有问题，
