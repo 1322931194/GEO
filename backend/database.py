@@ -25,35 +25,46 @@ engine = create_engine(DATABASE_URL, echo=False,
 # 套餐配额配置
 PLANS = {
     "trial": {
-        "name": "免费试用", "price_cny": 0, "brands": 1,
-        "questions": 20, "samples": 1, "platforms": 4, "freq": "once",
-        "monitor_limit": 0,   # 0=不能监测，必须付费才能看报告
-        "battle_limit": 0, "content_limit": 0,
+        "name": "免费版", "price_cny": 0, "brands": 1,
+        "questions": 20, "samples": 1, "platforms": 3, "freq": "once",
+        "monitor_limit": 1,   # 免费给1次完整监测（让他看到AI不推他）
+        "battle_limit": 0,    # 作战包只给预览（前端控制），完整要付费
+        "content_limit": 0,
     },
-    "starter_trial": {
-        "name": "39.9体验", "price_cny": 39.9, "brands": 1,
-        "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
-        "monitor_limit": 1,   # 1次完整监测（走完整流程）
-        "battle_limit": 1,    # 慷慨版：体验1次7天作战包
-        "content_limit": 1,   # 慷慨版：体验1次内容生成
+    "single": {
+        "name": "单次版", "price_cny": 99, "brands": 1,
+        "questions": 50, "samples": 1, "platforms": 5, "freq": "once",
+        "monitor_limit": 1,   # 1次完整监测
+        "battle_limit": 1,    # 完整作战包
+        "content_limit": 1,   # 1次内容生成
+    },
+    "monthly": {
+        "name": "月付版", "price_cny": 699, "brands": 3,
+        "questions": 80, "samples": 1, "platforms": 5, "freq": "weekly",
+        "monitor_limit": 8,   # 每月8次监测
+        "battle_limit": 999, "content_limit": 999,
     },
     "starter": {
-        "name": "专业版", "price_cny": 1980, "brands": 3,
-        "questions": 50, "samples": 1, "platforms": 4, "freq": "weekly",
-        "monitor_limit": 4,   # 每月4次
-        "battle_limit": 999, "content_limit": 999,  # 不限
+        "name": "季付版", "price_cny": 1980, "brands": 5,
+        "questions": 120, "samples": 1, "platforms": 6, "freq": "weekly",
+        "monitor_limit": 999,  # 季度内不限次
+        "battle_limit": 999, "content_limit": 999,
+    },
+    # ===== 保留旧套餐（兼容已有付费用户，不影响历史数据）=====
+    "starter_trial": {
+        "name": "体验版(旧)", "price_cny": 39.9, "brands": 1,
+        "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
+        "monitor_limit": 1, "battle_limit": 1, "content_limit": 1,
     },
     "pro": {
         "name": "企业版", "price_cny": 3980, "brands": 5,
-        "questions": 150, "samples": 2, "platforms": 4, "freq": "daily",
-        "monitor_limit": 999,  # 不限
-        "battle_limit": 999, "content_limit": 999,
+        "questions": 150, "samples": 2, "platforms": 6, "freq": "daily",
+        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
     },
     "business": {
         "name": "旗舰版", "price_cny": 9800, "brands": 10,
-        "questions": 999, "samples": 3, "platforms": 4, "freq": "daily",
-        "monitor_limit": 999,  # 不限
-        "battle_limit": 999, "content_limit": 999,
+        "questions": 999, "samples": 3, "platforms": 8, "freq": "daily",
+        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
     },
 }
 
