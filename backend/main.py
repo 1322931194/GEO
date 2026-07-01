@@ -184,6 +184,24 @@ def _client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+# ------------------- 全局每日监测熔断（保命措施）-------------------
+# 防止极端情况下（限流被绕过/大规模攻击）API费用失控。
+# 全站每日监测总数超过上限，直接停止，保护你的钱包。
+_daily_monitor_count = {"date": "", "count": 0}
+
+def _global_daily_guard():
+    """全站每日监测熔断。超过 MAX_DAILY_MONITORS 当天停止监测。"""
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    if _daily_monitor_count["date"] != today:
+        _daily_monitor_count["date"] = today
+        _daily_monitor_count["count"] = 0
+    max_daily = int(os.getenv("MAX_DAILY_MONITORS", "500"))  # 默认每天最多500次全站监测
+    if _daily_monitor_count["count"] >= max_daily:
+        raise HTTPException(503, "今日监测量已达上限，请明天再试（系统保护）")
+    _daily_monitor_count["count"] += 1
+
+
 def _jload(s, default=None):
     """安全解析JSON：数据异常时返回默认值，不抛错导致接口500"""
     if default is None:
@@ -545,8 +563,13 @@ async def gen_questions(brand_id: int, user: User = Depends(current_user),
 
 
 @app.post("/api/brands/{brand_id}/monitor")
-async def monitor(brand_id: int, user: User = Depends(current_user),
+async def monitor(brand_id: int, request: Request, user: User = Depends(current_user),
                   session: Session = Depends(get_session)):
+    # 防薅羊毛：IP级限流。即使有人批量注册账号，同一IP每小时最多10次监测，
+    # 防止恶意刷爆 API token 费用。
+    _rate_limit(f"monitor:{_client_ip(request)}", max_calls=10, window_sec=3600)
+    # 保命：全站每日监测熔断，防止 API 费用失控
+    _global_daily_guard()
     brand = _owned_brand(brand_id, user, session)
     q_list = json.loads(brand.questions_json or "[]")
     questions = [q["question"] for q in q_list]
@@ -1584,8 +1607,9 @@ def industry_stats_public(session: Session = Depends(get_session)):
 
 
 @app.post("/api/content/generate")
-async def gen_content(req: GenContentReq, user: User = Depends(current_user),
+async def gen_content(req: GenContentReq, request: Request, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
+    _rate_limit(f"gencontent:{_client_ip(request)}", max_calls=20, window_sec=3600)
     brand = _owned_brand(req.brand_id, user, session)
     # 额度检查：体验版可用1次，专业版以上不限
     _cplan = plan_of(user)
@@ -1792,12 +1816,13 @@ def _publish_platforms(mode: str):
 
 
 @app.get("/api/brands/{brand_id}/battle-plan")
-async def battle_plan(brand_id: int, user: User = Depends(current_user),
+async def battle_plan(brand_id: int, request: Request, user: User = Depends(current_user),
                       session: Session = Depends(get_session)):
     """7天上推荐作战包：
     核心 = 用「本品牌最近一次监测里 AI 真实引用的源」作为精确发布目标，
     而不是通用猜测。挑词→真实信源→7天行动表，编排成可执行计划。
     复用已有数据，不新增监测、不碰现有数据。"""
+    _rate_limit(f"battle:{_client_ip(request)}", max_calls=20, window_sec=3600)
     brand = _owned_brand(brand_id, user, session)
     mode = getattr(brand, "mode", "outbound")
 
@@ -2040,7 +2065,7 @@ async def order_notify(request: Request, session: Session = Depends(get_session)
     # 验签
     recv_sign = data.get("sign", "")
     calc_sign = _yungouos_sign(data)
-    if recv_sign != calc_sign:
+    if not hmac.compare_digest(recv_sign, calc_sign):
         return "fail"
 
     order_no = data.get("out_trade_no", "")
