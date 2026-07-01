@@ -1040,6 +1040,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div class="section-title">🔍 发现的内容缺口</div>
               <div id="repGaps"></div>
               <div id="repRivalMatrix"></div>
+              <div id="repCompDiag"></div>
               <div id="repBattle"></div>
               <div id="repSOP"></div>
               <div id="repTopics"></div>
@@ -3137,6 +3138,8 @@ function renderReportBody(rep){
   renderTopics(rep);
   // 竞品横向抢位矩阵
   renderRivalMatrix(rep);
+  // 竞品深度诊断（凭什么赢/你差在哪/怎么补）
+  renderCompDiag(rep);
   // AI 可读性自检清单（对标 Scrunch，纯增量内容功能）
   renderReadiness(rep);
   // 保姆级作战 SOP（根据本次报告生成一步步该做什么）
@@ -3393,7 +3396,39 @@ function renderRivalMatrix(rep){
   </div>`;
 }
 
-// 主题维度细分渲染（对标 Goodie Segment by topic）
+// 竞品深度诊断：不只排名，拆解"凭什么赢/抢走你哪些客户/怎么追"
+function renderCompDiag(rep){
+  const el=document.getElementById("repCompDiag");
+  if(!el) return;
+  const diag=rep.competitor_diagnosis||[];
+  if(diag.length<1){ el.innerHTML=""; return; }
+  const cards=diag.map(c=>{
+    const vColor = c.verdict==="强于你"?"var(--bad)":(c.verdict==="与你并存"?"var(--warn)":"var(--bad)");
+    const stolenList = (c.stolen_questions||[]).length
+      ? `<div style="margin-top:10px">
+           <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">🎯 它被推荐、你却缺席的问题（这些客户被它抢走了）：</div>
+           ${c.stolen_questions.map(q=>`<div style="font-size:12.5px;color:var(--ink);background:#fdf3f2;border-radius:6px;padding:6px 10px;margin-bottom:4px">"${escHtml(q)}"</div>`).join("")}
+         </div>` : "";
+    const sourceList = (c.sources||[]).length
+      ? `<div style="margin-top:10px;font-size:12px;color:var(--ink-soft)">📍 AI 在这些地方"看到"了它：${c.sources.map(s=>escHtml(s)).join("、")}<br><span style="color:var(--matcha)">→ 你也该在这些源露出</span></div>` : "";
+    return `<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-size:15px;font-weight:700;color:var(--ink)">${escHtml(c.name)}</span>
+        <span style="font-size:11px;font-weight:700;color:#fff;background:${vColor};padding:3px 10px;border-radius:10px">${c.verdict}</span>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-soft)">抢占率 <b style="color:${vColor}">${c.share}%</b> · 在 <b>${c.stolen_count}</b> 个问题上抢走你的客户${c.co_occur>0?` · 与你并存 ${c.co_occur} 次`:''}</div>
+      ${stolenList}
+      ${sourceList}
+      <div style="margin-top:12px;background:#f0f5ee;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink);line-height:1.6">💡 <b>怎么追：</b>${escHtml(c.advice)}</div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">🔬 竞品深度诊断：他们凭什么赢，你怎么追</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">不只告诉你"谁赢了"，而是拆解每个竞品抢走了你哪些客户、出现在哪些地方、你具体该怎么补上。</div>
+    ${cards}
+  </div>`;
+}
+
 function renderTopics(rep){
   const el=document.getElementById("repTopics");
   if(!el) return;
