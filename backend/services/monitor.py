@@ -141,6 +141,7 @@ class VisibilityReport:
     geo_grade_desc: str = ""                     # 等级说明
     geo_score_detail: dict = field(default_factory=dict)  # 各维度得分
     dashboard_metrics: dict = field(default_factory=dict)  # GEO看板明确指标
+    competitor_diagnosis: list = field(default_factory=list)  # 竞品深度诊断(凭什么赢/你差在哪/怎么补)
 
 
 # ----------------------------------------------------------------------------
@@ -674,6 +675,51 @@ def _aggregate(brand, questions, competitors, available, results,
         "platforms_covered": len(platform_breakdown),  # 覆盖AI引擎数
     }
 
+    # ===== 竞品深度诊断：不只告诉"谁赢了"，还拆解"凭什么赢、你差在哪、怎么补" =====
+    competitor_diagnosis = []
+    # 找出被AI提及的竞品，按份额排序（抢你客户最多的排前面）
+    top_comps = sorted(comp_share.items(), key=lambda x: -x[1])
+    for cname, cshare in top_comps:
+        if cshare <= 0:
+            continue
+        # 这个竞品在哪些问题上被推荐、你却没出现（= 你被它抢走的场景）
+        stolen_qs = []
+        co_occur = 0  # 你和竞品同时被提及的次数
+        for r in ok:
+            if cname in r.competitors_mentioned:
+                if not r.brand_mentioned:
+                    stolen_qs.append(r.question[:40])
+                else:
+                    co_occur += 1
+        # 这个竞品出现的源（AI在哪些地方"看到"了它）
+        comp_sources = set()
+        for r in ok:
+            if cname in r.competitors_mentioned:
+                for src in r.cited_sources:
+                    comp_sources.add(src)
+        # 诊断结论
+        total_comp_hits = sum(1 for r in ok if cname in r.competitors_mentioned)
+        if cshare >= mention_rate and mention_rate < 30:
+            verdict = "强于你"
+            advice = f"{cname} 在 AI 心中的存在感比你强。重点：抢占它出现的引用源，补齐它有你没有的内容。"
+        elif co_occur > len(stolen_qs):
+            verdict = "与你并存"
+            advice = f"你和 {cname} 经常一起被推荐，说明你有基础。重点：在它单独出现（你缺席）的问题上补内容，实现反超。"
+        else:
+            verdict = "抢走你的客户"
+            advice = f"{cname} 在 {len(stolen_qs)} 个问题上被推荐、你却缺席。这些就是你被它抢走的客户，优先补这些场景的内容。"
+        competitor_diagnosis.append({
+            "name": cname,
+            "share": cshare,                              # 抢占率
+            "verdict": verdict,                           # 判断
+            "stolen_count": len(stolen_qs),              # 抢走你多少个场景
+            "stolen_questions": stolen_qs[:5],           # 具体哪些问题
+            "co_occur": co_occur,                         # 和你并存次数
+            "sources": list(comp_sources)[:6],           # 它出现在哪些源
+            "advice": advice,                             # 怎么追赶
+        })
+    competitor_diagnosis = competitor_diagnosis[:5]  # 最多5个主要竞品
+
     return VisibilityReport(
         brand=brand,
         generated_at=datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None).isoformat(),
@@ -697,4 +743,5 @@ def _aggregate(brand, questions, competitors, available, results,
         geo_grade_desc=geo_grade_desc,
         geo_score_detail=geo_score_detail,
         dashboard_metrics=dashboard_metrics,
+        competitor_diagnosis=competitor_diagnosis,
     )
