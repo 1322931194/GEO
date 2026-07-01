@@ -1090,32 +1090,39 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <div id="pricingView" class="hidden">
           <div class="pricing-page" style="padding-top:0">
             <h1>选择适合你的方案</h1>
-            <p class="sub">从单次体检到企业级 AI 能见度管理，覆盖不同阶段的需求</p>
+            <p class="sub">从免费体检到持续优化，覆盖你做 GEO 的每个阶段</p>
             <div class="plans">
               <div class="plan">
-                <div class="plan-name">体验版</div>
-                <div class="plan-price">¥39.9<span>/次</span></div>
-                <div class="plan-desc">花一顿饭钱，走完一整套 GEO 流程</div>
-                <ul class="plan-features"><li>1 次完整监测</li><li>GEO 评分 + 竞品抢位</li><li>对话快照·活体证据</li><li><b>7天上推荐作战包 ×1</b></li><li><b>内容生成 ×1</b></li><li>国内/出海双引擎</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('starter_trial')">立即开通 ¥39.9</button>
+                <div class="plan-name">免费版</div>
+                <div class="plan-price">¥0</div>
+                <div class="plan-desc">先看清 AI 到底推不推你</div>
+                <ul class="plan-features"><li>1 次完整监测</li><li>GEO 评分 + 各平台表现</li><li>对话快照·活体证据</li><li>作战包<b>预览</b>（尝一口方案）</li><li style="color:var(--ink-faint)">完整作战包需升级</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">免费开始</button>
+              </div>
+              <div class="plan">
+                <div class="plan-name">单次版</div>
+                <div class="plan-price">¥99<span>/次</span></div>
+                <div class="plan-desc">彻底查清一次 + 拿到完整方案</div>
+                <ul class="plan-features"><li>1 次完整监测（5平台）</li><li>GEO 评分 + 竞品抢位</li><li><b>完整 7 天作战包</b></li><li><b>内容生成 ×1</b></li><li>竞品深度诊断</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('single')">开通单次版 ¥99</button>
               </div>
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
-                <div class="plan-name">专业版</div>
-                <div class="plan-price">¥1,980<span>/季</span></div>
-                <div class="plan-desc">持续上推荐，适合要真正见效的商家</div>
-                <ul class="plan-features"><li>3 个品牌</li><li>每月 4 次监测</li><li><b>不限次作战包 + 内容生成</b></li><li>历史趋势追踪 + 复测对比</li><li>引用源攻克清单 + 作战SOP</li><li>健康度雷达 + 高管PDF</li><li>专属顾问支持</li></ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('starter')">开通专业版</button>
+                <div class="plan-name">月付版</div>
+                <div class="plan-price">¥699<span>/月</span></div>
+                <div class="plan-desc">持续监测优化，适合认真做 GEO</div>
+                <ul class="plan-features"><li>3 个品牌</li><li><b>每月 8 次监测</b></li><li><b>不限次作战包 + 内容生成</b></li><li>历史趋势 + 复测对比</li><li>竞品深度诊断 + 攻克清单</li><li>专属顾问支持</li></ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">开通月付版</button>
               </div>
               <div class="plan">
-                <div class="plan-name">企业版</div>
-                <div class="plan-price">¥3,980<span>/年</span></div>
-                <div class="plan-desc">企业 IT / 市场部门的 AI 品牌资产自助管理工具</div>
-                <ul class="plan-features"><li>10 个品牌矩阵管理</li><li>150 个问题场景</li><li>国内/出海双引擎</li><li>不限监测次数</li><li>竞品深度对比 + 雷达图</li><li>API 接口接入</li><li>全年高管级汇报</li><li>优先专属顾问服务</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('pro')">开通企业版</button>
+                <div class="plan-name">季付版</div>
+                <div class="plan-price">¥1,980<span>/季</span></div>
+                <div class="plan-desc">相当于 ¥660/月，长期做最划算</div>
+                <ul class="plan-features"><li>5 个品牌矩阵</li><li><b>季度内不限次监测</b></li><li>不限作战包 + 内容生成</li><li>竞品深度诊断 + 雷达图</li><li>健康度雷达 + 高管PDF</li><li>优先专属顾问服务</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('starter')">开通季付版</button>
               </div>
             </div>
-            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要更大规模的品牌矩阵或定制服务？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
+            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要企业级矩阵或定制服务？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
           </div>
         </div>
 
@@ -4331,11 +4338,28 @@ function startPayPolling(orderNo){
       if(s.status === "paid"){
         clearInterval(payPollTimer);
         const ps = document.getElementById("payStatus");
-        if(ps) ps.innerHTML='✅ 支付成功！正在开通…';
+        if(ps) ps.innerHTML='✅ 支付成功！正在为你开通…';
         toast("✅ 支付成功，套餐已开通！");
         // 更新套餐标签
         if(s.plan_info) document.getElementById("planTag").textContent=s.plan_info.name+"版";
-        setTimeout(()=>{ closePayModal(); hidePricing(); location.reload(); }, 1500);
+        // 自动开始监测：付完钱直接进入监测，不让用户多点一步
+        setTimeout(()=>{
+          closePayModal(); hidePricing();
+          const bid = currentBrandId || lastBrandIdForDash;
+          if(bid){
+            // 已有品牌：直接开始监测
+            if(ps) ps.innerHTML='✅ 已开通！正在为你启动 AI 监测…';
+            currentBrandId = bid;
+            navTo('monitor');
+            setStep(3);
+            goMonitor();
+          }else{
+            // 没品牌：引导去创建
+            toast("套餐已开通！请先创建品牌，再开始监测");
+            navTo('monitor');
+            setStep(1);
+          }
+        }, 1500);
       }
     }catch(e){}
   }, 5000);  // 每5秒查一次
