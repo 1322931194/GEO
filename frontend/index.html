@@ -530,7 +530,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
     <div class="lp-nav-links">
       <a href="#geo">什么是 GEO</a>
       <a href="#how">如何运作</a>
-      <a href="#channels">分发网络</a>
+      <a href="/tutorial">运营教程</a>
       <a href="#cases">成功案例</a>
       <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
       <button class="btn-cyan" style="padding:9px 20px" onclick="gotoAuth('reg')">免费体验</button>
@@ -873,6 +873,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <div class="sb-item active" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
         <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
         <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
+        <div class="sb-item" onclick="window.open('/tutorial','_blank')"><span class="ic">📖</span>运营教程</div>
         <div class="sb-item" id="navPrice" onclick="navTo('price')"><span class="ic">✨</span>升级套餐</div>
       </nav>
       <div class="sb-foot">
@@ -3254,6 +3255,7 @@ async function loadBattlePlan(){
         </div>
         <button class="btn-primary" style="background:#fff;color:var(--matcha);font-size:14px;padding:10px 22px;font-weight:700" onclick="navTo('ws')">✍️ 让 AI 帮我写好这篇内容 →</button>
         <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:10px">写好后，照着「发到哪」复制粘贴发布即可。不会操作随时找客服。</div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)"><a href="/tutorial" target="_blank" style="color:#fff;font-size:12.5px;text-decoration:underline">📖 不懂 GEO 怎么做？看完整运营教程（监测→写文案→发文章）</a></div>
       </div>`;
   }catch(e){
     if(btn){ btn.disabled=false; btn.textContent="⚡ 生成我的7天作战包"; }
