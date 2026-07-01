@@ -2477,6 +2477,15 @@ def guide_page():
     return FileResponse(str(p))
 
 
+@app.get("/tutorial")
+def tutorial_page():
+    """GEO 实操运营教程页面，无需登录可直接访问"""
+    from fastapi.responses import FileResponse
+    import pathlib
+    p = pathlib.Path(__file__).parent.parent / "frontend" / "tutorial.html"
+    return FileResponse(str(p))
+
+
 @app.get("/api/health")
 def health():
     configured = [p for p in ("OPENAI_API_KEY", "GEMINI_API_KEY",
