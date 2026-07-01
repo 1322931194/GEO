@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>见微 · GEO 实操运营教程｜手把手教你上推荐</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--ink:#26221c;--paper:#f4f1ea;--matcha:#5a7d5a;--matcha-l:#a8c48c;--clay:#b0524a;--gold:#b08442;--soft:#6b655b;--line:#e0dacd;--panel:#fbf9f4}
+body{font-family:'Noto Sans SC',sans-serif;background:#e8e4db;color:var(--ink);line-height:1.8}
+.wrap{max-width:860px;margin:0 auto;background:var(--paper)}
+.serif{font-family:'Noto Serif SC',serif}
+section{padding:40px}
+
+.hd{background:var(--ink);color:var(--paper);padding:56px 40px;text-align:center}
+.hd .logo{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:24px}
+.hd .mark{width:44px;height:44px;background:var(--paper);border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif SC';font-size:26px;font-weight:700;color:var(--ink)}
+.hd .nm{font-family:'Noto Serif SC';font-size:26px;font-weight:700;letter-spacing:2px}
+.hd h1{font-family:'Noto Serif SC';font-size:34px;font-weight:900;line-height:1.4;margin-bottom:12px}
+.hd .sub{font-size:15px;color:#c8c3b8}
+
+/* 总览 */
+.overview{background:var(--panel);border-bottom:1px solid var(--line)}
+.flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:20px}
+.flow-node{background:#fff;border:2px solid var(--matcha);border-radius:12px;padding:14px 20px;text-align:center;min-width:120px}
+.flow-node .n{font-size:12px;color:var(--matcha);font-weight:700}
+.flow-node .t{font-size:15px;font-weight:700;margin-top:2px}
+.flow-arrow{color:var(--matcha-l);font-size:24px;font-weight:700}
+
+/* 大步骤 */
+.bigstep{border-bottom:1px solid var(--line)}
+.step-head{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+.step-num{width:56px;height:56px;border-radius:14px;background:var(--matcha);color:#fff;display:flex;align-items:center;justify-content:center;font-family:'Noto Serif SC';font-size:28px;font-weight:900;flex-shrink:0}
+.step-title{font-family:'Noto Serif SC';font-size:26px;font-weight:900}
+.step-sub{font-size:14px;color:var(--soft);margin-top:2px}
+
+h3{font-size:17px;font-weight:700;margin:22px 0 10px;color:var(--ink)}
+p{font-size:14.5px;color:var(--ink);margin-bottom:12px}
+.soft{color:var(--soft)}
+.em{color:var(--matcha);font-weight:700}
+ol,ul{margin:0 0 14px 22px}
+li{font-size:14.5px;margin-bottom:8px}
+
+.action{background:#eaf0e6;border-left:4px solid var(--matcha);border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:14px;line-height:1.7}
+.action b{color:var(--matcha)}
+.warn{background:#fdf3f2;border-left:4px solid var(--clay);border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;font-size:14px;line-height:1.7}
+.warn b{color:var(--clay)}
+.example{background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:14px 0}
+.example .lbl{font-size:12px;color:var(--gold);font-weight:700;margin-bottom:8px}
+.example .txt{font-size:14px;color:var(--ink);line-height:1.75}
+.tpl{background:var(--ink);color:var(--paper);border-radius:12px;padding:20px 24px;margin:16px 0;font-size:13.5px;line-height:1.9}
+.tpl .tt{font-size:14px;font-weight:700;color:var(--matcha-l);margin-bottom:10px}
+
+.foot{background:var(--ink);color:#9c958a;text-align:center;padding:40px;font-size:13px;line-height:1.9}
+.foot .fn{font-family:'Noto Serif SC';font-size:20px;color:var(--paper);font-weight:700;margin-bottom:8px}
+.foot b{color:var(--matcha-l)}
+.cta{display:inline-block;background:var(--matcha);color:#fff;padding:14px 34px;border-radius:50px;text-decoration:none;font-weight:700;font-size:16px;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hd">
+    <div class="logo"><div class="mark">見</div><div class="nm">見微</div></div>
+    <h1>GEO 实操运营教程</h1>
+    <div class="sub">手把手教你：从监测，到让 AI 真正推荐你</div>
+  </div>
+
+  <!-- 总览 -->
+  <section class="overview">
+    <div style="text-align:center">
+      <div class="em" style="font-size:13px;letter-spacing:2px">完整流程</div>
+      <div class="serif" style="font-size:24px;font-weight:900;margin-top:6px">四步，让 AI 从"不认识你"到"主动推你"</div>
+    </div>
+    <div class="flow">
+      <div class="flow-node"><div class="n">第一步</div><div class="t">监测</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="n">第二步</div><div class="t">读懂问题</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="n">第三步</div><div class="t">写文案</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="n">第四步</div><div class="t">发文章</div></div>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--soft);margin-top:18px;margin-bottom:0">全程不用懂技术。跟着做，7 天就能看到变化。</p>
+  </section>
+
+  <!-- 第一步 监测 -->
+  <section class="bigstep">
+    <div class="step-head">
+      <div class="step-num">1</div>
+      <div><div class="step-title">监测：先看清 AI 怎么看你</div><div class="step-sub">不知道现状，一切优化都是瞎猜</div></div>
+    </div>
+    <h3>为什么第一步是监测？</h3>
+    <p>你得先知道"AI 现在推不推你、推了哪些竞品、你在哪些问题上消失了"，才知道往哪使劲。<span class="em">监测就是给你的品牌做一次"AI 视角的体检"。</span></p>
+    <h3>具体怎么做</h3>
+    <ol>
+      <li>登录见微，<b>创建品牌</b>：填品牌名、行业、主营业务、主要竞品（填得越全，越准）</li>
+      <li>选<b>国内模式</b>（国内商家用这个，覆盖豆包、DeepSeek、通义、Kimi 等）</li>
+      <li>点<b>开始监测</b>，等约 1 分钟出报告</li>
+    </ol>
+    <div class="action"><b>你会得到：</b>GEO 评分、各平台推不推你、AI 真实推荐的对话截图（活体证据）、竞品抢占了哪些客户。</div>
+    <div class="warn"><b>注意：</b>第一次监测如果显示"AI 几乎不推你"，别慌——这是正常的起点，90% 商家一开始都这样。重点是接下来怎么改。</div>
+  </section>
+
+  <!-- 第二步 读懂问题 -->
+  <section class="bigstep">
+    <div class="step-head">
+      <div class="step-num">2</div>
+      <div><div class="step-title">读懂问题：找到你要补的缺口</div><div class="step-sub">报告不是看个分数，是找出"具体改哪里"</div></div>
+    </div>
+    <h3>报告里重点看这三块</h3>
+    <p><b>① 内容缺口</b> —— 哪些客户问题，AI 没推你。<br>这些就是你"消失"的场景，是最该补的地方。</p>
+    <p><b>② 竞品深度诊断</b> —— 竞品在哪些问题上被推荐、你却缺席。<br>看它出现在哪些"源"（知乎、行业站等），你也要去那些地方露出。</p>
+    <p><b>③ 引用源攻克清单</b> —— AI 高频引用、但还没有你的网站。<br>这些是"高价值阵地"，优先攻占。</p>
+    <div class="action"><b>输出一张"改进清单"：</b>把报告里"AI 没推你的问题" + "竞品出现的源"抄下来，这就是你接下来要写内容、要覆盖的目标。</div>
+    <h3>怎么判断先做哪个？</h3>
+    <p>优先做 <span class="em">"精准词 + 高价值源"</span>：比如"XX 区 XX 哪家好"这种本地精准词（竞争小、见效快），发到 AI 高频引用的源（比如知乎、本地生活平台）。别一上来就啃"XX 哪家好"这种全国大词。</p>
+  </section>
+
+  <!-- 第三步 写文案 -->
+  <section class="bigstep">
+    <div class="step-head">
+      <div class="step-num">3</div>
+      <div><div class="step-title">写文案：写 AI 爱引用的内容</div><div class="step-sub">不是自卖自夸，是写 AI 信任的客观内容</div></div>
+    </div>
+    <h3>AI 喜欢什么样的内容？</h3>
+    <p>AI 讨厌硬广，喜欢<span class="em">客观、结构清晰、有信息量</span>的内容。核心原则：<b>像在帮用户做选择，而不是在推销自己。</b></p>
+    <h3>六种 AI 最爱引用的内容模板</h3>
+    <ul>
+      <li><b>测评类</b>：客观对比同行几家的优劣（含你）</li>
+      <li><b>科普类</b>：讲清楚这个行业怎么选、避什么坑</li>
+      <li><b>推荐类</b>：某场景下推荐几个选择（自然带上你）</li>
+      <li><b>排行榜类</b>：XX 领域值得关注的几家</li>
+      <li><b>选择指南</b>：怎么挑一家靠谱的 XX</li>
+      <li><b>问答类</b>：针对客户真实问题的详细解答</li>
+    </ul>
+    <div class="example">
+      <div class="lbl">示例（装修行业 · 选择指南）</div>
+      <div class="txt"><b>标题：</b>2026 年 XX 市装修公司怎么选？一篇讲清 5 个关键点<br><b>内容结构：</b>① 怎么看资质 → ② 怎么比报价 → ③ 怎么看口碑 → ④ 本地推荐几家（自然带上你，客观描述你的优势）→ ⑤ 避坑提醒</div>
+    </div>
+    <div class="action"><b>不会写？</b>用见微的"内容生成"功能，输入关键词，一键生成符合 AI 口味的结构化内容，复制就能用。作战包里也会告诉你每个词该写什么。</div>
+    <div class="warn"><b>合规红线：</b>别用"第一""最好""最佳"这类违反广告法的词；别编造假信息。AI 和平台都会惩罚，得不偿失。</div>
+  </section>
+
+  <!-- 第四步 发文章 -->
+  <section class="bigstep">
+    <div class="step-head">
+      <div class="step-num">4</div>
+      <div><div class="step-title">发文章：发到 AI 信任的地方</div><div class="step-sub">内容写得好，还要发对地方才有用</div></div>
+    </div>
+    <h3>发到哪里？</h3>
+    <p>发到<span class="em">第二步找到的"AI 信任源"</span>。不同 AI 信任的地方不一样，见微的作战包会精确告诉你发到哪。常见的高价值源：</p>
+    <ul>
+      <li><b>知乎</b>：在相关问题下写高质量回答（AI 高频引用）</li>
+      <li><b>小红书</b>：做真实测评、攻略笔记</li>
+      <li><b>行业垂直平台</b>：本地生活、行业论坛、B2B 平台</li>
+      <li><b>你自己的官网/公众号</b>：加结构化数据（见微能一键生成 FAQ/Schema）</li>
+    </ul>
+    <div class="action"><b>发布节奏：</b>别指望一次发一堆就见效。<b>每周稳定发 1-2 篇</b>，持续做，AI 会"越记越牢"。GEO 是积累出来的，早做、常做的人赢。</div>
+    <h3>发完之后：7 天复测</h3>
+    <p>照着做完，7 天后<b>再监测一次</b>，对比提及率有没有提升。有效果就继续、扩大；没效果就调整方向。<span class="em">这就形成了"监测→优化→复测"的闭环，让你的 GEO 持续变好。</span></p>
+  </section>
+
+  <!-- 总结 -->
+  <section style="background:var(--panel)">
+    <div class="serif" style="font-size:22px;font-weight:900;text-align:center;margin-bottom:16px">记住这个循环</div>
+    <div class="flow">
+      <div class="flow-node"><div class="t">监测</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="t">找缺口</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="t">写内容</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="t">发对地方</div></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node"><div class="t">7天复测</div></div>
+    </div>
+    <p style="text-align:center;margin-top:20px;margin-bottom:0;font-size:15px"><span class="em">转起来，你的品牌就会被 AI 越记越牢，客户问 AI 时，越来越多推到你。</span></p>
+  </section>
+
+  <div class="foot">
+    <div class="fn">見微</div>
+    看清 AI 推不推你，手把手教你被推荐
+    <div style="margin:16px 0"><a class="cta" href="https://geo-radar.onrender.com">开始第一步：免费监测 →</a></div>
+    🌐 geo-radar.onrender.com　·　专属顾问微信 <b>jenly222</b>
+  </div>
+
+</div>
+</body>
+</html>
