@@ -531,6 +531,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       <a href="#geo">什么是 GEO</a>
       <a href="#how">如何运作</a>
       <a href="/tutorial">运营教程</a>
+      <a href="/solutions">行业方案</a>
       <a href="#cases">成功案例</a>
       <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
       <button class="btn-cyan" style="padding:9px 20px" onclick="gotoAuth('reg')">免费体验</button>
@@ -548,7 +549,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <button class="btn-action" onclick="document.getElementById('simulator-section')?.scrollIntoView({behavior:'smooth'})">免费查 AI 推不推你 →</button>
         <button class="btn-ghost" style="padding:13px 24px" onclick="gotoAuth('reg')">注册看完整报告</button>
       </div>
-      <div class="lp-cta-note">下方可免费试用 · 完整监测报告注册后 ¥39.9 解锁</div>
+      <div class="lp-cta-note">免费查一次 AI 推不推你 · 完整作战方案升级可见</div>
     </div>
 
     <!-- signature: AI 模拟聊天框 -->
@@ -833,7 +834,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       <button class="auth-back" onclick="gotoLanding()">← 返回首页</button>
       <div class="auth-card glass">
         <h2>开始 AI 品牌体检</h2>
-        <div class="sub">免费注册，¥39.9 解锁完整报告</div>
+        <div class="sub">免费注册，立即查看 AI 推不推你</div>
         <div class="auth-tabs">
           <button id="tabLogin" class="auth-tab" onclick="switchTab('login')">已有账号</button>
           <button id="tabReg" class="auth-tab active" onclick="switchTab('reg')">免费注册</button>
@@ -996,7 +997,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                 <div class="spinner"></div>
                 <p style="font-size:16px;font-weight:600;margin:16px 0 8px" id="monMsg">正在向 AI 发送查询，采集品牌提及…</p>
                 <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">正在让真实的 AI 平台回答你客户的问题，约 1-2 分钟。这是真查询，不是估算，所以需要一点时间 ☕</p>
-                <p style="font-size:10px;color:var(--ink-faint);margin-bottom:8px">引擎 v2.2 · 体验版约30-40秒出结果</p>
+                <p style="font-size:10px;color:var(--ink-faint);margin-bottom:8px">引擎 v2.2 · 约30-40秒出结果</p>
                 <div id="monPlatforms" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center"></div>
               </div>
             </div>
@@ -2842,23 +2843,23 @@ async function goMonitor(){
             <b style="color:var(--ink)">结果就在这份报告里，差一步就能看到。</b>
           </p>
           <div style="background:linear-gradient(135deg,#eef2ff,#faf5ff);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:16px;text-align:left">
-            <div style="font-weight:700;font-size:15px;margin-bottom:4px">¥39.9 解锁，带你走完整套流程：</div>
-            <div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">一顿饭钱，看清现状 + 拿到解决方案</div>
+            <div style="font-weight:700;font-size:15px;margin-bottom:4px">¥99 解锁完整解决方案：</div>
+            <div style="font-size:12px;color:var(--ink-faint);margin-bottom:12px">看清现状是第一步，拿到方案才能真正改变</div>
             <div style="font-size:13px;color:var(--ink-soft);line-height:2">
-              ✅ 8大AI平台完整监测 + GEO评分<br>
+              ✅ 完整监测（5大AI平台）+ GEO评分<br>
               ✅ <b style="color:var(--brand)">活体证据</b>：看AI真实推荐了谁<br>
-              ✅ 竞品对比 + 内容缺口诊断<br>
+              ✅ <b style="color:var(--brand)">竞品深度诊断</b>：怎么追上对手<br>
               ✅ <b style="color:var(--brand)">7天上推荐作战包</b>：发什么、发到哪<br>
-              ✅ <b style="color:var(--brand)">1次内容生成</b>：复制就能发
+              ✅ <b style="color:var(--brand)">内容生成</b>：复制就能发
             </div>
           </div>
           <div style="display:flex;gap:8px;margin-bottom:16px;font-size:12px;color:var(--ink-soft)">
             <div style="flex:1;background:#f6f5f2;border-radius:8px;padding:10px 8px">投一天广告<br><b style="color:var(--ink);font-size:14px">¥几百+</b></div>
             <div style="flex:1;background:#f6f5f2;border-radius:8px;padding:10px 8px">漏掉1个客户<br><b style="color:var(--ink);font-size:14px">¥几千+</b></div>
-            <div style="flex:1;background:#eef7ee;border:1px solid var(--brand);border-radius:8px;padding:10px 8px">见微体验<br><b style="color:var(--brand);font-size:14px">¥39.9</b></div>
+            <div style="flex:1;background:#eef7ee;border:1px solid var(--brand);border-radius:8px;padding:10px 8px">见微单次<br><b style="color:var(--brand);font-size:14px">¥99</b></div>
           </div>
           <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:14px">
-            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款 ¥39.9，发截图给客服开通：</div>
+            <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款后，发截图给客服开通：</div>
             <div style="font-size:16px;font-weight:700;color:var(--brand)">微信客服：jenly222</div>
             <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发截图后 5 分钟内开通 · 7×24 小时</div>
           </div>
