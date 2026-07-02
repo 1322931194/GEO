@@ -286,6 +286,38 @@ def register_pseo(app):
         session.commit()
         return {"ok": True, "msg": "已收到，我们会尽快联系你"}
 
+    # ---------- 线索查看后台（复用 ADMIN_KEY 鉴权）----------
+    @app.get("/api/pseo/leads")
+    def list_pseo_leads(key: str = "", session=Depends(get_session)):
+        """查看所有 pSEO 线索。需 ADMIN_KEY 鉴权。"""
+        import hmac as _hmac
+        admin_key = os.getenv("ADMIN_KEY", "")
+        if not admin_key:
+            raise HTTPException(503, "管理功能未启用：请先配置 ADMIN_KEY")
+        if not _hmac.compare_digest(key or "", admin_key):
+            raise HTTPException(403, "无权访问")
+        from database import PseoLead
+        from sqlmodel import select
+        rows = session.exec(
+            select(PseoLead).order_by(PseoLead.created_at.desc())
+        ).all()
+        leads = [{
+            "id": r.id, "name": r.name, "phone": r.phone,
+            "company": r.company, "industry": r.industry, "city": r.city,
+            "slug": r.slug, "loss_estimate": r.loss_estimate,
+            "note": r.note,
+            "created_at": r.created_at.strftime("%Y-%m-%d %H:%M") if r.created_at else "",
+        } for r in rows]
+        return {"ok": True, "count": len(leads), "leads": leads}
+
+    @app.get("/pseo-admin", response_class=HTMLResponse)
+    def pseo_admin_page(request: Request):
+        """线索查看后台页面。访问 /pseo-admin?key=你的ADMIN_KEY"""
+        return templates.TemplateResponse(
+            "pseo_admin.html",
+            {"request": request, "site_base": SITE_BASE},
+        )
+
     return app
 
 
