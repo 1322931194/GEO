@@ -187,9 +187,15 @@
   <!-- ===== 页脚 ===== -->
   <footer class="bg-ink text-white/50 py-12">
     <div class="max-w-6xl mx-auto px-6 text-center">
+      {% if is_customer_page %}
+      <div class="serif text-xl text-paper font-bold mb-2">{{ customer_brand }}</div>
+      {% if customer_contact %}<p class="text-sm mb-4">联系我们：<span class="text-matchal font-bold">{{ customer_contact }}</span></p>{% endif %}
+      <p class="text-xs">本页由 <a href="{{ site_base }}" class="text-matchal">见微 GEO</a> 智能生成 · 让 AI 主动推荐你的品牌</p>
+      {% else %}
       <div class="serif text-xl text-paper font-bold mb-2">見微 · 让 AI 主动推荐你的品牌</div>
       <p class="text-sm mb-4">搜索时代拼 SEO，AI 时代拼 GEO</p>
       <p class="text-xs">© {{ year }} 见微 GEO · <a href="{{ site_base }}" class="text-matchal">{{ site_base }}</a> · 专属顾问微信 jenly222</p>
+      {% endif %}
     </div>
   </footer>
 
