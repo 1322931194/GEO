@@ -918,6 +918,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
         <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
         <div class="sb-item" onclick="window.open('/tutorial','_blank')"><span class="ic">📖</span>运营教程</div>
+        <div class="sb-item" onclick="openMyPages()"><span class="ic">🏗️</span>我的落地页</div>
         <div class="sb-item" id="navPrice" onclick="navTo('price')"><span class="ic">✨</span>升级套餐</div>
       </nav>
       <div class="sb-foot">
@@ -1453,6 +1454,15 @@ const NAV_VIEWS = {
   ref:   {view:"referralView",   crumb:"我的推广",     sub:"分享赚奖励",        nav:"navRef"},
   price: {view:"pricingView",    crumb:"升级套餐",     sub:"选择适合的方案",    nav:"navPrice"},
 };
+function openMyPages(){
+  // 带上登录令牌跳转到落地页管理界面
+  if(token){
+    window.open('/my-pages?token=' + encodeURIComponent(token), '_blank');
+  } else {
+    window.open('/my-pages', '_blank');
+  }
+}
+
 function navTo(key){
   const cfg = NAV_VIEWS[key];
   if(!cfg) return;
