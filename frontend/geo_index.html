@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>行业 GEO 解决方案总览 | 见微 - 让 AI 主动推荐你的品牌</title>
+  <meta name="description" content="见微为各行业提供专属 GEO（生成式引擎优化）解决方案，覆盖跨境电商SaaS、工业制造、医疗美容等国内核心行业，帮企业解决 AI 搜索隐形问题，抢回被截流的商机。">
+  <link rel="canonical" href="{{ site_base }}/solutions">
+  <meta name="robots" content="index, follow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>body{font-family:'Noto Sans SC',sans-serif}.serif{font-family:'Noto Serif SC',serif}</style>
+</head>
+<body class="bg-[#f4f1ea] text-[#26221c]">
+  <nav class="border-b border-black/5 bg-[#f4f1ea]/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="{{ site_base }}" class="flex items-center gap-2">
+        <span class="w-8 h-8 bg-[#26221c] text-[#f4f1ea] rounded-lg grid place-items-center serif font-bold text-lg">見</span>
+        <span class="serif font-bold text-xl">見微</span>
+      </a>
+      <a href="{{ site_base }}" class="text-sm bg-[#5a7d5a] text-white px-4 py-2 rounded-full font-bold">免费查一次 →</a>
+    </div>
+  </nav>
+
+  <header class="bg-[#26221c] text-[#f4f1ea] py-20">
+    <div class="max-w-6xl mx-auto px-6">
+      <div class="text-[#a8c48c] font-bold text-sm tracking-widest mb-4">行业解决方案</div>
+      <h1 class="serif text-4xl md:text-5xl font-black mb-4">分行业 GEO 破局方案</h1>
+      <p class="text-white/70 text-lg max-w-2xl">不同行业，AI 隐形的痛点不同，破局路径也不同。见微为每个行业定制专属的 GEO 优化方案。</p>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-6 py-16">
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {% for s in all_solutions %}
+      <a href="/solutions/{{ s.slug }}" class="block bg-white rounded-2xl p-7 border border-black/5 shadow-sm hover:shadow-lg hover:-translate-y-1 transition">
+        <div class="text-xs text-[#5a7d5a] font-bold mb-2">{{ s.city }}</div>
+        <h2 class="serif text-2xl font-black mb-3">{{ s.industry }}</h2>
+        <p class="text-[#6b655b] text-sm leading-relaxed mb-4">让 AI 在 {{ s.industry }} 采购/消费决策中优先推荐你，抢回被截流的商机。</p>
+        <span class="text-[#5a7d5a] font-bold text-sm">查看方案 →</span>
+      </a>
+      {% endfor %}
+    </div>
+  </main>
+
+  <footer class="bg-[#26221c] text-white/50 py-12 text-center">
+    <div class="serif text-xl text-[#f4f1ea] font-bold mb-2">見微 · 让 AI 主动推荐你的品牌</div>
+    <p class="text-xs">© {{ year }} 见微 GEO · <a href="{{ site_base }}" class="text-[#a8c48c]">{{ site_base }}</a></p>
+  </footer>
+</body>
+</html>
