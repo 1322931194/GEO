@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- ===== 动态 SEO Meta ===== -->
+  <title>{{ seo_title }}</title>
+  <meta name="description" content="{{ seo_desc }}">
+  <link rel="canonical" href="{{ canonical }}">
+  <meta name="robots" content="index, follow">
+  <!-- Open Graph / 社交分享 -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ seo_title }}">
+  <meta property="og:description" content="{{ seo_desc }}">
+  <meta property="og:url" content="{{ canonical }}">
+  <meta property="og:site_name" content="见微 GEO">
+  <!-- 结构化数据：帮助 AI / 搜索引擎精确理解本页 -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Service",
+    "name": "{{ city }}{{ industry }}行业 GEO 优化方案",
+    "provider": {"@type": "Organization", "name": "见微 GEO", "url": "{{ site_base }}"},
+    "areaServed": "{{ city }}",
+    "serviceType": "生成式引擎优化 (GEO)",
+    "description": "{{ seo_desc }}"
+  }
+  </script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        colors: {
+          ink: '#26221c', paper: '#f4f1ea', matcha: '#5a7d5a',
+          matchal: '#a8c48c', clay: '#b0524a', gold: '#b08442', soft: '#6b655b'
+        },
+        fontFamily: { serif: ['"Noto Serif SC"','serif'], sans: ['"Noto Sans SC"','sans-serif'] }
+      }}
+    }
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700;900&display=swap" rel="stylesheet">
+  <style>
+    body{font-family:'Noto Sans SC',sans-serif}
+    .serif{font-family:'Noto Serif SC',serif}
+    .grid-bg{background-image:radial-gradient(rgba(168,196,140,.08) 1px,transparent 1px);background-size:24px 24px}
+  </style>
+</head>
+<body class="bg-paper text-ink antialiased">
+
+  <!-- ===== 顶部导航 ===== -->
+  <nav class="w-full border-b border-black/5 bg-paper/90 backdrop-blur sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+      <a href="{{ site_base }}" class="flex items-center gap-2">
+        <span class="w-8 h-8 bg-ink text-paper rounded-lg grid place-items-center serif font-bold text-lg">見</span>
+        <span class="serif font-bold text-xl tracking-wide">見微</span>
+        <span class="text-xs text-soft ml-1">GEO</span>
+      </a>
+      <a href="{{ site_base }}" class="text-sm bg-matcha text-white px-4 py-2 rounded-full font-bold hover:bg-matcha/90 transition">免费查一次 →</a>
+    </div>
+  </nav>
+
+  <!-- ===== 深色科技感 Banner ===== -->
+  <header class="bg-ink text-paper grid-bg relative overflow-hidden">
+    <div class="absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full" style="background:radial-gradient(circle,rgba(90,125,90,.35),transparent 70%)"></div>
+    <div class="max-w-6xl mx-auto px-6 py-20 md:py-28 relative z-10">
+      <div class="inline-flex items-center gap-2 text-matchal text-sm font-bold mb-6 tracking-wide">
+        <span>🔥 {{ city }} · {{ industry }} · GEO 专项</span>
+      </div>
+      <h1 class="serif text-4xl md:text-6xl font-black leading-tight mb-6">
+        {{ city }}{{ industry }}行业的<br>
+        <span class="text-matchal">AI 流量破局</span>与 GEO 专项方案
+      </h1>
+      <p class="text-lg md:text-xl text-white/70 max-w-3xl leading-relaxed mb-8">{{ seo_desc }}</p>
+      <div class="flex flex-wrap gap-4">
+        <a href="#calculator" class="bg-matcha text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-matcha/90 transition">测算我的流量损失 ↓</a>
+        <a href="#lead" class="border border-white/30 text-white px-8 py-4 rounded-full font-bold text-lg hover:bg-white/10 transition">获取专属方案</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== 危机分析区 ===== -->
+  <section class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+    <div class="text-matcha font-bold text-sm tracking-widest mb-3">01 · 危机分析</div>
+    <h2 class="serif text-3xl md:text-4xl font-black mb-4">你的商机，正在 AI 搜索里无声蒸发</h2>
+    <p class="text-soft text-lg mb-10 max-w-3xl">{{ city }}的{{ industry }}老板，请诚实面对这三个正在发生的事实：</p>
+    <ul class="space-y-5">
+      {% for point in pain_points %}
+      <li class="flex gap-4 bg-white rounded-2xl p-6 md:p-7 border border-black/5 shadow-sm">
+        <span class="flex-shrink-0 w-10 h-10 rounded-full bg-clay/15 text-clay grid place-items-center font-black text-lg">{{ loop.index }}</span>
+        <p class="text-base md:text-lg leading-relaxed pt-1">{{ point }}</p>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+
+  <!-- ===== AI 流量损失测算器（内嵌，原地转化）===== -->
+  <section id="calculator" class="bg-ink text-paper py-16 md:py-24">
+    <div class="max-w-4xl mx-auto px-6">
+      <div class="text-matchal font-bold text-sm tracking-widest mb-3">02 · 流量损失测算器</div>
+      <h2 class="serif text-3xl md:text-4xl font-black mb-4">算一算，你每月因「AI 隐形」损失多少？</h2>
+      <p class="text-white/60 text-lg mb-10">输入你的真实经营数据，30 秒估算被 AI 截流的商机价值。</p>
+
+      <div class="bg-white/5 border border-white/10 rounded-3xl p-6 md:p-10">
+        <div class="grid md:grid-cols-3 gap-6 mb-8">
+          <div>
+            <label class="block text-sm text-white/60 mb-2">月均新客户数（个）</label>
+            <input id="calcCustomers" type="number" value="30" min="0"
+              class="w-full bg-ink border border-white/15 rounded-xl px-4 py-3 text-paper text-lg focus:border-matcha outline-none">
+          </div>
+          <div>
+            <label class="block text-sm text-white/60 mb-2">平均客单价（元）</label>
+            <input id="calcValue" type="number" value="2000" min="0"
+              class="w-full bg-ink border border-white/15 rounded-xl px-4 py-3 text-paper text-lg focus:border-matcha outline-none">
+          </div>
+          <div>
+            <label class="block text-sm text-white/60 mb-2">客户通过搜索/AI 找到你的占比</label>
+            <select id="calcRatio"
+              class="w-full bg-ink border border-white/15 rounded-xl px-4 py-3 text-paper text-lg focus:border-matcha outline-none">
+              <option value="0.3">约 30%</option>
+              <option value="0.5" selected>约 50%</option>
+              <option value="0.7">约 70%</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="text-center bg-clay/15 border border-clay/30 rounded-2xl p-8">
+          <div class="text-white/60 text-sm mb-2">保守估算：你每月正被 AI 截流的商机价值约</div>
+          <div id="calcResult" class="serif text-5xl md:text-6xl font-black text-clay">¥ --</div>
+          <div class="text-white/50 text-sm mt-3">按行业 90% 商家在 AI 推荐中隐形、保守 40% 流量经 AI 初筛估算</div>
+        </div>
+
+        <p class="text-center text-white/70 mt-6 text-lg">
+          这笔钱，本该是你的。<a href="#lead" class="text-matchal font-bold underline">立即领取{{ industry }}破局方案 →</a>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 见微策略区 ===== -->
+  <section class="max-w-6xl mx-auto px-6 py-16 md:py-24">
+    <div class="text-matcha font-bold text-sm tracking-widest mb-3">03 · 见微破局策略</div>
+    <h2 class="serif text-3xl md:text-4xl font-black mb-8">见微针对{{ industry }}的专属破局路径</h2>
+    <div class="bg-white rounded-3xl p-8 md:p-10 border border-black/5 shadow-sm">
+      <p class="text-lg leading-loose text-ink/90">{{ strategy }}</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <span class="bg-matcha/10 text-matcha px-4 py-2 rounded-full text-sm font-bold">✓ 8大AI平台扫描</span>
+        <span class="bg-matcha/10 text-matcha px-4 py-2 rounded-full text-sm font-bold">✓ 结构化语料投喂</span>
+        <span class="bg-matcha/10 text-matcha px-4 py-2 rounded-full text-sm font-bold">✓ 活体证据·AI真实对话</span>
+        <span class="bg-matcha/10 text-matcha px-4 py-2 rounded-full text-sm font-bold">✓ 7天作战周期</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 线索收集表单 ===== -->
+  <section id="lead" class="bg-matcha text-white py-16 md:py-24">
+    <div class="max-w-2xl mx-auto px-6 text-center">
+      <h2 class="serif text-3xl md:text-4xl font-black mb-4">领取{{ city }}{{ industry }}专属 GEO 破局方案</h2>
+      <p class="text-white/80 text-lg mb-10">留下联系方式，见微顾问将为你免费诊断 AI 可见度现状，并给出针对性方案。</p>
+      <div class="bg-white rounded-3xl p-8 text-left text-ink">
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm text-soft mb-1.5">你的称呼</label>
+            <input id="leadName" type="text" placeholder="怎么称呼您"
+              class="w-full border border-black/10 rounded-xl px-4 py-3 focus:border-matcha outline-none">
+          </div>
+          <div>
+            <label class="block text-sm text-soft mb-1.5">联系方式（手机 / 微信）<span class="text-clay">*</span></label>
+            <input id="leadPhone" type="text" placeholder="方便顾问联系你"
+              class="w-full border border-black/10 rounded-xl px-4 py-3 focus:border-matcha outline-none">
+          </div>
+          <div>
+            <label class="block text-sm text-soft mb-1.5">公司 / 品牌名</label>
+            <input id="leadCompany" type="text" placeholder="选填"
+              class="w-full border border-black/10 rounded-xl px-4 py-3 focus:border-matcha outline-none">
+          </div>
+          <button id="leadSubmit" onclick="submitLead()"
+            class="w-full bg-matcha text-white font-bold text-lg py-4 rounded-xl hover:bg-matcha/90 transition">
+            免费领取专属方案
+          </button>
+          <p id="leadMsg" class="text-center text-sm hidden"></p>
+          <p class="text-center text-xs text-soft">我们承诺：不吹「必上推荐」，只帮你把被 AI 推荐的概率做到最高。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 页脚 ===== -->
+  <footer class="bg-ink text-white/50 py-12">
+    <div class="max-w-6xl mx-auto px-6 text-center">
+      <div class="serif text-xl text-paper font-bold mb-2">見微 · 让 AI 主动推荐你的品牌</div>
+      <p class="text-sm mb-4">搜索时代拼 SEO，AI 时代拼 GEO</p>
+      <p class="text-xs">© {{ year }} 见微 GEO · <a href="{{ site_base }}" class="text-matchal">{{ site_base }}</a> · 专属顾问微信 jenly222</p>
+    </div>
+  </footer>
+
+  <!-- ===== Vanilla JS：测算器 + 留资（SSR页面原地跑）===== -->
+  <script>
+    // 当前行业页 slug（服务端注入，用于线索归因）
+    var PSEO_SLUG = "{{ slug }}";
+
+    // —— AI 流量损失测算器 ——
+    function calcLoss(){
+      var customers = parseFloat(document.getElementById('calcCustomers').value) || 0;
+      var value = parseFloat(document.getElementById('calcValue').value) || 0;
+      var ratio = parseFloat(document.getElementById('calcRatio').value) || 0.5;
+      // 保守模型：搜索/AI来源客户 × AI初筛占比(取值ratio) × 行业隐形损失系数(0.4)
+      var loss = customers * value * ratio * 0.4;
+      window.__lossEstimate = Math.round(loss);
+      document.getElementById('calcResult').textContent =
+        '¥ ' + Math.round(loss).toLocaleString('zh-CN');
+    }
+    ['calcCustomers','calcValue','calcRatio'].forEach(function(id){
+      document.getElementById(id).addEventListener('input', calcLoss);
+      document.getElementById(id).addEventListener('change', calcLoss);
+    });
+    calcLoss(); // 初始计算
+
+    // —— 留资提交 ——
+    function submitLead(){
+      var name = document.getElementById('leadName').value.trim();
+      var phone = document.getElementById('leadPhone').value.trim();
+      var company = document.getElementById('leadCompany').value.trim();
+      var msg = document.getElementById('leadMsg');
+      var btn = document.getElementById('leadSubmit');
+      if(phone.length < 5){
+        msg.className='text-center text-sm text-clay'; msg.textContent='请填写有效的联系方式'; msg.classList.remove('hidden');
+        return;
+      }
+      btn.disabled=true; btn.textContent='提交中...';
+      fetch('/api/pseo/lead',{
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+          name:name, phone:phone, company:company, slug:PSEO_SLUG,
+          loss_estimate: window.__lossEstimate || 0
+        })
+      }).then(function(r){return r.json();}).then(function(d){
+        if(d.ok){
+          msg.className='text-center text-sm text-matcha font-bold';
+          msg.textContent='✓ ' + (d.msg||'已收到，我们会尽快联系你');
+          msg.classList.remove('hidden');
+          document.getElementById('leadName').value='';
+          document.getElementById('leadPhone').value='';
+          document.getElementById('leadCompany').value='';
+        } else {
+          throw new Error(d.detail||'提交失败');
+        }
+      }).catch(function(e){
+        msg.className='text-center text-sm text-clay';
+        msg.textContent = (e && e.message) ? e.message : '提交失败，请稍后再试或加顾问微信 jenly222';
+        msg.classList.remove('hidden');
+      }).finally(function(){
+        btn.disabled=false; btn.textContent='免费领取专属方案';
+      });
+    }
+  </script>
+</body>
+</html>
