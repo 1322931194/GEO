@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>我的落地页 · 见微 GEO</title>
+  <meta name="robots" content="noindex, nofollow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>body{font-family:'Noto Sans SC',sans-serif}.serif{font-family:'Noto Serif SC',serif}</style>
+</head>
+<body class="bg-[#f4f1ea] text-[#26221c] min-h-screen">
+  <div class="max-w-4xl mx-auto px-6 py-8">
+    <!-- 头部 -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 bg-[#26221c] text-[#f4f1ea] rounded-xl grid place-items-center serif font-bold text-xl">見</span>
+        <div>
+          <div class="serif font-black text-2xl">我的落地页</div>
+          <div class="text-sm text-[#6b655b]">自助生成行业专属获客页 · 帮你被 AI 和搜索推荐</div>
+        </div>
+      </div>
+      <a href="{{ site_base }}" class="text-sm text-[#5a7d5a] font-bold">← 返回</a>
+    </div>
+
+    <!-- 登录提示 -->
+    <div id="loginBox" class="bg-white rounded-2xl p-6 border border-black/5 mb-6">
+      <label class="block text-sm text-[#6b655b] mb-2">请粘贴你的登录令牌（在见微登录后获取）</label>
+      <div class="flex gap-3">
+        <input id="token" type="password" placeholder="登录令牌 token"
+          class="flex-1 border border-black/10 rounded-xl px-4 py-3 focus:border-[#5a7d5a] outline-none">
+        <button onclick="loadPages()" class="bg-[#26221c] text-white px-6 py-3 rounded-xl font-bold">进入</button>
+      </div>
+      <p class="text-xs text-[#6b655b] mt-2">提示：登录见微后，浏览器地址栏或"设置"里可找到令牌。或直接从见微主站进入本页会自动带上。</p>
+      <p id="loginMsg" class="text-sm text-[#b0524a] mt-2 hidden"></p>
+    </div>
+
+    <!-- 创建表单 -->
+    <div id="createBox" class="bg-white rounded-2xl p-6 border border-black/5 mb-6 hidden">
+      <div class="serif font-bold text-lg mb-4">➕ 生成一个新落地页</div>
+      <div class="grid md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">城市 <span class="text-[#b0524a]">*</span></label>
+          <input id="fCity" placeholder="如 深圳" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">行业 <span class="text-[#b0524a]">*</span></label>
+          <input id="fIndustry" placeholder="如 装修公司" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">你的品牌名 <span class="text-[#b0524a]">*</span></label>
+          <input id="fBrand" placeholder="如 张三装修" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">你的联系方式</label>
+          <input id="fContact" placeholder="微信/电话，展示在页面上" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm text-[#6b655b] mb-1.5">你的优势（一句话，用于生成内容）</label>
+        <input id="fAdv" placeholder="如 十年经验、材料环保、施工快、口碑好" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+      </div>
+      <button onclick="createPage()" id="createBtn" class="w-full bg-[#5a7d5a] text-white font-bold py-3 rounded-xl">✨ 一键生成落地页</button>
+      <p id="createMsg" class="text-sm mt-2 hidden"></p>
+    </div>
+
+    <!-- 页面列表 -->
+    <div id="listBox" class="hidden">
+      <div class="serif font-bold text-lg mb-3">我的落地页</div>
+      <div id="pagesList" class="space-y-3"></div>
+      <p id="emptyMsg" class="text-center text-[#6b655b] py-8 hidden">还没有落地页，用上面的表单生成第一个吧。</p>
+    </div>
+  </div>
+
+  <script>
+    // 尝试从 URL 参数拿 token（从主站跳转带过来）
+    var urlToken = new URLSearchParams(location.search).get('token');
+    if(urlToken){ document.getElementById('token').value = urlToken; }
+
+    function getToken(){ return document.getElementById('token').value.trim(); }
+
+    function loadPages(){
+      var token = getToken();
+      var msg = document.getElementById('loginMsg');
+      if(!token){ msg.textContent='请输入登录令牌'; msg.classList.remove('hidden'); return; }
+      fetch('/api/my/pseo-pages', {headers:{'Authorization':'Bearer '+token}})
+        .then(function(r){
+          if(r.status===401){ throw new Error('令牌无效或已过期，请重新登录见微获取'); }
+          return r.json();
+        })
+        .then(function(d){
+          msg.classList.add('hidden');
+          document.getElementById('loginBox').classList.add('hidden');
+          document.getElementById('createBox').classList.remove('hidden');
+          document.getElementById('listBox').classList.remove('hidden');
+          renderPages(d.pages || []);
+        })
+        .catch(function(e){ msg.textContent=e.message; msg.classList.remove('hidden'); });
+    }
+
+    function createPage(){
+      var body = {
+        city: document.getElementById('fCity').value.trim(),
+        industry: document.getElementById('fIndustry').value.trim(),
+        brand_name: document.getElementById('fBrand').value.trim(),
+        advantages: document.getElementById('fAdv').value.trim(),
+        contact: document.getElementById('fContact').value.trim()
+      };
+      var msg = document.getElementById('createMsg');
+      var btn = document.getElementById('createBtn');
+      if(!body.city || !body.industry || !body.brand_name){
+        msg.className='text-sm mt-2 text-[#b0524a]'; msg.textContent='城市、行业、品牌名都要填'; msg.classList.remove('hidden'); return;
+      }
+      btn.disabled=true; btn.textContent='生成中...';
+      fetch('/api/my/pseo-pages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+getToken()},
+        body: JSON.stringify(body)
+      }).then(function(r){ return r.json().then(function(d){ return {status:r.status, d:d}; }); })
+        .then(function(res){
+          if(res.status===200 && res.d.ok){
+            msg.className='text-sm mt-2 text-[#5a7d5a] font-bold';
+            msg.textContent='✓ 生成成功！链接：'+res.d.url;
+            msg.classList.remove('hidden');
+            ['fCity','fIndustry','fBrand','fAdv','fContact'].forEach(function(id){document.getElementById(id).value='';});
+            loadPages();
+          } else {
+            throw new Error(res.d.detail || '生成失败');
+          }
+        }).catch(function(e){
+          msg.className='text-sm mt-2 text-[#b0524a]'; msg.textContent=e.message; msg.classList.remove('hidden');
+        }).finally(function(){ btn.disabled=false; btn.textContent='✨ 一键生成落地页'; });
+    }
+
+    function renderPages(pages){
+      var list = document.getElementById('pagesList');
+      var empty = document.getElementById('emptyMsg');
+      if(!pages.length){ list.innerHTML=''; empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      list.innerHTML = pages.map(function(p){
+        return '<div class="bg-white rounded-xl p-4 border border-black/5 flex items-center justify-between">' +
+          '<div>' +
+            '<div class="font-bold">'+p.city+p.industry+' · '+p.brand_name+'</div>' +
+            '<div class="text-sm text-[#6b655b]">浏览 '+p.views+' 次 · 创建于 '+p.created_at+'</div>' +
+            '<div class="text-xs text-[#5a7d5a] mt-1 break-all">'+p.url+'</div>' +
+          '</div>' +
+          '<div class="flex gap-2 flex-shrink-0">' +
+            '<a href="'+p.url+'" target="_blank" class="text-[#5a7d5a] font-bold text-sm">打开</a>' +
+            '<button onclick="copyUrl(\''+p.url+'\')" class="text-[#b08442] font-bold text-sm">复制</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function copyUrl(u){
+      navigator.clipboard.writeText(u).then(function(){ alert('已复制：'+u); })
+        .catch(function(){ prompt('手动复制：', u); });
+    }
+
+    // 有token自动加载
+    if(urlToken){ loadPages(); }
+  </script>
+</body>
+</html>
