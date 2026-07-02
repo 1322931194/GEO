@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>见微 · pSEO 线索后台</title>
+  <meta name="robots" content="noindex, nofollow">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>body{font-family:'Noto Sans SC',sans-serif}.serif{font-family:'Noto Serif SC',serif}</style>
+</head>
+<body class="bg-[#f4f1ea] text-[#26221c] min-h-screen">
+  <div class="max-w-6xl mx-auto px-6 py-8">
+    <!-- 头部 -->
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <span class="w-10 h-10 bg-[#26221c] text-[#f4f1ea] rounded-xl grid place-items-center serif font-bold text-xl">見</span>
+        <div>
+          <div class="serif font-black text-2xl">pSEO 线索后台</div>
+          <div class="text-sm text-[#6b655b]">行业页留资客户 · 及时跟进转化</div>
+        </div>
+      </div>
+      <button onclick="loadLeads()" class="bg-[#5a7d5a] text-white px-5 py-2.5 rounded-full font-bold text-sm">🔄 刷新</button>
+    </div>
+
+    <!-- 鉴权输入 -->
+    <div id="authBox" class="bg-white rounded-2xl p-6 border border-black/5 mb-6">
+      <label class="block text-sm text-[#6b655b] mb-2">管理密钥（ADMIN_KEY）</label>
+      <div class="flex gap-3">
+        <input id="adminKey" type="password" placeholder="输入你在 Render 配置的 ADMIN_KEY"
+          class="flex-1 border border-black/10 rounded-xl px-4 py-3 focus:border-[#5a7d5a] outline-none">
+        <button onclick="loadLeads()" class="bg-[#26221c] text-white px-6 py-3 rounded-xl font-bold">查看线索</button>
+      </div>
+      <p id="authMsg" class="text-sm text-[#b0524a] mt-2 hidden"></p>
+    </div>
+
+    <!-- 统计 -->
+    <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 hidden">
+      <div class="bg-white rounded-xl p-5 border border-black/5">
+        <div class="text-3xl font-black text-[#5a7d5a]" id="statTotal">0</div>
+        <div class="text-sm text-[#6b655b] mt-1">总线索数</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-black/5">
+        <div class="text-3xl font-black text-[#b08442]" id="statToday">0</div>
+        <div class="text-sm text-[#6b655b] mt-1">今日新增</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-black/5">
+        <div class="text-3xl font-black text-[#26221c]" id="statIndustry">-</div>
+        <div class="text-sm text-[#6b655b] mt-1">最多行业</div>
+      </div>
+      <div class="bg-white rounded-xl p-5 border border-black/5">
+        <div class="text-3xl font-black text-[#b0524a]" id="statLoss">¥0</div>
+        <div class="text-sm text-[#6b655b] mt-1">平均预估损失</div>
+      </div>
+    </div>
+
+    <!-- 线索列表 -->
+    <div id="leadsBox" class="hidden">
+      <div class="bg-white rounded-2xl border border-black/5 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-[#26221c] text-[#f4f1ea]">
+              <tr>
+                <th class="px-4 py-3 text-left">时间</th>
+                <th class="px-4 py-3 text-left">称呼</th>
+                <th class="px-4 py-3 text-left">电话/微信</th>
+                <th class="px-4 py-3 text-left">公司</th>
+                <th class="px-4 py-3 text-left">行业</th>
+                <th class="px-4 py-3 text-left">城市</th>
+                <th class="px-4 py-3 text-left">预估损失</th>
+                <th class="px-4 py-3 text-left">操作</th>
+              </tr>
+            </thead>
+            <tbody id="leadsTable"></tbody>
+          </table>
+        </div>
+      </div>
+      <p id="emptyMsg" class="text-center text-[#6b655b] py-12 hidden">还没有线索。等 pSEO 页面被搜索引擎收录、有人留资后，就会显示在这里。</p>
+    </div>
+  </div>
+
+  <script>
+    function loadLeads(){
+      var key = document.getElementById('adminKey').value.trim();
+      var authMsg = document.getElementById('authMsg');
+      if(!key){ authMsg.textContent='请输入管理密钥'; authMsg.classList.remove('hidden'); return; }
+      fetch('/api/pseo/leads?key=' + encodeURIComponent(key))
+        .then(function(r){
+          if(r.status===403){ throw new Error('密钥错误，无权访问'); }
+          if(r.status===503){ throw new Error('管理功能未启用，请先在 Render 配置 ADMIN_KEY'); }
+          return r.json();
+        })
+        .then(function(d){
+          authMsg.classList.add('hidden');
+          document.getElementById('authBox').classList.add('hidden');
+          document.getElementById('stats').classList.remove('hidden');
+          document.getElementById('leadsBox').classList.remove('hidden');
+          renderLeads(d.leads || []);
+          // 记住key本次会话
+          window.__key = key;
+        })
+        .catch(function(e){
+          authMsg.textContent = e.message || '加载失败';
+          authMsg.classList.remove('hidden');
+        });
+    }
+
+    function renderLeads(leads){
+      var tbody = document.getElementById('leadsTable');
+      var empty = document.getElementById('emptyMsg');
+      if(!leads.length){
+        tbody.innerHTML=''; empty.classList.remove('hidden');
+        document.getElementById('statTotal').textContent='0';
+        return;
+      }
+      empty.classList.add('hidden');
+      // 统计
+      var today = new Date().toISOString().slice(0,10);
+      var todayCount = leads.filter(function(l){return (l.created_at||'').slice(0,10)===today;}).length;
+      var indCount = {};
+      var lossSum = 0;
+      leads.forEach(function(l){
+        if(l.industry) indCount[l.industry]=(indCount[l.industry]||0)+1;
+        lossSum += (l.loss_estimate||0);
+      });
+      var topInd = Object.keys(indCount).sort(function(a,b){return indCount[b]-indCount[a];})[0] || '-';
+      document.getElementById('statTotal').textContent = leads.length;
+      document.getElementById('statToday').textContent = todayCount;
+      document.getElementById('statIndustry').textContent = topInd;
+      document.getElementById('statLoss').textContent = '¥' + Math.round(lossSum/leads.length).toLocaleString('zh-CN');
+      // 列表
+      tbody.innerHTML = leads.map(function(l){
+        return '<tr class="border-b border-black/5 hover:bg-[#faf8f3]">' +
+          '<td class="px-4 py-3 text-[#6b655b] whitespace-nowrap">'+(l.created_at||'')+'</td>' +
+          '<td class="px-4 py-3 font-bold">'+(l.name||'-')+'</td>' +
+          '<td class="px-4 py-3 font-mono font-bold text-[#5a7d5a]">'+(l.phone||'')+'</td>' +
+          '<td class="px-4 py-3">'+(l.company||'-')+'</td>' +
+          '<td class="px-4 py-3"><span class="bg-[#5a7d5a]/10 text-[#5a7d5a] px-2 py-1 rounded text-xs font-bold">'+(l.industry||'-')+'</span></td>' +
+          '<td class="px-4 py-3">'+(l.city||'-')+'</td>' +
+          '<td class="px-4 py-3 text-[#b0524a] font-bold">¥'+((l.loss_estimate||0).toLocaleString('zh-CN'))+'</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' +
+            '<button onclick="copyPhone(\''+(l.phone||'')+'\')" class="text-[#5a7d5a] font-bold mr-2">复制</button>' +
+            '<a href="tel:'+(l.phone||'')+'" class="text-[#b08442] font-bold">拨号</a>' +
+          '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    function copyPhone(p){
+      navigator.clipboard.writeText(p).then(function(){
+        alert('已复制：' + p);
+      }).catch(function(){
+        prompt('手动复制电话：', p);
+      });
+    }
+
+    // 回车提交
+    document.getElementById('adminKey').addEventListener('keydown', function(e){
+      if(e.key==='Enter') loadLeads();
+    });
+  </script>
+</body>
+</html>
