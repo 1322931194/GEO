@@ -364,6 +364,181 @@ def register_pseo(app):
             {"site_base": SITE_BASE},
         )
 
+    # ============================================================
+    # 客户自助生成 pSEO 页功能
+    # 付费客户在产品内生成专属行业落地页，/s/{slug} 独立访问
+    # ============================================================
+    from pydantic import BaseModel as _BM
+    import json as _json
+    import re as _re2
+
+    # 允许生成 pSEO 页的套餐（季付/企业/尊享）
+    _PSEO_ALLOWED_PLANS = {"starter", "pro", "business"}
+    # 各套餐可生成页数上限
+    _PSEO_PAGE_LIMIT = {"starter": 3, "pro": 10, "business": 30}
+
+    def _gen_customer_content(city, industry, brand, advantages):
+        """根据客户输入生成页面内容（本地模板，不调用AI，零成本、稳定）。"""
+        city = (city or "").strip()[:20]
+        industry = (industry or "").strip()[:20]
+        brand = (brand or "").strip()[:40]
+        adv = (advantages or "").strip()[:200]
+        seo_title = f"{city}{industry}怎么选？{brand} - AI搜索推荐与专业指南"
+        seo_desc = f"{city}{industry}选择指南：{brand}凭借{adv or '专业实力与优质口碑'}，成为{city}{industry}领域值得信赖的选择。了解详情，AI搜索也在推荐。"
+        pain_points = [
+            f"客户找{industry}，越来越多先问AI「{city}{industry}哪家好」，谁出现在AI推荐里，谁就先赢得客户。",
+            f"{brand}深耕{industry}领域，{adv or '有实力有口碑'}，值得被更多有需要的客户看到。",
+            f"选{industry}别只看广告，看专业度和真实口碑——这正是{brand}的优势所在。",
+        ]
+        strategy = (f"{brand}是{city}{industry}领域值得信赖的选择。"
+                    f"{('凭借' + adv + '，') if adv else ''}"
+                    f"我们专注为客户提供专业、可靠的{industry}服务。"
+                    f"如果你正在{city}寻找靠谱的{industry}，欢迎了解{brand}——"
+                    f"专业的团队、真实的口碑，用心服务每一位客户。")
+        return seo_title, seo_desc, pain_points, strategy
+
+    class CustomerPageReq(_BM):
+        city: str = ""
+        industry: str = ""
+        brand_name: str = ""
+        advantages: str = ""
+        contact: str = ""
+
+    @app.post("/api/my/pseo-pages")
+    def create_customer_page(req: CustomerPageReq, request: Request):
+        """客户创建自己的 pSEO 页。需付费套餐。"""
+        # 复用 main.py 的鉴权与用户
+        from main import current_user, plan_of
+        from fastapi import Header
+        # 手动取 token（避免循环依赖 Depends）
+        auth = request.headers.get("authorization", "")
+        from database import get_session, User, CustomerPseoPage
+        import jwt as _jwt
+        token = auth.replace("Bearer ", "").strip() if auth else ""
+        if not token:
+            raise HTTPException(401, "请先登录")
+        try:
+            secret = os.getenv("JWT_SECRET", "")
+            payload = _jwt.decode(token, secret, algorithms=["HS256"])
+            uid = int(payload.get("sub") or payload.get("user_id"))
+        except Exception:
+            raise HTTPException(401, "登录已过期，请重新登录")
+
+        from sqlmodel import Session, select
+        from database import engine as _engine
+        with Session(_engine) as session:
+            user = session.get(User, uid)
+            if not user:
+                raise HTTPException(401, "用户不存在")
+            # 权限：必须是允许的套餐
+            if user.plan not in _PSEO_ALLOWED_PLANS:
+                raise HTTPException(403, "自助建站是季付版及以上专属功能，请升级套餐")
+            # 数量限制
+            limit = _PSEO_PAGE_LIMIT.get(user.plan, 3)
+            existing = session.exec(
+                select(CustomerPseoPage).where(CustomerPseoPage.user_id == uid)
+            ).all()
+            if len(existing) >= limit:
+                raise HTTPException(403, f"当前套餐最多创建 {limit} 个落地页")
+            # 校验必填
+            city = (req.city or "").strip()
+            industry = (req.industry or "").strip()
+            brand = (req.brand_name or "").strip()
+            if not city or not industry or not brand:
+                raise HTTPException(400, "城市、行业、品牌名都要填写")
+            # 生成唯一 slug：拼音不好做，用 用户id + 序号 保证唯一且安全
+            import secrets as _sec
+            page_slug = f"u{uid}-{_sec.token_hex(4)}"
+            # 生成内容
+            seo_title, seo_desc, pain_points, strategy = _gen_customer_content(
+                city, industry, brand, req.advantages)
+            page = CustomerPseoPage(
+                user_id=uid, page_slug=page_slug,
+                city=city[:20], industry=industry[:20], brand_name=brand[:40],
+                advantages=(req.advantages or "")[:200],
+                contact=(req.contact or "")[:60],
+                seo_title=seo_title, seo_desc=seo_desc,
+                pain_points_json=_json.dumps(pain_points, ensure_ascii=False),
+                strategy=strategy, is_active=True,
+            )
+            session.add(page)
+            session.commit()
+            session.refresh(page)
+            return {"ok": True, "page_slug": page_slug,
+                    "url": f"{SITE_BASE}/s/{page_slug}",
+                    "msg": "落地页已生成"}
+
+    @app.get("/api/my/pseo-pages")
+    def list_customer_pages(request: Request):
+        """列出当前用户的所有 pSEO 页。"""
+        auth = request.headers.get("authorization", "")
+        token = auth.replace("Bearer ", "").strip() if auth else ""
+        if not token:
+            raise HTTPException(401, "请先登录")
+        import jwt as _jwt
+        try:
+            secret = os.getenv("JWT_SECRET", "")
+            payload = _jwt.decode(token, secret, algorithms=["HS256"])
+            uid = int(payload.get("sub") or payload.get("user_id"))
+        except Exception:
+            raise HTTPException(401, "登录已过期")
+        from sqlmodel import Session, select
+        from database import engine as _engine, CustomerPseoPage
+        with Session(_engine) as session:
+            pages = session.exec(
+                select(CustomerPseoPage).where(CustomerPseoPage.user_id == uid)
+                .order_by(CustomerPseoPage.created_at.desc())
+            ).all()
+            return {"ok": True, "pages": [{
+                "page_slug": p.page_slug, "city": p.city, "industry": p.industry,
+                "brand_name": p.brand_name, "views": p.views, "is_active": p.is_active,
+                "url": f"{SITE_BASE}/s/{p.page_slug}",
+                "created_at": p.created_at.strftime("%Y-%m-%d") if p.created_at else "",
+            } for p in pages]}
+
+    @app.get("/s/{page_slug}", response_class=HTMLResponse)
+    def customer_page(page_slug: str, request: Request):
+        """渲染客户自助生成的 pSEO 页（公开访问）。"""
+        if not _valid_slug(page_slug):
+            raise HTTPException(404, "页面不存在")
+        from sqlmodel import Session, select
+        from database import engine as _engine, CustomerPseoPage
+        with Session(_engine) as session:
+            page = session.exec(
+                select(CustomerPseoPage).where(
+                    CustomerPseoPage.page_slug == page_slug,
+                    CustomerPseoPage.is_active == True)
+            ).first()
+            if not page:
+                return templates.TemplateResponse(
+                    request, "geo_404.html",
+                    {"site_base": SITE_BASE, "all_solutions": list(INDUSTRY_DB.values())},
+                    status_code=404)
+            # 浏览量+1
+            page.views = (page.views or 0) + 1
+            session.add(page); session.commit()
+            ctx = {
+                "slug": page.page_slug, "city": page.city, "industry": page.industry,
+                "seo_title": page.seo_title, "seo_desc": page.seo_desc,
+                "pain_points": _json.loads(page.pain_points_json or "[]"),
+                "strategy": page.strategy,
+                "canonical": f"{SITE_BASE}/s/{page.page_slug}",
+                "site_base": SITE_BASE, "year": datetime.now().year,
+                "customer_contact": page.contact, "customer_brand": page.brand_name,
+                "is_customer_page": True,
+            }
+            try:
+                return templates.TemplateResponse(request, "geo_template.html", ctx)
+            except Exception:
+                import traceback
+                return HTMLResponse(f"<pre>{traceback.format_exc()}</pre>", status_code=500)
+
+    @app.get("/my-pages", response_class=HTMLResponse)
+    def my_pages_ui(request: Request):
+        """客户落地页管理界面。"""
+        return templates.TemplateResponse(
+            request, "mypages.html", {"site_base": SITE_BASE})
+
     return app
 
 
