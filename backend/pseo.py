@@ -23,7 +23,9 @@ _TEMPLATE_DIR = os.path.join(_HERE, "..", "frontend")
 templates = Jinja2Templates(directory=_TEMPLATE_DIR)
 
 # 站点根地址（用于生成 canonical / sitemap 的绝对链接）
-SITE_BASE = os.getenv("SITE_BASE_URL", "https://jianwei.uno").rstrip("/")
+# 统一用 onrender 域名（稳定、一定可访问）。如需改用其他域名，
+# 在 Render 配置环境变量 SITE_BASE_URL 即可覆盖。
+SITE_BASE = os.getenv("SITE_BASE_URL", "https://geo-radar.onrender.com").rstrip("/")
 
 
 # ============================================================
