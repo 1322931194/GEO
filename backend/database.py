@@ -226,6 +226,21 @@ class IndustrySample(SQLModel, table=True):
     created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class PseoLead(SQLModel, table=True):
+    """程序化建站(pSEO)行业页产生的销售线索。
+    通过 /solutions/{slug} 行业页的留资表单收集，带行业来源归因。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = ""                             # 联系人
+    phone: str = Field(default="", index=True) # 电话/微信
+    company: str = ""                          # 公司/品牌
+    slug: str = Field(default="", index=True)  # 来源行业页 slug
+    industry: str = ""                         # 行业（冗余，便于统计）
+    city: str = ""                             # 城市
+    loss_estimate: float = 0.0                 # 页面测算器算出的预估月损失（元）
+    note: str = ""                             # 备注/留言
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _auto_migrate()
