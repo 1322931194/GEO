@@ -182,6 +182,44 @@ FULL_DB = {**_GENERATED_DB, **INDUSTRY_DB}
 def register_pseo(app):
     """把 pSEO 相关路由注册到主 app 上。"""
 
+    # ---------- 诊断接口：访问 /pseo-debug 直接看到完整错误 ----------
+    @app.get("/pseo-debug", response_class=HTMLResponse)
+    def pseo_debug(request: Request):
+        import traceback, sys
+        report = []
+        report.append(f"Python: {sys.version}")
+        # 1. jinja2 是否可用
+        try:
+            import jinja2
+            report.append(f"✓ jinja2 版本: {jinja2.__version__}")
+        except Exception as e:
+            report.append(f"✗ jinja2 导入失败: {e}")
+        # 2. fastapi 版本
+        try:
+            import fastapi
+            report.append(f"✓ fastapi 版本: {fastapi.__version__}")
+        except Exception as e:
+            report.append(f"✗ fastapi: {e}")
+        # 3. 模板目录是否存在、有哪些文件
+        report.append(f"模板目录 _TEMPLATE_DIR = {_TEMPLATE_DIR}")
+        report.append(f"模板目录存在: {os.path.isdir(_TEMPLATE_DIR)}")
+        if os.path.isdir(_TEMPLATE_DIR):
+            files = [f for f in os.listdir(_TEMPLATE_DIR) if f.endswith('.html')]
+            report.append(f"目录内HTML文件: {files}")
+            report.append(f"geo_template.html 存在: {'geo_template.html' in files}")
+        # 4. FULL_DB 数量
+        report.append(f"FULL_DB 行业数: {len(FULL_DB)}")
+        # 5. 实际尝试渲染一个页面，捕获真实错误
+        try:
+            data = dict(FULL_DB.get('shenzhen-home-decoration', {}))
+            data.update({"canonical": "x", "site_base": SITE_BASE, "year": 2026})
+            templates.TemplateResponse(request, "geo_template.html", data)
+            report.append("✓ 模板渲染测试: 成功")
+        except Exception:
+            report.append("✗ 模板渲染测试失败:")
+            report.append(traceback.format_exc())
+        return HTMLResponse("<pre>" + "\n".join(str(r) for r in report) + "</pre>")
+
     # ---------- 行业方案动态页（核心 SSR 路由）----------
     @app.get("/solutions/{slug}", response_class=HTMLResponse)
     def solution_page(slug: str, request: Request):
@@ -190,28 +228,34 @@ def register_pseo(app):
         data = FULL_DB.get(slug)
         if not data:
             # 友好 404：返回一个引导回首页/查看全部方案的页面
-            # 404 页只展示手写精品页，避免列表过长
             return templates.TemplateResponse(
-                "geo_404.html",
-                {"request": request, "site_base": SITE_BASE,
+                request, "geo_404.html",
+                {"site_base": SITE_BASE,
                  "all_solutions": list(INDUSTRY_DB.values())},
                 status_code=404,
             )
         ctx = dict(data)
         ctx.update({
-            "request": request,
             "canonical": f"{SITE_BASE}/solutions/{slug}",
             "site_base": SITE_BASE,
             "year": datetime.now().year,
         })
-        return templates.TemplateResponse("geo_template.html", ctx)
+        try:
+            return templates.TemplateResponse(request, "geo_template.html", ctx)
+        except Exception as e:
+            # 出错时返回明确错误信息，便于定位（而非笼统500）
+            import traceback
+            return HTMLResponse(
+                f"<h2>页面渲染错误</h2><pre>{traceback.format_exc()}</pre>",
+                status_code=500,
+            )
 
     # ---------- 方案总览页（内链聚合，利于收录）----------
     @app.get("/solutions", response_class=HTMLResponse)
     def solutions_index(request: Request):
         return templates.TemplateResponse(
-            "geo_index.html",
-            {"request": request, "site_base": SITE_BASE,
+            request, "geo_index.html",
+            {"site_base": SITE_BASE,
              "all_solutions": list(FULL_DB.values()),
              "year": datetime.now().year},
         )
@@ -316,8 +360,8 @@ def register_pseo(app):
     def pseo_admin_page(request: Request):
         """线索查看后台页面。访问 /pseo-admin?key=你的ADMIN_KEY"""
         return templates.TemplateResponse(
-            "pseo_admin.html",
-            {"request": request, "site_base": SITE_BASE},
+            request, "pseo_admin.html",
+            {"site_base": SITE_BASE},
         )
 
     return app
