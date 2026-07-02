@@ -241,6 +241,27 @@ class PseoLead(SQLModel, table=True):
     created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class CustomerPseoPage(SQLModel, table=True):
+    """客户自助生成的 pSEO 行业落地页。
+    付费客户在产品内填写自己的行业/城市/优势，生成专属落地页，
+    通过 /s/{page_slug} 独立访问，帮客户做 AI/搜索获客。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)           # 归属用户
+    page_slug: str = Field(default="", index=True)  # URL标识（全站唯一）
+    city: str = ""                             # 城市
+    industry: str = ""                         # 行业
+    brand_name: str = ""                       # 客户品牌名
+    advantages: str = ""                       # 客户优势（用于生成内容）
+    contact: str = ""                          # 客户自己的联系方式（页面展示）
+    seo_title: str = ""                        # 生成的SEO标题
+    seo_desc: str = ""                         # 生成的SEO描述
+    pain_points_json: str = "[]"               # 痛点（JSON数组）
+    strategy: str = ""                         # 策略正文
+    views: int = 0                             # 页面浏览量
+    is_active: bool = True                     # 是否上线
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _auto_migrate()
