@@ -3228,6 +3228,17 @@ def admin_upgrade(req: UpgradeReq, session: Session = Depends(get_session)):
 # 用绝对路径计算 frontend 位置,兼容本地和 Render 等云平台
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _FRONTEND = os.path.join(_HERE, "..", "frontend")
+
+# ===== 注册程序化建站 (pSEO) 动态渲染系统 =====
+# 提供 /solutions/{slug} 行业方案页、/solutions 总览、/sitemap.xml、/api/pseo/lead
+# 纯增量，不影响任何现有路由。
+try:
+    from pseo import register_pseo
+    register_pseo(app)
+except Exception as _e:
+    import logging as _lg
+    _lg.getLogger("uvicorn.error").warning(f"pSEO 模块加载失败（不影响主服务）: {_e}")
+
 if os.path.isdir(_FRONTEND):
     @app.get("/")
     def index():
