@@ -163,6 +163,20 @@ def _valid_slug(slug: str) -> bool:
     return bool(re.fullmatch(r"[a-z0-9\-]{1,80}", slug or ""))
 
 
+# ============================================================
+# 合并数据源：手写精品页 + 批量生成页
+# 手写页优先级最高（同 slug 时手写覆盖批量），保证精品内容不被覆盖。
+# ============================================================
+try:
+    from pseo_generator import build_generated_db
+    _GENERATED_DB = build_generated_db()
+except Exception:
+    _GENERATED_DB = {}
+
+# 手写优先：先铺生成的，再用手写的覆盖同名 slug
+FULL_DB = {**_GENERATED_DB, **INDUSTRY_DB}
+
+
 def register_pseo(app):
     """把 pSEO 相关路由注册到主 app 上。"""
 
@@ -171,9 +185,10 @@ def register_pseo(app):
     def solution_page(slug: str, request: Request):
         if not _valid_slug(slug):
             raise HTTPException(status_code=404, detail="页面不存在")
-        data = INDUSTRY_DB.get(slug)
+        data = FULL_DB.get(slug)
         if not data:
             # 友好 404：返回一个引导回首页/查看全部方案的页面
+            # 404 页只展示手写精品页，避免列表过长
             return templates.TemplateResponse(
                 "geo_404.html",
                 {"request": request, "site_base": SITE_BASE,
@@ -195,7 +210,7 @@ def register_pseo(app):
         return templates.TemplateResponse(
             "geo_index.html",
             {"request": request, "site_base": SITE_BASE,
-             "all_solutions": list(INDUSTRY_DB.values()),
+             "all_solutions": list(FULL_DB.values()),
              "year": datetime.now().year},
         )
 
@@ -203,7 +218,7 @@ def register_pseo(app):
     @app.get("/sitemap.xml", response_class=PlainTextResponse)
     def sitemap():
         urls = [f"{SITE_BASE}/solutions"]
-        urls += [f"{SITE_BASE}/solutions/{s}" for s in INDUSTRY_DB]
+        urls += [f"{SITE_BASE}/solutions/{s}" for s in FULL_DB]
         items = "".join(
             f"<url><loc>{u}</loc><changefreq>weekly</changefreq>"
             f"<priority>0.8</priority></url>" for u in urls
@@ -212,6 +227,20 @@ def register_pseo(app):
                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
                f'{items}</urlset>')
         return PlainTextResponse(content=xml, media_type="application/xml")
+
+    # ---------- robots.txt（引导爬虫抓 solutions，屏蔽后台/接口）----------
+    @app.get("/robots.txt", response_class=PlainTextResponse)
+    def robots():
+        txt = (
+            "User-agent: *\n"
+            "Allow: /solutions\n"
+            "Allow: /guide\n"
+            "Allow: /tutorial\n"
+            "Disallow: /api/\n"      # 屏蔽所有API接口，防爬虫瞎抓消耗资源
+            "Disallow: /admin\n"    # 屏蔽后台
+            f"Sitemap: {SITE_BASE}/sitemap.xml\n"
+        )
+        return PlainTextResponse(content=txt, media_type="text/plain")
 
     # ---------- pSEO 行业页线索收集接口 ----------
     from pydantic import BaseModel
@@ -239,8 +268,10 @@ def register_pseo(app):
             _pseo_rate_limit(request)
         except HTTPException:
             raise HTTPException(status_code=429, detail="提交过于频繁，请稍后再试")
+        # 全局每日上限：防脚本大规模灌爆数据库（保命）
+        _pseo_daily_guard()
         # 从 slug 反查行业城市，做归因冗余
-        meta = INDUSTRY_DB.get(req.slug or "", {})
+        meta = FULL_DB.get(req.slug or "", {})
         lead = PseoLead(
             name=(req.name or "")[:50],
             phone=phone[:30],
@@ -260,6 +291,20 @@ def register_pseo(app):
 
 # 简易IP限流（pSEO 独立，不依赖 main.py 的限流器）
 _pseo_hits = {}
+
+# 全局每日线索熔断（防脚本灌爆数据库）
+_pseo_daily = {"date": "", "count": 0}
+
+def _pseo_daily_guard():
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    if _pseo_daily["date"] != today:
+        _pseo_daily["date"] = today
+        _pseo_daily["count"] = 0
+    max_daily = int(os.getenv("MAX_DAILY_PSEO_LEADS", "300"))
+    if _pseo_daily["count"] >= max_daily:
+        raise HTTPException(status_code=503, detail="今日提交量已达上限，请加顾问微信 jenly222")
+    _pseo_daily["count"] += 1
 
 def _pseo_rate_limit(request: Request, max_calls: int = 10, window_sec: int = 3600):
     import time as _t
