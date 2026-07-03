@@ -1647,6 +1647,50 @@ async def gen_content(req: GenContentReq, request: Request, user: User = Depends
     return result
 
 
+class ContentPackReq(BaseModel):
+    brand_id: int
+    topic: str
+    platforms: list = []
+
+@app.post("/api/content/pack")
+async def gen_content_pack(req: ContentPackReq, request: Request,
+                           user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """多平台内容包：一次生成同一主题的多个平台适配版本。
+    每版套用AI收录结构模板，付费功能（走content_limit额度，一次算多次消耗）。"""
+    _rate_limit(f"contentpack:{_client_ip(request)}", max_calls=10, window_sec=3600)
+    brand = _owned_brand(req.brand_id, user, session)
+    _cplan = plan_of(user)
+    _climit = _cplan.get("content_limit", 0)
+    _cused = getattr(user, "content_count", 0) or 0
+    # 内容包是付费功能：免费版不可用
+    if _climit <= 0:
+        raise HTTPException(403, "多平台内容包是付费功能，升级后可一次生成多平台版本。")
+    if _climit < 999 and _cused >= _climit:
+        raise HTTPException(403, "内容生成次数已用完，升级增长版可不限次。")
+    # 限制平台数量，防滥用烧token
+    pfs = req.platforms or ["zhihu", "souhu", "baijiahao", "gongzhonghao"]
+    pfs = pfs[:5]
+    # 融合知识库
+    kb_items = session.exec(
+        select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)
+    ).all()
+    kb_text = brand.brand_facts or ""
+    if kb_items:
+        kb_text += "\n\n【品牌知识库】\n"
+        for it in kb_items:
+            kb_text += f"{it.title}：{it.content}\n"
+    from services.generator import generate_content_pack
+    result = await generate_content_pack(
+        brand.name, req.topic, brand.product, brand_facts=kb_text, platforms=pfs,
+    )
+    # 计数（内容包按生成的版本数计入额度）
+    user.content_count = _cused + len(result.get("versions", []))
+    session.add(user)
+    session.commit()
+    return result
+
+
 @app.post("/api/content/schema-faq")
 async def gen_schema_faq(req: GenContentReq, user: User = Depends(current_user),
                          session: Session = Depends(get_session)):
@@ -3236,8 +3280,9 @@ _FRONTEND = os.path.join(_HERE, "..", "frontend")
 # 提供 /solutions/{slug} 行业方案页、/solutions 总览、/sitemap.xml、/api/pseo/lead
 # 纯增量，不影响任何现有路由。
 try:
-    from pseo import register_pseo
+    from pseo import register_pseo, register_baidu_push
     register_pseo(app)
+    register_baidu_push(app)
 except Exception as _e:
     import logging as _lg
     _lg.getLogger("uvicorn.error").warning(f"pSEO 模块加载失败（不影响主服务）: {_e}")
