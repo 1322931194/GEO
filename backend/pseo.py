@@ -413,6 +413,8 @@ def register_pseo(app):
         brand_name: str = ""
         advantages: str = ""
         contact: str = ""
+        address: str = ""    # 门店/公司地址 → 生成 LocalBusiness 结构化数据
+        buy_link: str = ""   # 购买/预约链接 → AI/搜索可直接带出
 
     @app.post("/api/my/pseo-pages")
     def create_customer_page(req: CustomerPageReq, request: Request):
@@ -467,6 +469,8 @@ def register_pseo(app):
                 city=city[:20], industry=industry[:20], brand_name=brand[:40],
                 advantages=(req.advantages or "")[:200],
                 contact=(req.contact or "")[:60],
+                address=(req.address or "")[:120],
+                buy_link=(req.buy_link or "")[:200],
                 seo_title=seo_title, seo_desc=seo_desc,
                 pain_points_json=_json.dumps(pain_points, ensure_ascii=False),
                 strategy=strategy, is_active=True,
@@ -535,6 +539,8 @@ def register_pseo(app):
                 "canonical": f"{SITE_BASE}/s/{page.page_slug}",
                 "site_base": SITE_BASE, "year": datetime.now().year,
                 "customer_contact": page.contact, "customer_brand": page.brand_name,
+                "customer_address": getattr(page, "address", "") or "",
+                "customer_buy_link": getattr(page, "buy_link", "") or "",
                 "is_customer_page": True,
             }
             try:
