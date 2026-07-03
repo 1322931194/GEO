@@ -55,6 +55,14 @@
           <label class="block text-sm text-[#6b655b] mb-1.5">你的联系方式</label>
           <input id="fContact" placeholder="微信/电话，展示在页面上" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
         </div>
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">门店/公司地址（推荐填）</label>
+          <input id="fAddress" placeholder="如 深圳市南山区XX路XX号" class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
+        <div>
+          <label class="block text-sm text-[#6b655b] mb-1.5">购买/预约链接（推荐填）</label>
+          <input id="fBuyLink" placeholder="官网、店铺或预约页链接 https://..." class="w-full border border-black/10 rounded-xl px-4 py-2.5 outline-none focus:border-[#5a7d5a]">
+        </div>
       </div>
       <div class="mb-4">
         <label class="block text-sm text-[#6b655b] mb-1.5">你的优势（一句话，用于生成内容）</label>
@@ -104,7 +112,9 @@
         industry: document.getElementById('fIndustry').value.trim(),
         brand_name: document.getElementById('fBrand').value.trim(),
         advantages: document.getElementById('fAdv').value.trim(),
-        contact: document.getElementById('fContact').value.trim()
+        contact: document.getElementById('fContact').value.trim(),
+        address: document.getElementById('fAddress').value.trim(),
+        buy_link: document.getElementById('fBuyLink').value.trim()
       };
       var msg = document.getElementById('createMsg');
       var btn = document.getElementById('createBtn');
@@ -122,7 +132,7 @@
             msg.className='text-sm mt-2 text-[#5a7d5a] font-bold';
             msg.textContent='✓ 生成成功！链接：'+res.d.url;
             msg.classList.remove('hidden');
-            ['fCity','fIndustry','fBrand','fAdv','fContact'].forEach(function(id){document.getElementById(id).value='';});
+            ['fCity','fIndustry','fBrand','fAdv','fContact','fAddress','fBuyLink'].forEach(function(id){document.getElementById(id).value='';});
             loadPages();
           } else {
             throw new Error(res.d.detail || '生成失败');
