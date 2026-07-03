@@ -23,48 +23,62 @@ engine = create_engine(DATABASE_URL, echo=False,
 
 
 # 套餐配额配置
+# ===== 新4档体系：免费 / 99单次 / 699增长 / 定制 =====
+# 成本核算：1次完整监测≈¥1-3(API)，内容生成≈¥0.5/次，pSEO页=0(模板生成零AI成本)
 PLANS = {
     "trial": {
         "name": "免费版", "price_cny": 0, "brands": 1,
         "questions": 20, "samples": 1, "platforms": 3, "freq": "once",
-        "monitor_limit": 1,   # 免费给1次完整监测（让他看到AI不推他）
+        "monitor_limit": 1,   # 免费给1次监测（3平台，让他看到AI不推他）
         "battle_limit": 0,    # 作战包只给预览（前端控制），完整要付费
         "content_limit": 0,
+        "pseo_limit": 0,
     },
     "single": {
         "name": "单次版", "price_cny": 99, "brands": 1,
         "questions": 50, "samples": 1, "platforms": 5, "freq": "once",
-        "monitor_limit": 1,   # 1次完整监测
+        "monitor_limit": 1,   # 1次完整监测（5平台）
         "battle_limit": 1,    # 完整作战包
-        "content_limit": 1,   # 1次内容生成
+        "content_limit": 3,   # 3次内容生成（成本低，给足让他把方案落地）
+        "pseo_limit": 0,
     },
     "monthly": {
-        "name": "月付版", "price_cny": 699, "brands": 3,
-        "questions": 80, "samples": 1, "platforms": 5, "freq": "weekly",
-        "monitor_limit": 8,   # 每月8次监测
+        "name": "增长版", "price_cny": 699, "brands": 3,
+        "questions": 80, "samples": 1, "platforms": 6, "freq": "weekly",
+        "monitor_limit": 8,   # 每月8次监测（够每周复测）
         "battle_limit": 999, "content_limit": 999,
+        "pseo_limit": 3,      # ★ 含3个pSEO获客落地页（零边际成本，高感知价值）
     },
+    "custom": {
+        "name": "定制版", "price_cny": 0, "brands": 10,
+        "questions": 200, "samples": 3, "platforms": 8, "freq": "daily",
+        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
+        "pseo_limit": 30,     # 定制客户：pSEO矩阵+代运营，价格面议，后台手动开通
+    },
+    # ===== 以下为旧套餐（仅兼容历史付费用户，价格页不再展示）=====
     "starter": {
-        "name": "季付版", "price_cny": 1980, "brands": 5,
+        "name": "季付版(旧)", "price_cny": 1980, "brands": 5,
         "questions": 120, "samples": 1, "platforms": 6, "freq": "weekly",
-        "monitor_limit": 999,  # 季度内不限次
-        "battle_limit": 999, "content_limit": 999,
+        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
+        "pseo_limit": 3,
     },
-    # ===== 保留旧套餐（兼容已有付费用户，不影响历史数据）=====
     "starter_trial": {
         "name": "体验版(旧)", "price_cny": 39.9, "brands": 1,
         "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
         "monitor_limit": 1, "battle_limit": 1, "content_limit": 1,
+        "pseo_limit": 0,
     },
     "pro": {
-        "name": "企业版", "price_cny": 3980, "brands": 5,
+        "name": "企业版(旧)", "price_cny": 3980, "brands": 5,
         "questions": 150, "samples": 2, "platforms": 6, "freq": "daily",
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
+        "pseo_limit": 10,
     },
     "business": {
-        "name": "旗舰版", "price_cny": 9800, "brands": 10,
+        "name": "旗舰版(旧)", "price_cny": 9800, "brands": 10,
         "questions": 999, "samples": 3, "platforms": 8, "freq": "daily",
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
+        "pseo_limit": 30,
     },
 }
 
