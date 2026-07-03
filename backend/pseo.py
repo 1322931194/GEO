@@ -265,6 +265,15 @@ def register_pseo(app):
     def sitemap():
         urls = [f"{SITE_BASE}/solutions"]
         urls += [f"{SITE_BASE}/solutions/{s}" for s in FULL_DB]
+        # 客户自助生成的落地页也进 sitemap（客户花钱买的页要能被搜到）
+        try:
+            from sqlmodel import Session as _S, select as _sel
+            from database import engine as _eng, CustomerPseoPage as _CP
+            with _S(_eng) as _ss:
+                for _p in _ss.exec(_sel(_CP).where(_CP.is_active == True)).all():
+                    urls.append(f"{SITE_BASE}/s/{_p.page_slug}")
+        except Exception:
+            pass  # 表未建或查询失败不影响官方页 sitemap
         items = "".join(
             f"<url><loc>{u}</loc><changefreq>weekly</changefreq>"
             f"<priority>0.8</priority></url>" for u in urls
@@ -420,7 +429,7 @@ def register_pseo(app):
         try:
             secret = os.getenv("JWT_SECRET", "")
             payload = _jwt.decode(token, secret, algorithms=["HS256"])
-            uid = int(payload.get("sub") or payload.get("user_id"))
+            uid = int(payload.get("uid") or payload.get("sub") or payload.get("user_id"))
         except Exception:
             raise HTTPException(401, "登录已过期，请重新登录")
 
@@ -479,7 +488,7 @@ def register_pseo(app):
         try:
             secret = os.getenv("JWT_SECRET", "")
             payload = _jwt.decode(token, secret, algorithms=["HS256"])
-            uid = int(payload.get("sub") or payload.get("user_id"))
+            uid = int(payload.get("uid") or payload.get("sub") or payload.get("user_id"))
         except Exception:
             raise HTTPException(401, "登录已过期")
         from sqlmodel import Session, select
