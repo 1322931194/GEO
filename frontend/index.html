@@ -1008,12 +1008,16 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
                   <div class="field"><label>品牌名 <span style="color:var(--bad)">*</span></label><input id="bName" placeholder="如 优品茶叶"></div>
                   <div class="field"><label>所属行业 <span style="color:var(--bad)">*</span></label><input id="bIndustry" placeholder="如 茶叶/餐饮/电商"></div>
                 </div>
-                <button type="button" onclick="toggleExtra()" id="extraBtn" style="background:none;border:none;color:var(--cyan);font-size:13px;cursor:pointer;padding:0;margin-bottom:16px">+ 填写更多信息（官网、竞品、主营产品，可提升问题精准度）</button>
+                <div class="field" style="margin-top:16px;background:linear-gradient(135deg,rgba(176,82,74,.06),rgba(176,132,66,.06));border:1px solid rgba(176,82,74,.25);border-radius:12px;padding:16px">
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:700"><span>⚔️ 竞品刺探雷达</span> <span style="color:var(--bad)">*</span></label>
+                  <p style="font-size:12px;color:var(--ink-soft);margin:6px 0 10px">你的核心竞品是谁？监测时我们会同场对比——看清客户问 AI 时，AI 把订单推给了哪个对手、对手凭什么赢。<b>这是整个报告最扎心也最有用的部分。</b></p>
+                  <input id="bComp" placeholder="必填，逗号分隔，如 竞品A, 竞品B, 竞品C" style="border-color:rgba(176,82,74,.4)">
+                </div>
+                <button type="button" onclick="toggleExtra()" id="extraBtn" style="background:none;border:none;color:var(--cyan);font-size:13px;cursor:pointer;padding:0;margin:16px 0">+ 填写更多信息（官网、主营产品，可提升问题精准度）</button>
                 <div id="extraFields" style="display:none">
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                     <div class="field"><label>官网链接</label><input id="bSite" placeholder="yoursite.com"></div>
                     <div class="field"><label>主营产品</label><input id="bProduct" placeholder="如 有机绿茶、普洱茶"></div>
-                    <div class="field"><label>主要竞品</label><input id="bComp" placeholder="逗号分隔，如 竞品A, 竞品B"></div>
                     <div class="field"><label>目标市场</label><select id="bMarket"><option>海外</option><option>北美</option><option>欧洲</option><option>东南亚</option><option>国内</option><option>全国</option></select></div>
                   </div>
                 </div>
@@ -2782,6 +2786,8 @@ async function createBrand(){
   const name=document.getElementById("bName").value.trim();
   const industry=document.getElementById("bIndustry").value.trim();
   if(!name||!industry){toast("请至少填写品牌名和所属行业");return}
+  const comp=document.getElementById("bComp").value.trim();
+  if(!comp){toast("⚔️ 请填写你的核心竞品——这是看清 AI 把订单推给谁的关键");document.getElementById("bComp").focus();return}
   const btn=document.getElementById("createBtn");
   btn.textContent="正在分析品牌…";btn.disabled=true;
   try{
@@ -2789,7 +2795,7 @@ async function createBrand(){
       name,industry,mode:currentMode,
       website:document.getElementById("bSite")?.value.trim()||"",
       product:document.getElementById("bProduct")?.value.trim()||"",
-      competitors:document.getElementById("bComp")?.value.trim()||"",
+      competitors:comp,
       target_market:document.getElementById("bMarket")?.value||"海外",
     })});
     currentBrandId=b.id;
