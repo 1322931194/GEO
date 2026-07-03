@@ -26,6 +26,21 @@
     "description": "{{ seo_desc }}"
   }
   </script>
+  {% if is_customer_page %}
+  <!-- 客户页：LocalBusiness 结构化数据 = 给AI/搜索引擎的机读名片（地址/电话/链接） -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    "name": "{{ customer_brand }}",
+    "description": "{{ seo_desc }}",
+    "url": "{{ customer_buy_link if customer_buy_link else canonical }}"{% if customer_address %},
+    "address": {"@type": "PostalAddress", "streetAddress": "{{ customer_address }}", "addressLocality": "{{ city }}"}{% endif %}{% if customer_contact %},
+    "telephone": "{{ customer_contact }}"{% endif %},
+    "areaServed": "{{ city }}"
+  }
+  </script>
+  {% endif %}
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -189,6 +204,8 @@
     <div class="max-w-6xl mx-auto px-6 text-center">
       {% if is_customer_page %}
       <div class="serif text-xl text-paper font-bold mb-2">{{ customer_brand }}</div>
+      {% if customer_buy_link %}<p class="mb-3"><a href="{{ customer_buy_link }}" rel="nofollow" class="inline-block bg-matcha text-white font-bold px-8 py-3 rounded-full">立即购买 / 预约 →</a></p>{% endif %}
+      {% if customer_address %}<p class="text-sm mb-1">📍 地址：<span class="text-paper">{{ customer_address }}</span></p>{% endif %}
       {% if customer_contact %}<p class="text-sm mb-4">联系我们：<span class="text-matchal font-bold">{{ customer_contact }}</span></p>{% endif %}
       <p class="text-xs">本页由 <a href="{{ site_base }}" class="text-matchal">见微 GEO</a> 智能生成 · 让 AI 主动推荐你的品牌</p>
       {% else %}
