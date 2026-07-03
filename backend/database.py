@@ -267,6 +267,8 @@ class CustomerPseoPage(SQLModel, table=True):
     brand_name: str = ""                       # 客户品牌名
     advantages: str = ""                       # 客户优势（用于生成内容）
     contact: str = ""                          # 客户自己的联系方式（页面展示）
+    address: str = ""                          # 门店/公司地址（生成LocalBusiness结构化数据）
+    buy_link: str = ""                         # 购买/预约链接（官网、店铺、小程序等）
     seo_title: str = ""                        # 生成的SEO标题
     seo_desc: str = ""                         # 生成的SEO描述
     pain_points_json: str = "[]"               # 痛点（JSON数组）
@@ -291,6 +293,8 @@ def _auto_migrate():
     from sqlalchemy import text
     # 需要补的字段：(表名, 字段名, 类型与默认值)
     migrations = [
+        ("customerpseopage", "address", "VARCHAR DEFAULT ''"),
+        ("customerpseopage", "buy_link", "VARCHAR DEFAULT ''"),
         ("user", "invite_code", "VARCHAR DEFAULT ''"),
         ("user", "referred_by", "INTEGER DEFAULT 0"),
         ("user", "monitor_count", "INTEGER DEFAULT 0"),
