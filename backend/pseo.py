@@ -381,10 +381,11 @@ def register_pseo(app):
     import json as _json
     import re as _re2
 
-    # 允许生成 pSEO 页的套餐（季付/企业/尊享）
-    _PSEO_ALLOWED_PLANS = {"starter", "pro", "business"}
-    # 各套餐可生成页数上限
-    _PSEO_PAGE_LIMIT = {"starter": 3, "pro": 10, "business": 30}
+    # 允许生成 pSEO 页的套餐：直接读 PLANS 里的 pseo_limit（>0 即允许）
+    # 这样套餐调整只改 database.py 一处，权限自动跟随
+    from database import PLANS as _PLANS
+    _PSEO_ALLOWED_PLANS = {k for k, v in _PLANS.items() if v.get("pseo_limit", 0) > 0}
+    _PSEO_PAGE_LIMIT = {k: v.get("pseo_limit", 0) for k, v in _PLANS.items()}
 
     def _gen_customer_content(city, industry, brand, advantages):
         """根据客户输入生成页面内容（本地模板，不调用AI，零成本、稳定）。"""
@@ -441,7 +442,7 @@ def register_pseo(app):
                 raise HTTPException(401, "用户不存在")
             # 权限：必须是允许的套餐
             if user.plan not in _PSEO_ALLOWED_PLANS:
-                raise HTTPException(403, "自助建站是季付版及以上专属功能，请升级套餐")
+                raise HTTPException(403, "自助建站是增长版(¥699/月)及以上专属功能，请升级套餐")
             # 数量限制
             limit = _PSEO_PAGE_LIMIT.get(user.plan, 3)
             existing = session.exec(
