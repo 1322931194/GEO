@@ -914,7 +914,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
     <aside class="sidebar">
       <div class="sb-logo"><span class="mark">見</span>见微</div>
       <nav class="sb-nav">
-        <div class="sb-item active" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
+        <div class="sb-item active" id="navMap" onclick="navTo('map')"><span class="ic">🗺️</span>作战地图</div>
+        <div class="sb-item" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
         <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
         <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
         <div class="sb-item" onclick="window.open('/tutorial','_blank')"><span class="ic">📖</span>运营教程</div>
@@ -944,6 +945,13 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       </div>
 
       <div class="main-content">
+
+        <!-- ===== 作战地图（GEO闭环总览）===== -->
+        <div id="mapView">
+          <div class="shell">
+            <div id="mapContent"></div>
+          </div>
+        </div>
 
         <!-- ===== 内容工作台 ===== -->
         <div id="workspaceView" class="hidden">
@@ -1383,6 +1391,8 @@ function enterApp(planInfo){
   injectMobileNav();
   // 登录后自动加载历史品牌
   loadMyBrands();
+  // 默认打开作战地图，让用户先看懂整个流程
+  if(typeof navTo==="function") navTo('map');
   // 首次进入显示新手引导
   maybeShowOnboarding();
 }
@@ -1391,6 +1401,7 @@ function enterApp(planInfo){
 function injectMobileNav(){
   if(document.getElementById("mobileNav")) return;
   const items=[
+    {key:"map",  ic:"🗺️", label:"地图"},
     {key:"flow", ic:"🎯", label:"监测"},
     {key:"dash", ic:"📊", label:"看板"},
     {key:"ws",   ic:"🧠", label:"创作"},
@@ -1447,6 +1458,7 @@ function resetAppState(){
 
 // ===== 侧边栏导航 =====
 const NAV_VIEWS = {
+  map:   {view:"mapView",         crumb:"作战地图",     sub:"你的GEO作战全流程",  nav:"navMap"},
   flow:  {view:"mainFlow",       crumb:"AI 监测",     sub:"查清 AI 推不推你",  nav:"navFlow"},
   dash:  {view:"dashboardView",  crumb:"增长看板",     sub:"追踪能见度变化",    nav:"navDash"},
   ws:    {view:"workspaceView",  crumb:"内容工作台",   sub:"建库·选题·创作",    nav:"navWs"},
@@ -1462,18 +1474,85 @@ function openMyPages(){
   }
 }
 
+// ===== 作战地图：GEO 闭环 5 步可视化 =====
+function renderBattleMap(){
+  const el = document.getElementById("mapContent");
+  if(!el) return;
+  const hasBrand = !!(currentBrandId || lastBrandIdForDash);
+  const steps = [
+    {n:1, ic:"🔍", title:"监测现状", q:"AI 到底推不推我？",
+     desc:"填入你的品牌和核心竞品，见微去 8 大 AI 平台问一圈，看 AI 推的是你还是对手，附真实对话截图。",
+     goal:"目的：先看清现状。不知道问题在哪，一切优化都是瞎猜。",
+     btn:"去监测", act:"navTo('flow')", color:"var(--cyan)"},
+    {n:2, ic:"🔬", title:"诊断溯源", q:"为什么不推我？对手赢在哪？",
+     desc:"报告里的「信源护城河·竞品溯源」会扒出：AI 推竞品是因为引用了哪些信源，这些源正把哪些对手带给 AI。",
+     goal:"目的：找到病根。不是你不好，是 AI 在那些信源里没看到你。",
+     btn:"看诊断报告", act:"navTo('flow')", color:"var(--clay)"},
+    {n:3, ic:"🎯", title:"选词布局", q:"客户会问 AI 什么？我该抢哪些词？",
+     desc:"见微帮你生成两类关键词：① 客户会问 AI 的长尾问句（如「XX市XX哪家好」）② 值得优先抢占的商机词（带热度/竞争度评分）。",
+     goal:"目的：锁定战场。选对词，内容才发得有的放矢。",
+     btn:"看关键词/长尾词", act:"navTo('flow')", color:"var(--gold)"},
+    {n:4, ic:"✍️", title:"优化创作", q:"该发什么内容？发到哪个平台？",
+     desc:"针对选好的词，用「多平台内容包」一键生成知乎/搜狐/百家号等适配版本（套用 AI 收录结构），再用 Schema 助手强化官网。发到 AI 信任的平台。",
+     goal:"目的：把内容铺到 AI 会读的地方，让 AI 重新认识你。",
+     btn:"去创作内容", act:"navTo('ws')", color:"var(--matcha)"},
+    {n:5, ic:"📈", title:"复测增长", q:"做了有没有效果？",
+     desc:"过 1-2 周回来重新监测，「增长看板」对比提及率变化，看 AI 给你带来的真实访客。有效就加码，没效就调整。",
+     goal:"目的：效果可见。GEO 是持续经营，30-45 天见变化，别停。",
+     btn:"看增长看板", act:"navTo('dash')", color:"var(--good)"},
+  ];
+
+  let html = `
+    <div style="background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:16px;padding:28px 30px;margin-bottom:24px;color:#f4f1ea">
+      <div style="font-size:22px;font-weight:800;margin-bottom:8px">🗺️ 你的 GEO 作战地图</div>
+      <div style="font-size:14px;color:#c8c3b8;line-height:1.7">让 AI 主动推荐你的品牌，就走这 5 步闭环。跟着做，从「AI 不认识你」到「AI 优先推你」。每一步见微都帮你做好了工具，你只需照着点。</div>
+      ${!hasBrand?`<div style="margin-top:16px;background:rgba(168,196,140,.15);border:1px solid rgba(168,196,140,.4);border-radius:10px;padding:12px 16px;font-size:13.5px">👉 还没开始？先从<b style="color:#a8c48c">第 1 步·监测</b>入手，填入品牌信息，30 秒看清 AI 推不推你。</div>`:''}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">`;
+
+  steps.forEach((s,i)=>{
+    html += `
+      <div style="display:flex;gap:16px;align-items:stretch">
+        <div style="display:flex;flex-direction:column;align-items:center">
+          <div style="width:46px;height:46px;border-radius:50%;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0">${s.n}</div>
+          ${i<steps.length-1?`<div style="width:2px;flex:1;background:var(--line);margin:4px 0"></div>`:''}
+        </div>
+        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:4px">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+            <div style="font-size:17px;font-weight:800;color:var(--ink)">${s.ic} ${escHtml(s.title)}<span style="font-size:14px;font-weight:500;color:var(--ink-soft);margin-left:10px">${escHtml(s.q)}</span></div>
+            <button class="btn-ghost" style="padding:8px 18px;font-size:13px;white-space:nowrap" onclick="${s.act}">${escHtml(s.btn)} →</button>
+          </div>
+          <div style="font-size:13.5px;color:#444;line-height:1.7;margin-top:10px">${escHtml(s.desc)}</div>
+          <div style="font-size:12.5px;color:${s.color};margin-top:8px;font-weight:600">${escHtml(s.goal)}</div>
+        </div>
+      </div>`;
+  });
+
+  html += `</div>
+    <div style="background:var(--cyan-soft,#eaf5f5);border-radius:14px;padding:20px 24px;margin-top:22px">
+      <div style="font-size:15px;font-weight:700;margin-bottom:8px">💡 记住 GEO 的底层逻辑</div>
+      <div style="font-size:13.5px;color:var(--ink);line-height:1.8">
+        AI 推荐谁，看的是<b>「可信度」</b>——它只推在多个可信信源里被反复提到的品牌。<br>
+        所以这 5 步的本质是：<b>看清差距 → 找到 AI 信任的信源 → 把优质内容铺过去 → 让 AI 反复看到你 → 从对手手里赢回推荐位</b>。<br>
+        这不是一次性工程，是持续经营。坚持做，AI 会对你「越记越牢」，先动手的人后来者很难追上。
+      </div>
+    </div>`;
+
+  el.innerHTML = html;
+}
+
 function navTo(key){
   const cfg = NAV_VIEWS[key];
   if(!cfg) return;
   // 隐藏所有主视图
-  ["mainFlow","dashboardView","workspaceView","referralView","pricingView"].forEach(v=>{
+  ["mapView","mainFlow","dashboardView","workspaceView","referralView","pricingView"].forEach(v=>{
     const el=document.getElementById(v); if(el) el.classList.add("hidden");
   });
   // 显示目标
   const target=document.getElementById(cfg.view);
   if(target) target.classList.remove("hidden");
   // 侧边栏高亮
-  ["navFlow","navDash","navWs","navRef","navPrice"].forEach(n=>{
+  ["navMap","navFlow","navDash","navWs","navRef","navPrice"].forEach(n=>{
     const el=document.getElementById(n); if(el) el.classList.remove("active");
   });
   const navEl=document.getElementById(cfg.nav); if(navEl) navEl.classList.add("active");
@@ -1485,6 +1564,7 @@ function navTo(key){
   const cr=document.getElementById("mainCrumb");
   if(cr) cr.innerHTML=cfg.crumb+'<span class="sub">'+cfg.sub+'</span>';
   // 触发各视图的数据加载
+  if(key==="map" && typeof renderBattleMap==="function") renderBattleMap();
   if(key==="dash" && typeof showDashboard==="function") showDashboard();
   if(key==="ws" && typeof showWorkspace==="function") showWorkspace();
   if(key==="ref" && typeof showReferral==="function") showReferral();
