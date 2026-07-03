@@ -3291,4 +3291,7 @@ if os.path.isdir(_FRONTEND):
     @app.get("/")
     def index():
         return FileResponse(os.path.join(_FRONTEND, "index.html"))
+    @app.get("/pricing")
+    def pricing_page():
+        return FileResponse(os.path.join(_FRONTEND, "pricing.html"))
     app.mount("/static", StaticFiles(directory=_FRONTEND), name="static")
