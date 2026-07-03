@@ -219,10 +219,11 @@ COMMISSION_RATE = 0.35
 PLAN_PRICES = {
     "single": 99,
     "monthly": 699,
+    # custom 定制版：价格面议，后台手动开通，不走线上支付
+    # 以下为旧套餐价格（仅兼容历史订单回调）
     "starter": 1980,
     "pro": 3980,
     "business": 9800,
-    # 兼容旧套餐
     "starter_trial": 39.9,
 }
 
@@ -2888,7 +2889,7 @@ def admin_cost_estimate(key: str):
             "total_cost": monthly_cost,
         })
     # 套餐价格对照
-    plan_prices = {"starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
+    plan_prices = {"single": 99, "monthly": 699, "starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
     return {
         "scenarios": results,
         "plan_prices": plan_prices,
@@ -3036,11 +3037,13 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <input type="email" id="email" placeholder="客户注册邮箱">
 <label>套餐</label>
 <select id="plan">
-<option value="starter_trial">¥39.9体验版（1次监测，含作战包+内容）</option>
-<option value="starter">专业版¥1980/季</option>
-<option value="pro">企业版¥3980/年（不限次）</option>
-<option value="business">旗舰版¥9800/年</option>
-<option value="trial">退回免费试用</option>
+<option value="single">单次版¥99（1次完整监测+作战包+3次内容）</option>
+<option value="monthly">增长版¥699/月（8次监测+不限内容+pSEO落地页×3）</option>
+<option value="custom">定制版（价格面议：全平台+pSEO矩阵30页+代运营）</option>
+<option value="trial">退回免费版</option>
+<option value="starter">[旧]季付版¥1980</option>
+<option value="pro">[旧]企业版¥3980</option>
+<option value="business">[旧]旗舰版¥9800</option>
 </select>
 <button onclick="upgrade()">确认开通</button>
 <div class="result" id="upR"></div>
