@@ -478,6 +478,11 @@ def register_pseo(app):
             session.add(page)
             session.commit()
             session.refresh(page)
+            # 新页面自动推送百度，加速收录（白帽）
+            try:
+                push_urls_to_baidu([f"{SITE_BASE}/s/{page_slug}"])
+            except Exception:
+                pass
             return {"ok": True, "page_slug": page_slug,
                     "url": f"{SITE_BASE}/s/{page_slug}",
                     "msg": "落地页已生成"}
@@ -586,3 +591,58 @@ def _pseo_rate_limit(request: Request, max_calls: int = 10, window_sec: int = 36
         raise HTTPException(status_code=429, detail="rate limited")
     hits.append(now)
     _pseo_hits[key] = hits
+
+
+# ============================================================
+# 百度主动推送（白帽加速收录，替代黑帽蜘蛛池）
+# 新页面发布后主动推送给百度，几小时内被抓取
+# 官方API：http://data.zz.baidu.com/urls?site=xxx&token=xxx
+# ============================================================
+def push_urls_to_baidu(urls: list) -> dict:
+    """把URL主动推送给百度，加速收录。
+    需在 Render 配置环境变量：
+      BAIDU_PUSH_SITE  = 你在百度资源平台验证的站点(如 https://geo-radar.onrender.com)
+      BAIDU_PUSH_TOKEN = 百度资源平台-普通收录-API提交里的推送密钥
+    """
+    site = os.getenv("BAIDU_PUSH_SITE", "")
+    token = os.getenv("BAIDU_PUSH_TOKEN", "")
+    if not site or not token:
+        return {"ok": False, "msg": "未配置百度推送(BAIDU_PUSH_SITE/BAIDU_PUSH_TOKEN)"}
+    if not urls:
+        return {"ok": False, "msg": "无URL可推送"}
+    api = f"http://data.zz.baidu.com/urls?site={site}&token={token}"
+    try:
+        import httpx
+        payload = "\n".join(urls)
+        with httpx.Client(timeout=10) as client:
+            r = client.post(api, content=payload.encode("utf-8"),
+                            headers={"Content-Type": "text/plain"})
+        return {"ok": True, "status": r.status_code, "result": r.json()}
+    except Exception as e:
+        return {"ok": False, "msg": f"推送失败: {e}"}
+
+
+def register_baidu_push(app):
+    """注册百度推送相关接口。"""
+
+    @app.get("/api/baidu/push-all")
+    def push_all_pages(key: str = ""):
+        """把全站pSEO页+客户页推送给百度。需ADMIN_KEY。可配合定时任务每天调用。"""
+        import hmac as _h
+        admin_key = os.getenv("ADMIN_KEY", "")
+        if not admin_key or not _h.compare_digest(key or "", admin_key):
+            raise HTTPException(403, "无权访问")
+        urls = [f"{SITE_BASE}/solutions"]
+        urls += [f"{SITE_BASE}/solutions/{s}" for s in FULL_DB]
+        # 加上客户页
+        try:
+            from sqlmodel import Session as _S, select as _sel
+            from database import engine as _eng, CustomerPseoPage as _CP
+            with _S(_eng) as _ss:
+                for _p in _ss.exec(_sel(_CP).where(_CP.is_active == True)).all():
+                    urls.append(f"{SITE_BASE}/s/{_p.page_slug}")
+        except Exception:
+            pass
+        result = push_urls_to_baidu(urls)
+        result["pushed_count"] = len(urls)
+        return result
