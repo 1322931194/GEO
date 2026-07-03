@@ -952,6 +952,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <button class="ws-tab active" id="wsTab1" onclick="switchWsTab(1)">① 品牌知识库</button>
               <button class="ws-tab" id="wsTab2" onclick="switchWsTab(2)">② 选题库</button>
               <button class="ws-tab" id="wsTab3" onclick="switchWsTab(3)">③ 我的内容</button>
+              <button class="ws-tab" id="wsTab4" onclick="switchWsTab(4)">④ 多平台内容包</button>
+              <button class="ws-tab" id="wsTab5" onclick="switchWsTab(5)">⑤ Schema 助手</button>
             </div>
             <div id="workspaceContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div></div>
           </div>
@@ -1697,12 +1699,128 @@ function backFromWorkspace(){
 
 function switchWsTab(n){
   wsCurrentTab = n;
-  for(let i=1;i<=3;i++){
+  for(let i=1;i<=5;i++){
     document.getElementById("wsTab"+i).classList.toggle("active", i===n);
   }
   if(n===1) loadKnowledgeTab();
   else if(n===2) loadTopicsTab();
-  else loadContentsTab();
+  else if(n===3) loadContentsTab();
+  else if(n===4) loadContentPackTab();
+  else if(n===5) loadSchemaTab();
+}
+
+// ---- Tab4: 多平台内容包 ----
+function loadContentPackTab(){
+  const c = document.getElementById("workspaceContent");
+  const bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ c.innerHTML='<p style="padding:20px;color:var(--ink-soft)">请先在「AI 监测」创建并监测一个品牌。</p>'; return; }
+  c.innerHTML = `
+    <div class="section-card">
+      <div style="font-weight:700;font-size:16px;margin-bottom:6px">📦 多平台内容包生成</div>
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">输入一个客户会问 AI 的问题，一键生成多个平台的适配版本。每版都套用 AI 收录结构（问句标题·首段结论·FAQ·数据带源），并做语义微调避免重复内容惩罚。</div>
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">主题（用户会问 AI 的问题）</label>
+      <input id="packTopic" placeholder="如：深圳装修公司哪家好？" style="width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;margin-bottom:14px;font-family:inherit;font-size:14px">
+      <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">选择平台（按 AI 引用生态推荐）</label>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px" id="packPlatforms">
+        ${[['zhihu','知乎·问答引用核心'],['souhu','搜狐号·全平台通吃'],['baijiahao','百家号·文心首选'],['toutiao','头条号·豆包生态'],['gongzhonghao','公众号·元宝首选']].map((p,i)=>`
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;background:#f7f5f0;padding:8px 12px;border-radius:8px;cursor:pointer">
+            <input type="checkbox" value="${p[0]}" ${i<4?'checked':''} class="pack-pf"> ${p[1]}
+          </label>`).join('')}
+      </div>
+      <button class="btn-cyan" style="padding:12px 24px;font-size:14px" onclick="genContentPack()" id="packBtn">✨ 生成多平台内容包</button>
+      <div id="packResult" style="margin-top:20px"></div>
+    </div>`;
+}
+
+async function genContentPack(){
+  const bid = currentBrandId || lastBrandIdForDash;
+  const topic = document.getElementById("packTopic").value.trim();
+  if(!topic){ toast("请输入主题"); return; }
+  const pfs = Array.from(document.querySelectorAll(".pack-pf:checked")).map(x=>x.value);
+  if(!pfs.length){ toast("请至少选一个平台"); return; }
+  const btn = document.getElementById("packBtn");
+  btn.textContent="生成中…可能需要30秒"; btn.disabled=true;
+  const res = document.getElementById("packResult");
+  res.innerHTML='<div class="loading" style="padding:20px"><div class="spinner"></div><p>正在为各平台生成适配内容…</p></div>';
+  try{
+    const d = await api("/api/content/pack",{method:"POST",body:JSON.stringify({brand_id:bid,topic,platforms:pfs})});
+    let html = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">`;
+    (d.versions||[]).forEach((v,i)=>{
+      html += `<button class="ws-tab ${i===0?'active':''}" onclick="showPackVer(${i})" id="packVerTab${i}">${escHtml(v.platform_name)}</button>`;
+    });
+    html += `</div><div id="packVersions">`;
+    (d.versions||[]).forEach((v,i)=>{
+      const warn = (v.compliance && v.compliance.risk) ? `<div style="background:#fdf3f2;color:var(--clay);font-size:12px;padding:8px 12px;border-radius:6px;margin-bottom:10px">⚠️ 合规提示：${escHtml((v.compliance.hits||[]).join('、'))}</div>` : '';
+      html += `<div class="pack-ver" id="packVer${i}" style="display:${i===0?'block':'none'}">
+        <div style="font-size:12px;color:var(--matcha);margin-bottom:8px">💡 ${escHtml(v.why)}</div>
+        ${warn}
+        <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:10px">
+          <div style="font-weight:700;font-size:15px;margin-bottom:10px">${escHtml(v.title)}</div>
+          <div style="font-size:13.5px;line-height:1.75;white-space:pre-wrap;color:#333">${escHtml(v.body)}</div>
+        </div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">📌 ${escHtml(v.publish_tip||'')}</div>
+        <button class="btn-ghost" style="padding:8px 18px;font-size:13px" onclick="copyPackVer(${i})">📋 复制这一版</button>
+      </div>`;
+    });
+    html += `</div>`;
+    res.innerHTML = html;
+    window.__packData = d.versions||[];
+  }catch(e){ res.innerHTML=`<p style="color:var(--bad);padding:16px">${e.message}</p>`; }
+  finally{ btn.textContent="✨ 生成多平台内容包"; btn.disabled=false; }
+}
+
+function showPackVer(i){
+  document.querySelectorAll(".pack-ver").forEach((el,idx)=>el.style.display=idx===i?'block':'none');
+  (window.__packData||[]).forEach((v,idx)=>{
+    const t=document.getElementById("packVerTab"+idx); if(t) t.classList.toggle("active",idx===i);
+  });
+}
+function copyPackVer(i){
+  const v=(window.__packData||[])[i]; if(!v) return;
+  navigator.clipboard.writeText(v.title+"\n\n"+v.body).then(()=>toast("✅ 已复制「"+v.platform_name+"」版内容")).catch(()=>toast("复制失败"));
+}
+
+// ---- Tab5: Schema 助手 ----
+function loadSchemaTab(){
+  const c = document.getElementById("workspaceContent");
+  const bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ c.innerHTML='<p style="padding:20px;color:var(--ink-soft)">请先在「AI 监测」创建并监测一个品牌。</p>'; return; }
+  c.innerHTML = `
+    <div class="section-card">
+      <div style="font-weight:700;font-size:16px;margin-bottom:6px">🏷️ Schema 结构化助手</div>
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">一键生成你官网可用的 Schema 结构化代码（FAQPage / LocalBusiness）——这是给 AI 和搜索引擎的"机读名片"，让它们精准理解你的品牌信息。生成后复制到你官网页面的 &lt;head&gt; 里即可。<br><span style="color:var(--gold)">💡 注：Schema 需要贴到你自己的官网。如果你没有官网，可以用「我的落地页」功能，见微会自动帮你带上。</span></div>
+      <button class="btn-cyan" style="padding:12px 24px;font-size:14px" onclick="genSchema()" id="schemaBtn">✨ 生成 Schema + FAQ 代码</button>
+      <div id="schemaResult" style="margin-top:20px"></div>
+    </div>`;
+}
+
+async function genSchema(){
+  const bid = currentBrandId || lastBrandIdForDash;
+  const btn = document.getElementById("schemaBtn");
+  btn.textContent="生成中…"; btn.disabled=true;
+  const res = document.getElementById("schemaResult");
+  res.innerHTML='<div class="loading" style="padding:20px"><div class="spinner"></div><p>生成中…</p></div>';
+  try{
+    const d = await api("/api/content/schema-faq",{method:"POST",body:JSON.stringify({brand_id:bid,gap_question:"",content_type:"website"})});
+    const schemaCode = d.schema_code || d.schema_jsonld || d.schema || JSON.stringify(d,null,2);
+    let html = `<div style="font-size:13px;font-weight:600;margin-bottom:8px">📋 Schema 代码（复制到官网 &lt;head&gt;）</div>
+      <div style="position:relative">
+        <pre style="background:#26221c;color:#a8c48c;padding:16px;border-radius:10px;font-size:12px;overflow-x:auto;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto">${escHtml(typeof schemaCode==='string'?schemaCode:JSON.stringify(schemaCode,null,2))}</pre>
+        <button class="btn-ghost" style="margin-top:10px;padding:8px 18px;font-size:13px" onclick="copySchema()">📋 复制代码</button>
+      </div>`;
+    const faqList = d.faq || d.faqs || [];
+    if(faqList.length){
+      html += `<div style="font-size:13px;font-weight:600;margin:16px 0 8px">❓ 生成的 FAQ（可发布到官网/知乎）</div>`;
+      faqList.forEach(f=>{ html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">Q: ${escHtml(f.q||f.question||'')}</div><div style="font-size:13px;color:#444;line-height:1.6">A: ${escHtml(f.a||f.answer||'')}</div></div>`; });
+    }
+    res.innerHTML = html;
+    window.__schemaCode = typeof schemaCode==='string'?schemaCode:JSON.stringify(schemaCode,null,2);
+  }catch(e){ res.innerHTML=`<p style="color:var(--bad);padding:16px">${e.message}</p>`; }
+  finally{ btn.textContent="✨ 生成 Schema + FAQ 代码"; btn.disabled=false; }
+}
+function copySchema(){
+  if(!window.__schemaCode) return;
+  navigator.clipboard.writeText(window.__schemaCode).then(()=>toast("✅ Schema 代码已复制")).catch(()=>toast("复制失败"));
 }
 
 // ---- Tab1: 知识库 ----
@@ -3704,19 +3822,23 @@ function renderCitations(rep){
   const todo=targets.filter(t=>!t.brand_present);
   const done=targets.filter(t=>t.brand_present);
   let html=`<div class="section-card" style="margin-top:20px">
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px">📡 AI 信任的信息源（引用分析）</div>
-    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">AI 回答时会引用它信任的网站来背书。想被 AI 推荐，你的品牌要出现在这些"高信誉节点"上。下面是 AI 在你所在领域引用最多的源。</div>`;
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">📡 信源护城河 · 竞品溯源分析</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">AI 推荐竞品，是因为引用了某些信源。下面扒出 AI 在你所在领域最信任的信息源，以及每个源正把哪些竞品带给 AI——照着这些源布局内容，就能从对手手里抢回 AI 的推荐。</div>`;
   if(todo.length){
     html+=`<div style="font-size:13px;font-weight:600;color:var(--clay);margin-bottom:8px">🎯 优先攻克（AI 高频引用，但还没有你）</div>`;
     html+=`<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:14px">`;
     todo.slice(0,8).forEach(t=>{
       const advice=sourceAdvice(t.source);
+      const comps=(t.competitors_here||[]);
+      const compTag = comps.length ? `<div style="font-size:11.5px;color:var(--clay);margin-top:4px">⚔️ 此源正把竞品带给 AI：<b>${comps.map(escHtml).join('、')}</b></div>` : '';
+      const actionTip = t.action ? `<div style="font-size:11.5px;color:var(--matcha);margin-top:4px">→ ${escHtml(t.action)}</div>` : (advice?`<div style="font-size:11.5px;color:var(--matcha);margin-top:4px">→ ${advice}</div>`:'');
       html+=`<div style="background:#fdf3f2;border:1px solid #f0d8d4;border-radius:8px;padding:9px 12px">
         <div style="display:flex;align-items:center;justify-content:space-between">
           <span style="font-size:13px;font-weight:600;word-break:break-all">${escHtml(t.source)}</span>
           <span style="font-size:11px;color:var(--clay);white-space:nowrap;margin-left:8px">被引用 ${t.cited_count} 次</span>
         </div>
-        ${advice?`<div style="font-size:11.5px;color:var(--matcha);margin-top:4px">→ ${advice}</div>`:''}
+        ${compTag}
+        ${actionTip}
       </div>`;
     });
     html+=`</div>`;
