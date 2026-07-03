@@ -550,6 +550,7 @@ def _aggregate(brand, questions, competitors, available, results,
     all_sources = set()
     source_freq = {}        # 每个源被引用的次数（频次=影响力）
     source_with_brand = {}  # 该源出现的回答里，是否提到了本品牌
+    source_competitors = {} # ★信源溯源：每个源的回答里带出了哪些竞品
     for r in ok:
         for src in r.cited_sources:
             all_sources.add(src)
@@ -559,14 +560,43 @@ def _aggregate(brand, questions, competitors, available, results,
                 source_with_brand[src] = True
             else:
                 source_with_brand.setdefault(src, False)
+            # ★竞品溯源：记录这个源的回答里出现了哪些竞品
+            comps_here = getattr(r, "competitors_mentioned", None) or []
+            if comps_here:
+                source_competitors.setdefault(src, {})
+                for cmp_name in comps_here:
+                    source_competitors[src][cmp_name] = \
+                        source_competitors[src].get(cmp_name, 0) + 1
     # 生成"高价值节点"清单：被AI高频引用、但品牌还没出现的源 = 优先攻克目标
+    # ★升级：带上"这个源把哪些竞品带出来了"——诊断和行动焊死
     citation_targets = []
     for src, freq in sorted(source_freq.items(), key=lambda x: -x[1]):
+        comps = source_competitors.get(src, {})
+        top_comps = sorted(comps.items(), key=lambda x: -x[1])[:3]
+        brand_present = source_with_brand.get(src, False)
+        # 信源权重分：被引频次 × 是否带竞品（带竞品且没你=最该攻克）
+        weight = freq * 2 + sum(comps.values())
+        # 行动建议
+        if not brand_present and top_comps:
+            action = f"该信源正把「{top_comps[0][0]}」等竞品带给AI，你却缺席——优先在此布局同类内容"
+            priority = "high"
+        elif not brand_present:
+            action = "高频信源但你尚未露出，值得布局内容"
+            priority = "mid"
+        else:
+            action = "你已在此露出，保持更新维持存在感"
+            priority = "low"
         citation_targets.append({
             "source": src,
             "cited_count": freq,                          # 被AI引用次数=影响力
-            "brand_present": source_with_brand.get(src, False),  # 品牌是否已露出
+            "brand_present": brand_present,               # 品牌是否已露出
+            "competitors_here": [c[0] for c in top_comps], # ★该源带出的竞品
+            "weight": weight,                             # ★信源权重分
+            "priority": priority,                         # ★攻克优先级
+            "action": action,                             # ★具体行动建议
         })
+    # 按权重排序（最该攻克的在前）
+    citation_targets.sort(key=lambda x: -x["weight"])
     citation_targets = citation_targets[:15]  # 取影响力最高的15个
 
     # 各平台分别的提及率
