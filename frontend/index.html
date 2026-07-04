@@ -326,6 +326,75 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 #landingView input,#landingView select,#landingView textarea{background:rgba(244,241,234,.06);color:#f4f1ea;border-color:rgba(244,241,234,.15)}
 #landingView input::placeholder{color:rgba(244,241,234,.35)}
 
+/* ==== 全面修复：落地页所有内容区文字改亮（解决"深字配深底看不见"）==== */
+/* 通用标题/正文 */
+#landingView h1,#landingView h2,#landingView h3,#landingView h4,#landingView h5{color:#f4f1ea}
+#landingView p,#landingView li,#landingView span,#landingView div{color:inherit}
+#landingView .sec-title{color:#f4f1ea!important}
+#landingView .sec-sub,#landingView .lead,#landingView .desc{color:rgba(244,241,234,.6)!important}
+#landingView .eyebrow,#landingView .tag,#landingView .badge{color:#a8c48c!important}
+/* 六大能力卡片 */
+#landingView .geo-why-item{background:rgba(244,241,234,.04)!important;border:1px solid rgba(244,241,234,.08)!important;border-radius:14px}
+#landingView .geo-why-item h3{color:#f4f1ea!important}
+#landingView .geo-why-item p{color:rgba(244,241,234,.6)!important}
+#landingView .geo-why-item .n{color:#a8c48c!important}
+/* 数据卡数字/标签 */
+#landingView .num,#landingView .dn{color:#a8c48c!important}
+#landingView .desc,#landingView .src,#landingView .dl,#landingView .label{color:rgba(244,241,234,.55)!important}
+/* SEO vs GEO 对比区 */
+#landingView .geo-vs-tag{color:rgba(244,241,234,.7)!important}
+#landingView .geo-vs-tag.old{color:rgba(244,241,234,.45)!important}
+/* 痛点卡片(.b) */
+#landingView .b{color:#f4f1ea!important}
+/* 所有卡片容器深色化 */
+#landingView .geo-why-grid>div,#landingView .lp-section>div[class*="card"],
+#landingView .lp-block,#landingView .info-card,#landingView .pain-card,
+#landingView .cap-card,#landingView .cap-item{background:rgba(244,241,234,.04)!important;border-color:rgba(244,241,234,.08)!important}
+/* 兜底：落地页里任何"接近墨色"的深字，改成米白 */
+#landingView [style*="color:#26221c"],#landingView [style*="color:#1a1712"],
+#landingView [style*="color:#333"],#landingView [style*="color:#222"],
+#landingView [style*="color:#111"],#landingView [style*="color:#000"]{color:#f4f1ea!important}
+#landingView [style*="color:#6b655b"],#landingView [style*="color:#9c958a"]{color:rgba(244,241,234,.6)!important}
+/* before/after 对比卡 */
+#landingView .geo-after-item{background:rgba(244,241,234,.04)!important;border:1px solid rgba(244,241,234,.08)!important}
+#landingView .geo-after-item .b{color:rgba(201,106,95,.85)!important}
+#landingView .geo-after-item .a{color:#a8c48c!important}
+#landingView .geo-after-item .ar{color:rgba(244,241,234,.4)!important}
+/* GEO科普区/为什么不推你 等文字块 */
+#landingView .geo-why-text,#landingView .geo-intro,#landingView .geo-edu,
+#landingView .geo-section p,#landingView .geo-section h3,#landingView .geo-section span{color:rgba(244,241,234,.75)!important}
+/* 最强兜底：落地页内所有 span 若无明确亮色，继承为亮色 */
+#landingView .geo-after-grid span,#landingView .geo-why-grid span{color:inherit}
+/* 关键修复：落地页用 var(--ink) 的深字（落地页无dark-app类，--ink仍是墨色）改亮 */
+#landingView [style*="color:var(--ink)"]{color:#f4f1ea!important}
+#landingView [style*="color:var(--ink-soft)"]{color:rgba(244,241,234,.6)!important}
+#landingView [style*="color:var(--ink-faint)"]{color:rgba(244,241,234,.4)!important}
+#landingView li{color:rgba(244,241,234,.75)}
+#landingView h3{color:#f4f1ea}
+/* SEO vs GEO 对比列 + 内部文字 */
+#landingView .geo-vs-col{background:rgba(244,241,234,.04)!important;border:1px solid rgba(244,241,234,.08)!important}
+#landingView .geo-vs-col li,#landingView .geo-vs-col p{color:rgba(244,241,234,.75)!important}
+#landingView .geo-vs-col.now{background:rgba(90,125,90,.12)!important}
+#landingView .geo-vs-col.now li{color:#e8efe0!important}
+#landingView .geo-vs-arrow{color:rgba(244,241,234,.4)!important}
+#landingView .geo-vs-tag.new{color:#a8c48c!important}
+/* GEO科普段落大字 */
+#landingView .geo-edu-text,#landingView .geo-intro-big{color:rgba(244,241,234,.8)!important}
+/* 终极兜底：任何在深色区(#landingView直接子孙)的li和纯文本div，保证亮色 */
+#landingView ul li{color:rgba(244,241,234,.72)!important}
+/* 精准修复①：旧时代SEO标签(浅底浅字) → 深底深绿字更清晰 */
+#landingView .geo-vs-col:not(.now){background:rgba(244,241,234,.04)!important}
+#landingView .geo-vs-tag.old{color:rgba(244,241,234,.55)!important;background:rgba(244,241,234,.08)!important}
+#landingView .geo-vs-col:not(.now) .geo-vs-tag{color:rgba(244,241,234,.55)!important}
+/* 精准修复②：GEO科普段落若用墨黑字(var(--ink)/#26221c)，强制改亮 */
+#landingView .geo-edu-desc,#landingView .geo-def,#landingView .geo-def-text,
+#landingView p[style*="var(--ink)"],#landingView div[style*="font-size:18px"]{color:#f4f1ea!important}
+/* GEO科普卡整个区域文字亮化 */
+#landingView .geo-def,#landingView .geo-def *{color:#f4f1ea!important}
+#landingView .geo-def p{color:rgba(244,241,234,.8)!important}
+#landingView .geo-def b{color:#a8c48c!important}
+#landingView .geo-def .geo-def-right>div:first-child{color:#f4f1ea!important}
+
 /* ====================================================================
    2. 登录/注册 #authView
    ==================================================================== */
