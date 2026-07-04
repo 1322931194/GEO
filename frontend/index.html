@@ -394,6 +394,33 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 #landingView .geo-def p{color:rgba(244,241,234,.8)!important}
 #landingView .geo-def b{color:#a8c48c!important}
 #landingView .geo-def .geo-def-right>div:first-child{color:#f4f1ea!important}
+/* ==== 案例卡片深色化 ==== */
+#landingView .case-card{background:rgba(244,241,234,.04)!important;border:1px solid rgba(244,241,234,.08)!important}
+#landingView .case-card .ind{color:rgba(244,241,234,.5)!important}
+#landingView .case-card .name,#landingView .case-card h3,#landingView .case-card .biz{color:#f4f1ea!important}
+#landingView .case-card .story{background:rgba(244,241,234,.06)!important}
+#landingView .case-card .quote{color:rgba(244,241,234,.8)!important}
+#landingView .case-card .metric,#landingView .case-card .num,#landingView .case-card .rate{color:#a8c48c!important}
+#landingView .case-card .before,#landingView .case-card .after,#landingView .case-card span,
+#landingView .case-card div,#landingView .case-card p{color:inherit}
+#landingView .case-card{color:rgba(244,241,234,.75)!important}
+/* 案例卡实际用的class */
+#landingView .case-card .col .lbl{color:rgba(244,241,234,.5)!important}
+#landingView .case-card .bf{color:rgba(201,106,95,.9)!important}
+#landingView .case-card .af{color:#a8c48c!important}
+#landingView .case-card .arrow{color:rgba(244,241,234,.4)!important}
+#landingView .case-card .story{background:rgba(244,241,234,.06)!important;color:rgba(244,241,234,.8)!important}
+#landingView .case-card .quote{color:rgba(244,241,234,.7)!important}
+#landingView .case-prog{color:rgba(244,241,234,.75)!important}
+/* 分发渠道区 */
+#landingView .dist-box{background:rgba(244,241,234,.04)!important}
+#landingView .dist-stat .dn{color:#a8c48c!important}
+#landingView .dist-stat .dl{color:rgba(244,241,234,.75)!important}
+#landingView .dist-stat .dnote{color:rgba(244,241,234,.5)!important}
+#landingView .dist-divider{background:rgba(244,241,234,.1)!important}
+/* 通用：任何白底方框(.story/.box/.inner)在落地页改成半透明深色 */
+#landingView [style*="background:var(--panel)"],#landingView [style*="background:#fbf9f4"],
+#landingView [style*="background:#fff"]{background:rgba(244,241,234,.06)!important}
 
 /* ====================================================================
    2. 登录/注册 #authView
@@ -903,12 +930,34 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
 
     <!-- 为什么AI不推你 -->
     <div class="geo-def glass" style="margin-top:24px">
-      <div class="geo-def-right" style="width:100%">
+      <div class="geo-def-left" style="flex:0 0 42%;display:flex;flex-direction:column;gap:12px">
+        <div style="background:rgba(244,241,234,.06);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:16px;backdrop-filter:blur(10px)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+            <span style="width:9px;height:9px;border-radius:50%;background:#c96a5f"></span>
+            <span style="width:9px;height:9px;border-radius:50%;background:#c99a52"></span>
+            <span style="width:9px;height:9px;border-radius:50%;background:#5a7d5a"></span>
+            <span style="font-size:12px;color:rgba(244,241,234,.5);margin-left:6px">豆包 · 客户正在搜索</span>
+          </div>
+          <div style="background:rgba(90,125,90,.15);border-radius:12px 12px 12px 4px;padding:10px 12px;font-size:13px;color:#f4f1ea;margin-bottom:10px;display:inline-block;max-width:90%">深圳南山附近有什么靠谱的亲子餐厅？</div>
+          <div style="background:rgba(244,241,234,.08);border-radius:4px 12px 12px 12px;padding:12px;font-size:12.5px;color:rgba(244,241,234,.85);line-height:1.6">
+            为你推荐几家口碑不错的：<br>
+            <b style="color:#a8c48c">✓ 暖橙亲子餐厅</b><br>
+            <span style="color:rgba(244,241,234,.6);font-size:11.5px">📍 南山区海德三道 88 号 · 4.8分</span><br>
+            <span style="color:rgba(244,241,234,.6);font-size:11.5px">👉 已认领地图POI · 有 320 条真实评价</span>
+            <div style="margin-top:10px;background:rgba(90,125,90,.12);border-radius:8px;padding:8px;display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">🗺️</span>
+              <div style="font-size:11px;color:rgba(244,241,234,.7)">地图 · 地址 · 电话 · 营业时间<br><span style="color:#a8c48c">AI 直接带出，客户一键导航</span></div>
+            </div>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:rgba(244,241,234,.5);text-align:center">↑ 本地商家做对了 GEO，AI 直接推荐 + 带出地址</div>
+      </div>
+      <div class="geo-def-right" style="flex:1">
         <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:12px">🤔 为什么 AI 不推你？因为它"信不过"你</div>
         <p>很多老板想不通：我产品明明很好，凭什么 AI 不推我？</p>
         <p style="margin-top:12px">打个比方：你去陌生城市吃饭，一家店老板拍胸脯说"我家最好吃"，但你打开点评一条评价都没有 —— 你敢进去吗？</p>
         <p style="margin-top:12px"><b style="color:var(--cyan)">AI 也一样。</b>它推荐谁，取决于它"信任"谁。如果全网只有你自己夸自己，没有第三方（知乎、行业网站、客户评价）替你说话，AI 不敢推你，怕误导用户。</p>
-        <p style="margin-top:12px"><b>GEO 干的，就是让你的品牌变成 AI"可信、爱推荐"的对象。</b></p>
+        <p style="margin-top:12px"><b>GEO 干的，就是让你的品牌变成 AI"可信、爱推荐"的对象。</b>比如本地商家，我们帮你认领地图 POI、统一 NAP 信息、铺真实评价，AI 就会像左边那样，直接把你的地址推给客户。</p>
       </div>
     </div>
 
@@ -1901,7 +1950,7 @@ function showBrandPicker(brands){
 
   const card = document.createElement("div");
   card.id = "myBrandsCard";
-  card.style.cssText = "background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;box-shadow:0 1px 4px rgba(0,0,0,.04)";
+  card.style.cssText = "background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px";
 
   let html = `<div style="font-size:16px;font-weight:700;margin-bottom:4px">📁 我的品牌</div>
     <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">继续查看历史监测，或在下方创建新品牌</p>
