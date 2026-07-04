@@ -411,6 +411,19 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   padding:0 clamp(20px,3vw,36px);border-bottom:1px solid var(--line);
   background:rgba(251,249,244,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
 body.dark-app .main-topbar{background:rgba(26,23,18,.8)!important}
+/* 修复对比度：只有"浅绿实底"的徽章/圆圈才把字改深，深色底保持白字 */
+body.dark-app #appView [style*="background:#a8c48c"],
+body.dark-app #appView [style*="background: #a8c48c"]{color:#1a1712!important}
+/* 步骤圆圈：cyan实底(浅绿)上的白字改深 */
+body.dark-app #appView [style*="background:var(--cyan);color:#fff"]{color:#1a1712!important}
+/* plan-badge：热门徽章底色是绿的，白字其实够(3:1)，恢复白字更清晰 */
+body.dark-app #appView .plan-badge{color:#fff!important}
+/* 金色渐变圆圈(∞)：深墨字在金渐变上对比够，但确保用深字 */
+body.dark-app #appView [style*="linear-gradient(135deg,#5a7d5a,#a8c48c)"]{color:#1a1712!important}
+/* 企业徽章：浅绿底改深字 */
+body.dark-app #appView .plan-badge[style*="var(--cyan)"]{color:#1a1712!important}
+/* 作战地图步骤圆圈是5种不同色底(深浅不一)，给数字加描边阴影，任何底色都清晰 */
+body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0,0,0,.7),0 0 1px rgba(0,0,0,.9)}
 .main-crumb{font-size:15px;font-weight:700}
 .main-crumb .sub{font-size:13px;color:var(--ink-faint);font-weight:400;margin-left:10px}
 .main-actions{display:flex;align-items:center;gap:12px}
@@ -1106,6 +1119,7 @@ body.dark-app .main-topbar{background:rgba(26,23,18,.8)!important}
               <button class="ws-tab" id="wsTab3" onclick="switchWsTab(3)">③ 我的内容</button>
               <button class="ws-tab" id="wsTab4" onclick="switchWsTab(4)">④ 多平台内容包</button>
               <button class="ws-tab" id="wsTab5" onclick="switchWsTab(5)">⑤ Schema 助手</button>
+              <button class="ws-tab" id="wsTab6" onclick="switchWsTab(6)">⑥ 增长引擎 🔥</button>
             </div>
             <div id="workspaceContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载中…</p></div></div>
           </div>
@@ -1920,14 +1934,15 @@ function backFromWorkspace(){
 
 function switchWsTab(n){
   wsCurrentTab = n;
-  for(let i=1;i<=5;i++){
-    document.getElementById("wsTab"+i).classList.toggle("active", i===n);
+  for(let i=1;i<=6;i++){
+    const t=document.getElementById("wsTab"+i); if(t) t.classList.toggle("active", i===n);
   }
   if(n===1) loadKnowledgeTab();
   else if(n===2) loadTopicsTab();
   else if(n===3) loadContentsTab();
   else if(n===4) loadContentPackTab();
   else if(n===5) loadSchemaTab();
+  else if(n===6) loadGrowthEngineTab();
 }
 
 // ---- Tab4: 多平台内容包 ----
@@ -2000,6 +2015,138 @@ function copyPackVer(i){
   const v=(window.__packData||[])[i]; if(!v) return;
   navigator.clipboard.writeText(v.title+"\n\n"+v.body).then(()=>toast("✅ 已复制「"+v.platform_name+"」版内容")).catch(()=>toast("复制失败"));
 }
+
+// ---- Tab6: 增长引擎（4大高阶功能）----
+function loadGrowthEngineTab(){
+  const c = document.getElementById("workspaceContent");
+  const bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ c.innerHTML='<p style="padding:20px;color:var(--ink-soft)">请先在「AI 监测」创建并监测一个品牌。</p>'; return; }
+  c.innerHTML = `
+    <div style="display:grid;gap:16px">
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.6;padding:4px">🔥 增长引擎汇集 4 大高阶 GEO 武器，帮你更快、更狠地抢占 AI 推荐位。</div>
+
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div style="font-weight:700;font-size:15px">📡 独家高权重媒体直发矩阵</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">想被哪个 AI 推荐，就往它信任的媒体发。这是各 AI 引用生态的作战地图。</div></div>
+          <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genMediaMatrix()" id="mmBtn">查看矩阵 →</button>
+        </div>
+        <div id="mmResult" style="margin-top:14px"></div>
+      </div>
+
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div style="font-weight:700;font-size:15px">🏷️ Schema 结构化数据一键注入</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">一键生成完整 Schema 代码（Organization + LocalBusiness + FAQ），贴到官网让 AI 精准理解你。</div></div>
+          <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genSchemaInject()" id="siBtn">生成代码 →</button>
+        </div>
+        <div id="siResult" style="margin-top:14px"></div>
+      </div>
+
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div style="font-weight:700;font-size:15px">🧬 逆向 RAG 专家语料生成引擎</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">反推 AI 检索机制，生成"最容易被 AI 抓取采信"的知识切片语料。</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <input id="ragTopic" placeholder="主题，如：深圳装修怎么选" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px">
+          <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genRagCorpus()" id="ragBtn">生成语料</button>
+        </div>
+        <div id="ragResult" style="margin-top:14px"></div>
+      </div>
+
+      <div class="section-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+          <div><div style="font-weight:700;font-size:15px">🎯 高转化意图拦截与标题工程</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">挖掘"马上要下单"的高意图问题，并做标题工程——既被 AI 命中，又高点击。</div></div>
+          <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genIntentTitles()" id="itBtn">挖掘意图 →</button>
+        </div>
+        <div id="itResult" style="margin-top:14px"></div>
+      </div>
+    </div>`;
+}
+
+// 功能1：媒体矩阵
+async function genMediaMatrix(){
+  const btn=document.getElementById("mmBtn"), box=document.getElementById("mmResult");
+  btn.disabled=true; btn.textContent="加载中…";
+  try{
+    const d=await api("/api/growth/media-matrix");
+    let html=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <tr style="text-align:left;color:var(--ink-soft)"><th style="padding:8px">平台</th><th style="padding:8px">权重</th><th style="padding:8px">哪个AI爱引</th><th style="padding:8px">行动</th></tr>`;
+    (d.matrix||[]).forEach(m=>{
+      html+=`<tr style="border-top:1px solid var(--line)">
+        <td style="padding:8px;font-weight:700">${escHtml(m.platform)}</td>
+        <td style="padding:8px;color:var(--warn)">${escHtml(m.weight)}</td>
+        <td style="padding:8px;color:var(--ink-soft)">${escHtml(m.ai)}</td>
+        <td style="padding:8px">${escHtml(m.action)}</td></tr>`;
+    });
+    html+=`</table></div><div style="font-size:12px;color:var(--matcha);margin-top:10px;font-weight:600">💡 ${escHtml(d.note||'')}</div>`;
+    box.innerHTML=html; btn.style.display="none";
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:13px">${e.message}</div>`; btn.disabled=false; btn.textContent="查看矩阵 →"; }
+}
+
+// 功能2：Schema注入
+async function genSchemaInject(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const btn=document.getElementById("siBtn"), box=document.getElementById("siResult");
+  btn.disabled=true; btn.textContent="生成中…";
+  try{
+    const d=await api("/api/growth/schema-inject",{method:"POST",body:JSON.stringify({brand_id:bid})});
+    box.innerHTML=`<div style="font-size:12px;color:var(--ink-soft);margin-bottom:8px">${escHtml(d.guide||'')}</div>
+      <pre style="background:rgba(0,0,0,.4);color:#a8c48c;padding:14px;border-radius:8px;font-size:11px;overflow-x:auto;white-space:pre-wrap;max-height:300px;overflow-y:auto">${escHtml(d.schema_code||'')}</pre>
+      <button class="btn-ghost" style="padding:8px 16px;font-size:12px;margin-top:8px" onclick="copyText(window.__siCode)">📋 复制代码</button>`;
+    window.__siCode=d.schema_code; btn.style.display="none";
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:13px">${e.message}</div>`; btn.disabled=false; btn.textContent="生成代码 →"; }
+}
+
+// 功能3：逆向RAG语料
+async function genRagCorpus(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const topic=document.getElementById("ragTopic").value.trim();
+  const btn=document.getElementById("ragBtn"), box=document.getElementById("ragResult");
+  btn.disabled=true; btn.textContent="生成中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在逆向生成 RAG 语料…</p></div>';
+  try{
+    const d=await api("/api/growth/rag-corpus",{method:"POST",body:JSON.stringify({brand_id:bid,topic})});
+    let html='';
+    (d.corpus||[]).forEach((s,i)=>{
+      html+=`<div style="background:rgba(244,241,234,.04);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:700;font-size:13px;color:var(--matcha);margin-bottom:4px">切片${i+1} · ${escHtml(s.slice_title||'')}</div>
+        <div style="font-size:12.5px;line-height:1.6;color:var(--ink)">${escHtml(s.content||'')}</div></div>`;
+    });
+    if(d.usage) html+=`<div style="font-size:12px;color:var(--matcha);margin-top:6px">💡 ${escHtml(d.usage)}</div>`;
+    box.innerHTML=html||'<div style="color:var(--ink-soft);font-size:13px">生成失败，请重试</div>';
+    btn.disabled=false; btn.textContent="生成语料";
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:13px">${e.message}</div>`; btn.disabled=false; btn.textContent="生成语料"; }
+}
+
+// 功能4：意图拦截+标题工程
+async function genIntentTitles(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const btn=document.getElementById("itBtn"), box=document.getElementById("itResult");
+  btn.disabled=true; btn.textContent="挖掘中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在挖掘高意图问题…</p></div>';
+  try{
+    const d=await api("/api/growth/intent-titles",{method:"POST",body:JSON.stringify({brand_id:bid})});
+    let html='<div style="font-weight:700;font-size:13px;margin-bottom:8px">🎯 高购买意图问题</div>';
+    (d.intent_questions||[]).forEach(q=>{
+      const c=q.intent==='极高'?'var(--bad)':'var(--warn)';
+      html+=`<div style="background:rgba(244,241,234,.04);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:600">${escHtml(q.question)} <span style="font-size:11px;color:${c};margin-left:6px">意图${escHtml(q.intent)}</span></div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:3px">${escHtml(q.why||'')}</div></div>`;
+    });
+    html+='<div style="font-weight:700;font-size:13px;margin:14px 0 8px">✍️ 标题工程（AI命中+高点击）</div>';
+    (d.engineered_titles||[]).forEach(t=>{
+      html+=`<div style="background:rgba(90,125,90,.08);border-radius:8px;padding:10px 12px;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:600;color:var(--matcha)">${escHtml(t.title)}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-top:3px">技巧：${escHtml(t.technique||'')}</div></div>`;
+    });
+    box.innerHTML=html; btn.disabled=false; btn.textContent="挖掘意图 →";
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:13px">${e.message}</div>`; btn.disabled=false; btn.textContent="挖掘意图 →"; }
+}
+
+function copyText(t){ if(!t)return; navigator.clipboard.writeText(t).then(()=>toast("✅ 已复制")).catch(()=>toast("复制失败")); }
 
 // ---- Tab5: Schema 助手 ----
 function loadSchemaTab(){
