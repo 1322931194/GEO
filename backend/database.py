@@ -292,6 +292,23 @@ class TrackEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class IndexTrack(SQLModel, table=True):
+    """收录追踪：用户发布内容后，追踪该内容/关键词是否被 AI 引用收录。
+    这是 GEO 的核心闭环——发了之后，AI 到底认不认。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    brand_id: int = Field(default=0, index=True)
+    keyword: str = ""                          # 关键词/主题
+    platform: str = ""                         # 发布平台(知乎/搜狐等)
+    url: str = ""                              # 发布内容URL(可选)
+    status: str = "pending"                    # pending待检测 / indexed已收录 / not_yet暂未收录
+    first_indexed_at: Optional[datetime] = None  # 首次被AI引用时间
+    check_count: int = 0                       # 已检测次数
+    last_check_at: Optional[datetime] = None
+    note: str = ""
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _auto_migrate()
