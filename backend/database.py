@@ -278,6 +278,20 @@ class CustomerPseoPage(SQLModel, table=True):
     created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class TrackEvent(SQLModel, table=True):
+    """用户行为事件追踪，用于运营看板分析转化。
+    event 类型：page_view(访问)、register(注册)、click_check(点免费检测)、
+    click_upgrade(点升级)、click_pay(点支付)、monitor(做监测) 等。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    event: str = Field(index=True, default="page_view")  # 事件类型
+    user_id: int = Field(default=0, index=True)           # 登录用户ID(未登录=0)
+    visitor_id: str = Field(default="", index=True)       # 匿名访客标识(前端生成)
+    page: str = ""                                        # 页面路径
+    referrer: str = ""                                    # 来源
+    meta: str = ""                                        # 附加信息(JSON)
+    created_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 def init_db():
     SQLModel.metadata.create_all(engine)
     _auto_migrate()
