@@ -1652,6 +1652,67 @@ class ContentPackReq(BaseModel):
     topic: str
     platforms: list = []
 
+# ===== 增长引擎 · 4大高阶功能 =====
+@app.get("/api/growth/media-matrix")
+async def growth_media_matrix(user: User = Depends(current_user)):
+    """独家高权重媒体直发矩阵。付费功能。"""
+    if plan_of(user).get("content_limit", 0) <= 0:
+        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    from services.generator import get_media_matrix
+    return get_media_matrix()
+
+class SchemaInjectReq(BaseModel):
+    brand_id: int
+    address: str = ""
+    phone: str = ""
+    url: str = ""
+
+@app.post("/api/growth/schema-inject")
+async def growth_schema_inject(req: SchemaInjectReq, user: User = Depends(current_user),
+                               session: Session = Depends(get_session)):
+    """Schema结构化数据一键注入。"""
+    if plan_of(user).get("content_limit", 0) <= 0:
+        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    brand = _owned_brand(req.brand_id, user, session)
+    from services.generator import generate_schema_inject
+    return generate_schema_inject(brand.name, brand.product, brand.industry,
+                                  req.address, req.phone, req.url)
+
+class GrowthTopicReq(BaseModel):
+    brand_id: int
+    topic: str = ""
+
+@app.post("/api/growth/rag-corpus")
+async def growth_rag_corpus(req: GrowthTopicReq, request: Request,
+                            user: User = Depends(current_user),
+                            session: Session = Depends(get_session)):
+    """逆向RAG专家语料生成引擎。"""
+    _rate_limit(f"rag:{_client_ip(request)}", max_calls=15, window_sec=3600)
+    if plan_of(user).get("content_limit", 0) <= 0:
+        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    brand = _owned_brand(req.brand_id, user, session)
+    kb = brand.brand_facts or ""
+    for it in session.exec(select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)).all():
+        kb += f"\n{it.title}：{it.content}"
+    from services.generator import generate_rag_corpus
+    return await generate_rag_corpus(brand.name, brand.product, kb, req.topic or brand.industry)
+
+@app.post("/api/growth/intent-titles")
+async def growth_intent_titles(req: GrowthTopicReq, request: Request,
+                               user: User = Depends(current_user),
+                               session: Session = Depends(get_session)):
+    """高转化意图拦截与标题工程。"""
+    _rate_limit(f"intent:{_client_ip(request)}", max_calls=15, window_sec=3600)
+    if plan_of(user).get("content_limit", 0) <= 0:
+        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    brand = _owned_brand(req.brand_id, user, session)
+    kb = brand.brand_facts or ""
+    for it in session.exec(select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)).all():
+        kb += f"\n{it.title}：{it.content}"
+    from services.generator import generate_intent_titles
+    return await generate_intent_titles(brand.name, brand.product, brand.industry, kb)
+
+
 @app.get("/api/brands/{brand_id}/perception")
 async def brand_perception(brand_id: int, user: User = Depends(current_user),
                            session: Session = Depends(get_session)):
