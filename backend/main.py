@@ -1655,9 +1655,7 @@ class ContentPackReq(BaseModel):
 # ===== 增长引擎 · 4大高阶功能 =====
 @app.get("/api/growth/media-matrix")
 async def growth_media_matrix(user: User = Depends(current_user)):
-    """独家高权重媒体直发矩阵。付费功能。"""
-    if plan_of(user).get("content_limit", 0) <= 0:
-        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    """独家高权重媒体直发矩阵。本地数据零成本，对所有登录用户开放（引流钩子）。"""
     from services.generator import get_media_matrix
     return get_media_matrix()
 
@@ -1670,9 +1668,7 @@ class SchemaInjectReq(BaseModel):
 @app.post("/api/growth/schema-inject")
 async def growth_schema_inject(req: SchemaInjectReq, user: User = Depends(current_user),
                                session: Session = Depends(get_session)):
-    """Schema结构化数据一键注入。"""
-    if plan_of(user).get("content_limit", 0) <= 0:
-        raise HTTPException(403, "增长引擎是付费功能，升级 AI Growth Pro 解锁。")
+    """Schema结构化数据一键注入。本地生成零成本，对所有登录用户开放。"""
     brand = _owned_brand(req.brand_id, user, session)
     from services.generator import generate_schema_inject
     return generate_schema_inject(brand.name, brand.product, brand.industry,
