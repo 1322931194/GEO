@@ -29,7 +29,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog, TrackEvent)
 from services.monitor import run_monitoring, PLATFORMS, estimate_cost, check_all_keys
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -2902,6 +2902,155 @@ def _check_admin(key: str):
         raise HTTPException(403, "管理员密钥错误")
 
 
+# ===== 用户行为追踪 =====
+class TrackReq(BaseModel):
+    event: str
+    visitor_id: str = ""
+    page: str = ""
+    referrer: str = ""
+    meta: str = ""
+
+@app.post("/api/track")
+async def track_event(req: TrackReq, request: Request,
+                      session: Session = Depends(get_session)):
+    """前端打点上报。无需登录（未登录访客也追踪）。
+    带 token 的会解析出 user_id。"""
+    uid = 0
+    auth = request.headers.get("Authorization", "")
+    if auth.startswith("Bearer "):
+        try:
+            payload = jwt.decode(auth[7:], JWT_SECRET, algorithms=["HS256"])
+            uid = int(payload.get("uid", 0))
+        except Exception:
+            uid = 0
+    # 限制事件类型白名单，防污染
+    allowed = {"page_view","register","click_check","click_upgrade","click_pay",
+               "click_demo","monitor","content_gen","login"}
+    ev = req.event if req.event in allowed else "other"
+    try:
+        session.add(TrackEvent(
+            event=ev, user_id=uid, visitor_id=(req.visitor_id or "")[:40],
+            page=(req.page or "")[:100], referrer=(req.referrer or "")[:200],
+            meta=(req.meta or "")[:300]))
+        session.commit()
+    except Exception:
+        session.rollback()
+    return {"ok": True}
+
+
+@app.get("/api/admin/operations")
+def admin_operations(key: str, session: Session = Depends(get_session)):
+    """运营数据看板：今日访问/注册/点击/转化 + 今日AI调用明细。"""
+    _check_admin(key)
+    from sqlalchemy import func as _f
+    now = cn_now()
+    today0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    def count_ev(event, since):
+        return session.exec(
+            select(_f.count(TrackEvent.id)).where(
+                TrackEvent.event == event, TrackEvent.created_at >= since)
+        ).one()
+
+    def count_uv(since):
+        # 独立访客数（按visitor_id去重）
+        rows = session.exec(
+            select(TrackEvent.visitor_id).where(
+                TrackEvent.event == "page_view", TrackEvent.created_at >= since)
+        ).all()
+        return len(set(v for v in rows if v))
+
+    # 今日各项
+    today = {
+        "uv": count_uv(today0),
+        "pv": count_ev("page_view", today0),
+        "register": count_ev("register", today0),
+        "click_check": count_ev("click_check", today0),
+        "click_upgrade": count_ev("click_upgrade", today0),
+        "click_pay": count_ev("click_pay", today0),
+        "monitor": count_ev("monitor", today0),
+    }
+    # 今日新注册用户（从User表精确统计）
+    today_users = session.exec(
+        select(User).where(User.created_at >= today0).order_by(User.created_at.desc())
+    ).all()
+    today["register_actual"] = len(today_users)
+
+    # 今日AI调用明细（哪个用户调了什么）
+    ai_logs = session.exec(
+        select(ApiCallLog).where(ApiCallLog.created_at >= today0)
+        .order_by(ApiCallLog.created_at.desc())
+    ).all()
+    # 按用户聚合
+    user_ai = {}
+    total_cost = 0.0
+    total_calls = 0
+    for log in ai_logs:
+        u = user_ai.setdefault(log.user_id, {"calls": 0, "cost": 0.0, "scenes": {}})
+        u["calls"] += log.calls
+        u["cost"] += log.est_cost
+        u["scenes"][log.scene] = u["scenes"].get(log.scene, 0) + log.calls
+        total_cost += log.est_cost
+        total_calls += log.calls
+    # 补上用户邮箱
+    ai_by_user = []
+    for uid, data in sorted(user_ai.items(), key=lambda x: -x[1]["cost"]):
+        u = session.get(User, uid) if uid else None
+        ai_by_user.append({
+            "user_id": uid,
+            "email": u.email if u else ("匿名/系统" if uid == 0 else f"用户{uid}"),
+            "plan": u.plan if u else "-",
+            "calls": data["calls"],
+            "cost": round(data["cost"], 2),
+            "scenes": data["scenes"],
+        })
+
+    # 累计概览
+    total_users = session.exec(select(_f.count(User.id))).one()
+    paid_users = session.exec(
+        select(_f.count(User.id)).where(User.plan != "trial")).one()
+
+    # 转化漏斗（今日）
+    funnel = {
+        "visit": today["uv"] or today["pv"],
+        "register": today["register_actual"],
+        "monitor": today["monitor"],
+        "pay": today["click_pay"],
+    }
+
+    # 最近7天注册趋势
+    trend = []
+    for i in range(6, -1, -1):
+        day = (today0 - timedelta(days=i))
+        day_end = day + timedelta(days=1)
+        cnt = session.exec(
+            select(_f.count(User.id)).where(
+                User.created_at >= day, User.created_at < day_end)
+        ).one()
+        trend.append({"date": day.strftime("%m-%d"), "count": cnt})
+
+    return {
+        "today": today,
+        "today_new_users": [
+            {"email": u.email, "plan": u.plan,
+             "time": u.created_at.strftime("%H:%M") if u.created_at else ""}
+            for u in today_users[:20]
+        ],
+        "ai_today": {
+            "total_calls": total_calls,
+            "total_cost": round(total_cost, 2),
+            "by_user": ai_by_user[:30],
+        },
+        "overview": {
+            "total_users": total_users,
+            "paid_users": paid_users,
+            "conversion_rate": round(paid_users / total_users * 100, 1) if total_users else 0,
+        },
+        "funnel": funnel,
+        "register_trend": trend,
+    }
+
+
 @app.get("/api/admin/check-keys")
 async def admin_check_keys(key: str):
     """
@@ -3194,6 +3343,8 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <div id="keycheck">点"立即检测"开始</div>
 </div>
 <div class="card">
+<h2>📈 运营数据（今日）<button onclick="loadOps()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
+<div id="opsBox" style="margin-bottom:20px"><p style="color:#888">点刷新加载今日运营数据</p></div>
 <h2>📊 API 消耗监控 <button onclick="loadUsage()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="usage">点刷新加载</div>
 </div>
@@ -3236,6 +3387,65 @@ async function checkKeys(){
     html+='<div style="font-size:12px;color:#888;margin-top:12px;line-height:1.6">💡 ⚪未配置=没填密钥；❌失败=密钥错了或没钱；✅正常=可用。只要有1个✅，监测就能跑。</div>';
     document.getElementById('keycheck').innerHTML=html;
   }catch(e){ document.getElementById('keycheck').innerHTML='<span style="color:#b0524a">检测失败：'+e.message+'</span>'; }
+}
+
+async function loadOps(){
+  const box=document.getElementById("opsBox");
+  box.innerHTML="<p style='color:#888'>加载中…</p>";
+  try{
+    const d=await fetch("/api/admin/operations?key="+encodeURIComponent(KEY)).then(r=>r.json());
+    if(d.detail){ box.innerHTML="<p style='color:#e34'>"+d.detail+"</p>"; return; }
+    const t=d.today, o=d.overview, f=d.funnel;
+    let h="";
+    // 今日核心指标卡
+    h+="<div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:16px'>";
+    const cards=[
+      ["访问 UV",t.uv,"#5a7d5a"],["浏览 PV",t.pv,"#5a7d5a"],
+      ["注册",t.register_actual,"#c99a52"],["点免费检测",t.click_check,"#5a7d5a"],
+      ["做监测",t.monitor,"#5a7d5a"],["点支付",t.click_pay,"#c96a5f"],
+    ];
+    cards.forEach(c=>{
+      h+="<div style='background:#f7f5f0;border-radius:10px;padding:12px;text-align:center'><div style='font-size:26px;font-weight:800;color:"+c[2]+"'>"+c[1]+"</div><div style='font-size:12px;color:#888'>"+c[0]+"</div></div>";
+    });
+    h+="</div>";
+    // 转化漏斗
+    h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:16px'>";
+    h+="<div style='font-weight:700;margin-bottom:10px'>🔻 今日转化漏斗</div>";
+    const steps=[["访问",f.visit],["注册",f.register],["监测",f.monitor],["付费",f.pay]];
+    steps.forEach((s,i)=>{
+      const pct=steps[0][1]?Math.round(s[1]/steps[0][1]*100):0;
+      h+="<div style='display:flex;align-items:center;gap:10px;margin-bottom:6px'><span style='width:50px;font-size:13px'>"+s[0]+"</span><div style='flex:1;background:#e8e3d8;border-radius:4px;height:22px;position:relative'><div style='width:"+Math.max(pct,3)+"%;background:#5a7d5a;height:100%;border-radius:4px'></div></div><span style='width:70px;font-size:13px;text-align:right'>"+s[1]+" ("+pct+"%)</span></div>";
+    });
+    h+="</div>";
+    // 累计概览
+    h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:16px'>";
+    h+="<div style='font-weight:700;margin-bottom:8px'>📊 累计</div>";
+    h+="<div style='display:flex;gap:20px;flex-wrap:wrap'><span>总用户 <b>"+o.total_users+"</b></span><span>付费 <b style='color:#c99a52'>"+o.paid_users+"</b></span><span>付费率 <b>"+o.conversion_rate+"%</b></span></div>";
+    h+="</div>";
+    // 今日新注册用户
+    if(d.today_new_users && d.today_new_users.length){
+      h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:16px'>";
+      h+="<div style='font-weight:700;margin-bottom:8px'>🆕 今日新注册（"+d.today_new_users.length+"人）</div>";
+      d.today_new_users.forEach(u=>{
+        h+="<div style='font-size:13px;padding:4px 0;border-bottom:1px solid #eee'>"+u.time+"　"+u.email+"　<span style='color:#888'>"+u.plan+"</span></div>";
+      });
+      h+="</div>";
+    }
+    // 今日AI调用明细
+    const ai=d.ai_today;
+    h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px'>";
+    h+="<div style='font-weight:700;margin-bottom:8px'>🤖 今日AI调用：共 "+ai.total_calls+" 次，成本 ¥"+ai.total_cost+"</div>";
+    if(ai.by_user && ai.by_user.length){
+      h+="<table style='width:100%;font-size:13px;border-collapse:collapse'><tr style='text-align:left;color:#888'><th style='padding:4px'>用户</th><th>套餐</th><th>调用</th><th>成本</th><th>场景</th></tr>";
+      ai.by_user.forEach(u=>{
+        const scenes=Object.entries(u.scenes||{}).map(([k,v])=>k+":"+v).join(" ");
+        h+="<tr style='border-top:1px solid #eee'><td style='padding:6px 4px'>"+u.email+"</td><td>"+u.plan+"</td><td>"+u.calls+"</td><td>¥"+u.cost+"</td><td style='color:#888;font-size:11px'>"+scenes+"</td></tr>";
+      });
+      h+="</table>";
+    } else { h+="<p style='color:#888;font-size:13px'>今日暂无AI调用</p>"; }
+    h+="</div>";
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML="<p style='color:#e34'>加载失败："+e.message+"</p>"; }
 }
 
 async function loadUsage(){
