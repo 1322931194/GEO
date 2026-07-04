@@ -33,6 +33,55 @@
   --sh-lg:0 8px 30px rgba(38,34,28,.08);
   --glow-cyan:0 0 0 1px rgba(90,125,90,.2);
 }
+/* ====================================================================
+   后台深色主题：仅当 body 带 .dark-app 时生效（登录进入后台时加）
+   落地页/登录页不受影响，它们有自己的深色覆盖
+   ==================================================================== */
+body.dark-app{
+  --bg:#1a1712;--bg-2:#211d17;--bg-3:#2a251d;
+  --panel:rgba(244,241,234,.04);--panel-2:rgba(244,241,234,.07);
+  --line:rgba(244,241,234,.09);--line-2:rgba(244,241,234,.16);
+  --ink:#f4f1ea;--ink-soft:rgba(244,241,234,.62);--ink-faint:rgba(244,241,234,.4);
+  --cyan:#a8c48c;--cyan-soft:rgba(90,125,90,.16);--cyan-glow:rgba(168,196,140,.25);
+  --lime:#a8c48c;--lime-ink:#a8c48c;
+  --good:#a8c48c;--good-soft:rgba(90,125,90,.16);
+  --warn:#c99a52;--warn-soft:rgba(201,154,82,.14);
+  --bad:#c96a5f;--bad-soft:rgba(201,106,95,.14);
+  --domestic:#7d97ab;--domestic-soft:rgba(125,151,171,.14);--domestic-ink:#7d97ab;
+  --sh-sm:0 1px 2px rgba(0,0,0,.2);
+  --sh-md:0 2px 12px rgba(0,0,0,.3);
+  --sh-lg:0 12px 40px rgba(0,0,0,.45);
+}
+/* 后台深色：拦截所有硬编码白底，统一改深（关键：解决94个#fff问题） */
+body.dark-app #appView [style*="background:#fff"],
+body.dark-app #appView [style*="background: #fff"],
+body.dark-app #appView [style*="background:#FFF"],
+body.dark-app #appView [style*="background:white"]{
+  background:rgba(244,241,234,.05)!important;color:var(--ink)!important;
+  backdrop-filter:blur(12px);border-color:rgba(244,241,234,.1)!important}
+/* 拦截浅黄提示底(#fffbeb等) */
+body.dark-app #appView [style*="background:#fffbeb"],
+body.dark-app #appView [style*="#fef"],
+body.dark-app #appView [style*="#fff8"]{background:rgba(201,154,82,.12)!important}
+/* 拦截浅色语义底 */
+body.dark-app #appView [style*="#fdf3f2"],
+body.dark-app #appView [style*="#fdeae8"]{background:rgba(201,106,95,.12)!important}
+body.dark-app #appView [style*="#eaf0e6"],
+body.dark-app #appView [style*="#EAF0E6"],
+body.dark-app #appView [style*="#f7f5f0"]{background:rgba(90,125,90,.12)!important}
+/* 深色墨底反白字的地方，保持不动（本来就是深色卡片） */
+body.dark-app #appView [style*="background:#26221c"],
+body.dark-app #appView [style*="background:#2f2a22"]{background:rgba(0,0,0,.35)!important}
+/* 代码块（Schema）保持深色可读 */
+body.dark-app #appView pre{background:rgba(0,0,0,.4)!important}
+/* 硬编码深色文字 → 改亮 */
+body.dark-app #appView [style*="color:#26221c"],
+body.dark-app #appView [style*="color:#333"],
+body.dark-app #appView [style*="color:#444"],
+body.dark-app #appView [style*="color:#111"]{color:var(--ink)!important}
+/* app整体背景加氛围光晕 */
+body.dark-app #appView{background:#1a1712;position:relative}
+body.dark-app .main-content{background:transparent}
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
 body{
@@ -361,6 +410,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .main-topbar{height:64px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
   padding:0 clamp(20px,3vw,36px);border-bottom:1px solid var(--line);
   background:rgba(251,249,244,.85);backdrop-filter:blur(12px);position:sticky;top:0;z-index:40}
+body.dark-app .main-topbar{background:rgba(26,23,18,.8)!important}
 .main-crumb{font-size:15px;font-weight:700}
 .main-crumb .sub{font-size:13px;color:var(--ink-faint);font-weight:400;margin-left:10px}
 .main-actions{display:flex;align-items:center;gap:12px}
@@ -1474,6 +1524,7 @@ function enterApp(planInfo){
   document.getElementById("landingView").classList.add("hidden");
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
+  document.body.classList.add("dark-app");  // 后台深色主题
   if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
   loadUsageBar();
   // 注入移动端底部导航（解决手机上侧边栏被隐藏、无法切换功能的致命问题）
@@ -1518,6 +1569,7 @@ function gotoLanding(){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.add("hidden");
   document.getElementById("landingView").classList.remove("hidden");
+  document.body.classList.remove("dark-app");  // 退出后台，恢复落地页配色
   // 重置所有应用内状态，避免下次进入残留
   resetAppState();
   // 回到营销页顶部
