@@ -1732,12 +1732,11 @@ function maybeShowOnboarding(){
 }
 
 const ONBOARD_STEPS = [
-  {icon:"👋", title:"欢迎来到见微", desc:"我帮你查清楚:AI 到底在推你,还是推你的对手。跟着这几步走,5 分钟上手。"},
-  {icon:"🔍", title:"第一步 · 监测你的品牌", desc:"填入品牌信息,我会去主流 AI 平台(ChatGPT、DeepSeek、豆包等)查一遍,看 AI 会不会推荐你。"},
-  {icon:"🧠", title:"第二步 · 建品牌知识库", desc:"在「内容工作台」点 AI 自动提取,10 秒建好你的品牌大脑。之后所有内容都基于它生成,越用越懂你。"},
-  {icon:"✍️", title:"第三步 · 一键创作内容", desc:"我把该写的选题都列好了,你点「创作」,我基于知识库直接写出来,你复制就能发布。"},
-  {icon:"📊", title:"第四步 · 看增长", desc:"在「增长看板」看你的提及率变化、AI 给你带来的真实访客。做了优化,回来看涨了没。"},
-  {icon:"✅", title:"我们坚持白帽优化", desc:"我们只用真实优质内容帮你提升,不做刷量、伪造等违规操作。生成的内容请发布前自行核实。"},
+  {icon:"👋", title:"欢迎来到见微", desc:"我帮你查清楚：AI 到底在推你，还是推你的对手。跟着做，5 分钟你就能看到 AI 眼里真实的你。"},
+  {icon:"🔍", title:"这就是你要做的第一件事", desc:"填入你的品牌 + 核心竞品，我去 8 大 AI 平台问一圈「你这行哪家好」，看 AI 报的名单里有没有你。<b>大多数商家第一次查，都会发现自己是隐形的。</b>"},
+  {icon:"⚔️", title:"你会看到对手赢在哪", desc:"报告会扒出：AI 推竞品，是因为引用了哪些信源。你照着这些信源布局，就能从对手手里抢回推荐位。"},
+  {icon:"🚀", title:"然后一键生成内容去优化", desc:"我把该发什么、发到哪都算好了，你点一下生成，复制就能发。发对地方，AI 才会重新认识你。"},
+  {icon:"📈", title:"回来看效果，数据说话", desc:"过 1-2 周复测，「增长看板」会告诉你提及率涨了没。GEO 是持续经营，30-45 天见变化。"},
 ];
 let onboardIdx = 0;
 
@@ -1745,8 +1744,8 @@ function showOnboarding(){
   onboardIdx = 0;
   const modal = document.createElement("div");
   modal.id = "onboardModal";
-  modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
-  modal.innerHTML=`<div style="background:#fff;border-radius:18px;padding:32px;max-width:420px;width:100%;text-align:center" id="onboardCard"></div>`;
+  modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.innerHTML=`<div style="background:linear-gradient(180deg,#211d17,#1a1712);border:1px solid rgba(244,241,234,.1);border-radius:20px;padding:36px 32px;max-width:440px;width:100%;text-align:center;box-shadow:0 24px 70px rgba(0,0,0,.5)" id="onboardCard"></div>`;
   document.body.appendChild(modal);
   renderOnboardStep();
 }
@@ -1755,17 +1754,17 @@ function renderOnboardStep(){
   const s = ONBOARD_STEPS[onboardIdx];
   const card = document.getElementById("onboardCard");
   const isLast = onboardIdx === ONBOARD_STEPS.length-1;
-  const dots = ONBOARD_STEPS.map((_,i)=>`<span style="width:8px;height:8px;border-radius:50%;background:${i===onboardIdx?'var(--brand)':'#d1d5db'};display:inline-block;margin:0 3px"></span>`).join("");
+  const dots = ONBOARD_STEPS.map((_,i)=>`<span style="width:7px;height:7px;border-radius:50%;background:${i===onboardIdx?'#a8c48c':'rgba(244,241,234,.2)'};display:inline-block;margin:0 3px;transition:.3s"></span>`).join("");
   card.innerHTML=`
-    <div style="font-size:48px;margin-bottom:16px">${s.icon}</div>
-    <div style="font-size:20px;font-weight:800;margin-bottom:10px">${s.title}</div>
-    <div style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin-bottom:24px">${s.desc}</div>
-    <div style="margin-bottom:20px">${dots}</div>
+    <div style="font-size:52px;margin-bottom:18px">${s.icon}</div>
+    <div style="font-size:21px;font-weight:800;margin-bottom:12px;color:#f4f1ea">${s.title}</div>
+    <div style="font-size:14px;color:rgba(244,241,234,.65);line-height:1.75;margin-bottom:26px">${s.desc}</div>
+    <div style="margin-bottom:22px">${dots}</div>
     <div style="display:flex;gap:10px;justify-content:center">
-      ${onboardIdx>0?`<button class="btn-ghost" style="font-size:14px;padding:10px 20px" onclick="onboardPrev()">上一步</button>`:''}
-      <button class="btn-primary" style="font-size:14px;padding:10px 24px" onclick="${isLast?'finishOnboard()':'onboardNext()'}">${isLast?'开始使用 →':'下一步'}</button>
+      ${onboardIdx>0?`<button style="font-size:14px;padding:11px 22px;background:rgba(244,241,234,.06);color:#f4f1ea;border:1px solid rgba(244,241,234,.15);border-radius:10px;cursor:pointer" onclick="onboardPrev()">上一步</button>`:''}
+      <button style="font-size:14px;padding:11px 26px;background:#5a7d5a;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600" onclick="${isLast?'finishOnboardAndStart()':'onboardNext()'}">${isLast?'🔍 立即免费检测我的品牌':'下一步'}</button>
     </div>
-    ${!isLast?`<div style="margin-top:14px"><a onclick="finishOnboard()" style="font-size:13px;color:var(--ink-soft);cursor:pointer">跳过引导</a></div>`:''}`;
+    ${!isLast?`<div style="margin-top:16px"><a onclick="finishOnboard()" style="font-size:13px;color:rgba(244,241,234,.4);cursor:pointer">跳过引导</a></div>`:''}`;
 }
 
 function onboardNext(){ if(onboardIdx<ONBOARD_STEPS.length-1){onboardIdx++;renderOnboardStep();} }
@@ -1774,6 +1773,19 @@ function finishOnboard(){
   safeStore.set("geo_onboarded","1");
   const m=document.getElementById("onboardModal");
   if(m) m.remove();
+}
+// 引导结束 → 直接带用户去做第一次监测（关键：从"看介绍"变"去行动"）
+function finishOnboardAndStart(){
+  finishOnboard();
+  if(typeof navTo==="function") navTo('flow');
+  // 高亮品牌输入框，引导填写
+  setTimeout(()=>{
+    const el=document.getElementById("bName");
+    if(el){ el.focus(); el.scrollIntoView({behavior:"smooth",block:"center"});
+      el.style.boxShadow="0 0 0 3px rgba(168,196,140,.4)";
+      setTimeout(()=>{ el.style.boxShadow=""; }, 2500);
+    }
+  }, 400);
 }
 // 让用户能从顶栏重新打开引导
 function reopenOnboarding(){ showOnboarding(); }
@@ -2598,6 +2610,141 @@ function backFromReferral(){
 
 // ===== 我的推广结束 =====
 
+// ===== 增长战报：Canvas绘制可分享大图 =====
+async function genGrowthReport(){
+  const bid = currentBrandId || lastBrandIdForDash;
+  if(!bid){ toast("请先完成监测"); return; }
+  toast("正在生成战报…");
+  try{
+    // 取历史数据 + 品牌信息
+    const [hist, dash] = await Promise.all([
+      api(`/api/brands/${bid}/history`).catch(()=>({points:[]})),
+      api(`/api/brands/${bid}/dashboard`).catch(()=>({}))
+    ]);
+    const points = (hist.points||hist.history||[]).map(p=>p.mention_rate!=null?p.mention_rate:(p.rate||0));
+    const brandName = dash.brand_name || "我的品牌";
+    const startRate = points.length ? points[0] : 0;
+    const endRate = points.length ? points[points.length-1] : (dash.latest_rate||0);
+    const delta = Math.round((endRate - startRate)*10)/10;
+    const monitorCount = dash.monitor_count || points.length || 1;
+    const visitors = dash.ai_visitors || dash.total_visitors || null;
+    drawGrowthReport({brandName, startRate, endRate, delta, points, monitorCount, visitors});
+  }catch(e){ toast("生成失败："+e.message); }
+}
+
+function drawGrowthReport(data){
+  const W=1080, H=1350;  // 竖版，适合朋友圈/小红书
+  const c=document.createElement("canvas"); c.width=W; c.height=H;
+  const x=c.getContext("2d");
+  // 背景：电影感深色渐变
+  const bg=x.createLinearGradient(0,0,W,H);
+  bg.addColorStop(0,"#211d17"); bg.addColorStop(1,"#12100c");
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+  // 光晕
+  const glow=x.createRadialGradient(W*0.8,H*0.15,0,W*0.8,H*0.15,400);
+  glow.addColorStop(0,"rgba(90,125,90,.25)"); glow.addColorStop(1,"rgba(90,125,90,0)");
+  x.fillStyle=glow; x.fillRect(0,0,W,H);
+  // 网格点
+  x.fillStyle="rgba(168,196,140,.05)";
+  for(let i=40;i<W;i+=40)for(let j=40;j<H;j+=40){x.beginPath();x.arc(i,j,1,0,7);x.fill();}
+
+  // Logo区
+  x.fillStyle="#f4f1ea"; x.font="bold 40px 'Noto Serif SC',serif";
+  x.fillText("見微", 80, 120);
+  x.fillStyle="rgba(168,196,140,.8)"; x.font="500 22px sans-serif";
+  x.fillText("AI 品牌增长战报", 80, 158);
+
+  // 品牌名
+  x.fillStyle="#f4f1ea"; x.font="bold 56px 'Noto Serif SC',serif";
+  x.fillText(data.brandName.slice(0,12), 80, 280);
+
+  // 核心数字：提及率变化
+  const cx=W/2;
+  x.textAlign="center";
+  x.fillStyle="rgba(244,241,234,.5)"; x.font="500 28px sans-serif";
+  x.fillText("30 天 AI 推荐率变化", cx, 400);
+
+  // 大数字 起始→结束
+  x.font="bold 130px sans-serif";
+  x.fillStyle="rgba(244,241,234,.4)";
+  x.fillText(data.startRate+"%", cx-220, 540);
+  // 箭头
+  x.strokeStyle="#a8c48c"; x.lineWidth=8; x.lineCap="round";
+  x.beginPath(); x.moveTo(cx-60,510); x.lineTo(cx+40,510); x.stroke();
+  x.beginPath(); x.moveTo(cx+10,485); x.lineTo(cx+45,510); x.lineTo(cx+10,535); x.stroke();
+  // 结束数字（高亮金绿）
+  const grad=x.createLinearGradient(cx+80,0,cx+280,0);
+  grad.addColorStop(0,"#a8c48c"); grad.addColorStop(1,"#c99a52");
+  x.fillStyle=grad;
+  x.fillText(data.endRate+"%", cx+220, 540);
+
+  // 增量徽章
+  if(data.delta>0){
+    x.fillStyle="rgba(168,196,140,.15)";
+    roundRect(x, cx-130, 590, 260, 70, 35); x.fill();
+    x.fillStyle="#a8c48c"; x.font="bold 42px sans-serif";
+    x.fillText("↑ 提升 "+data.delta+" 个百分点", cx, 638);
+  }
+
+  // 折线图（如果有多点）
+  if(data.points && data.points.length>1){
+    const gx=140, gy=780, gw=W-280, gh=280;
+    const pts=data.points, max=Math.max(...pts,10), min=0;
+    // 网格线
+    x.strokeStyle="rgba(244,241,234,.08)"; x.lineWidth=1;
+    for(let i=0;i<=4;i++){ const yy=gy+gh*i/4; x.beginPath(); x.moveTo(gx,yy); x.lineTo(gx+gw,yy); x.stroke(); }
+    // 折线
+    x.strokeStyle="#a8c48c"; x.lineWidth=5; x.lineJoin="round"; x.beginPath();
+    const coords=pts.map((p,i)=>[gx+gw*i/(pts.length-1), gy+gh-(gh*(p-min)/(max-min||1))]);
+    coords.forEach((co,i)=> i?x.lineTo(co[0],co[1]):x.moveTo(co[0],co[1]));
+    x.stroke();
+    // 面积填充
+    const area=x.createLinearGradient(0,gy,0,gy+gh);
+    area.addColorStop(0,"rgba(168,196,140,.25)"); area.addColorStop(1,"rgba(168,196,140,0)");
+    x.fillStyle=area; x.lineTo(gx+gw,gy+gh); x.lineTo(gx,gy+gh); x.closePath(); x.fill();
+    // 端点
+    coords.forEach(co=>{ x.fillStyle="#a8c48c"; x.beginPath(); x.arc(co[0],co[1],7,0,7); x.fill(); });
+  }
+
+  // 底部数据条
+  x.textAlign="center";
+  const by=1150;
+  x.fillStyle="rgba(244,241,234,.06)"; roundRect(x,80,by,W-160,120,20); x.fill();
+  const stats=[["监测次数",data.monitorCount+"次"],["AI平台","8个"],["推荐率",data.endRate+"%"]];
+  stats.forEach((s,i)=>{
+    const sx=80+(W-160)/3*(i+0.5);
+    x.fillStyle="#f4f1ea"; x.font="bold 40px sans-serif"; x.fillText(s[1],sx,by+55);
+    x.fillStyle="rgba(244,241,234,.5)"; x.font="500 22px sans-serif"; x.fillText(s[0],sx,by+95);
+  });
+
+  // 落款
+  x.fillStyle="rgba(244,241,234,.35)"; x.font="500 24px sans-serif";
+  x.fillText("见微 · 让 AI 推荐你的品牌，而不是竞争对手", cx, 1310);
+  x.textAlign="left";
+
+  // 弹窗展示 + 下载
+  showReportModal(c.toDataURL("image/png"));
+}
+
+function roundRect(x,rx,ry,rw,rh,r){
+  x.beginPath(); x.moveTo(rx+r,ry); x.arcTo(rx+rw,ry,rx+rw,ry+rh,r);
+  x.arcTo(rx+rw,ry+rh,rx,ry+rh,r); x.arcTo(rx,ry+rh,rx,ry,r); x.arcTo(rx,ry,rx+rw,ry,r); x.closePath();
+}
+
+function showReportModal(dataUrl){
+  const m=document.createElement("div");
+  m.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.8);backdrop-filter:blur(6px);z-index:3000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:16px";
+  m.innerHTML=`
+    <img src="${dataUrl}" style="max-height:75vh;max-width:100%;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;gap:12px">
+      <a href="${dataUrl}" download="见微增长战报.png" style="background:#5a7d5a;color:#fff;padding:12px 28px;border-radius:10px;font-weight:600;text-decoration:none;font-size:14px">⬇️ 下载战报</a>
+      <button onclick="this.closest('div').parentElement.remove()" style="background:rgba(244,241,234,.1);color:#f4f1ea;border:1px solid rgba(244,241,234,.2);padding:12px 28px;border-radius:10px;cursor:pointer;font-size:14px">关闭</button>
+    </div>
+    <div style="color:rgba(244,241,234,.5);font-size:13px">长按图片可保存 · 分享到朋友圈/小红书</div>`;
+  m.onclick=(e)=>{ if(e.target===m) m.remove(); };
+  document.body.appendChild(m);
+}
+
 async function showDashboard(){
   // 确定要看哪个品牌：当前监测品牌，或拉取用户第一个品牌
   let bid = currentBrandId || lastBrandIdForDash;
@@ -2647,8 +2794,9 @@ function renderDashboard(d){
 
   let html=`
     <!-- 状态横幅 -->
-    <div style="background:${sc}15;border:1px solid ${sc}40;border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;gap:12px">
+    <div style="background:${sc}15;border:1px solid ${sc}40;border-radius:14px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
       <div style="font-size:15px;font-weight:600;color:${sc}">${d.status_text}</div>
+      <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genGrowthReport()">📈 生成增长战报</button>
     </div>
 
     <!-- 核心指标卡 -->
