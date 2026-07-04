@@ -1427,6 +1427,24 @@ const safeStore = {
 };
 let token = safeStore.get("geo_token") || null;
 
+// ===== 用户行为埋点 =====
+function _getVisitorId(){
+  let vid = safeStore.get("geo_visitor");
+  if(!vid){ vid = "v"+Date.now().toString(36)+Math.random().toString(36).slice(2,8); safeStore.set("geo_visitor",vid); }
+  return vid;
+}
+function track(event, meta){
+  try{
+    const body = {event, visitor_id:_getVisitorId(), page:location.pathname, referrer:document.referrer||"", meta:meta?JSON.stringify(meta):""};
+    const headers = {"Content-Type":"application/json"};
+    if(token) headers["Authorization"]="Bearer "+token;
+    // 用 fetch 静默上报，不阻塞、不报错
+    fetch(API+"/api/track",{method:"POST",headers,body:JSON.stringify(body),keepalive:true}).catch(()=>{});
+  }catch(e){}
+}
+// 页面加载即上报访问
+track("page_view");
+
 // 从URL读取邀请码并保存（用户可能先看落地页再注册）
 function getInviteCode(){
   const url = new URLSearchParams(location.search);
@@ -1567,6 +1585,9 @@ async function doAuth(){
     token=data.token;safeStore.set("geo_token",token);
     if(authMode!=="login"){
       toast("✅ 注册成功，欢迎使用见微！");
+      track("register", {email});
+    } else {
+      track("login");
     }
     enterApp(data.plan_info);
   }catch(e){
@@ -3493,6 +3514,7 @@ async function createBrand(){
   if(!comp){toast("⚔️ 请填写你的核心竞品——这是看清 AI 把订单推给谁的关键");document.getElementById("bComp").focus();return}
   const btn=document.getElementById("createBtn");
   btn.textContent="正在分析品牌…";btn.disabled=true;
+  track("monitor", {brand:name, industry});
   try{
     const b=await api("/api/brands",{method:"POST",body:JSON.stringify({
       name,industry,mode:currentMode,
@@ -5150,6 +5172,7 @@ let payPollTimer = null;
 
 async function startPay(plan){
   if(!token){ toast("请先登录"); return; }
+  track("click_pay", {plan});
   let method = "wxpay";
   // 让用户选支付方式
   const modal = document.createElement("div");
