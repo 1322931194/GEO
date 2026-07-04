@@ -787,3 +787,36 @@ async def generate_intent_titles(brand: str, product: str, industry: str, brand_
     if not data or "intent_questions" not in data:
         return {"intent_questions": [], "engineered_titles": [], "msg": "生成失败，请重试"}
     return data
+
+
+# ============================================================
+# 关键词收录情况分析（老实方案：相对热度 + 收录追踪）
+# 不编造精确搜索量，给相对热度评级 + 基于真实监测数据的收录洞察
+# ============================================================
+async def analyze_keyword_index(brand: str, industry: str, keywords: list) -> dict:
+    """分析一组关键词的相对热度和 GEO 价值。
+    诚实：不给精确搜索量（那需要付费数据源），给相对热度评级 + 收录建议。"""
+    if not keywords:
+        return {"keywords": []}
+    system = (
+        "你是 GEO 关键词分析专家。基于关键词特征判断其相对热度和商业价值。"
+        "诚实：你没有精确搜索量数据，只做相对评估。"
+    )
+    kw_text = "、".join(keywords[:15])
+    prompt = f"""为「{industry}」行业的品牌「{brand}」分析这些关键词在 AI 搜索时代的价值：
+{kw_text}
+
+对每个词评估（基于词的特征，不编造精确数字）：
+- 相对热度：高/中/低（这个词有多少人会问 AI）
+- 购买意图：强/中/弱（问这个词的人离下单有多近）
+- 收录难度：易/中/难（让 AI 在这个词上推荐你的难度）
+- GEO优先级：基于以上综合，值不值得优先做
+
+只返回JSON：
+{{"keywords":[{{"word":"关键词","heat":"高/中/低","intent":"强/中/弱","difficulty":"易/中/难","priority":"高/中/低","reason":"一句话建议"}}]}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "keywords" not in data:
+        return {"keywords": [], "note": "分析失败，请重试"}
+    data["note"] = "热度为相对评估（非精确搜索量）。精确搜索量需接入付费数据源。"
+    return data
