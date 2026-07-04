@@ -218,7 +218,7 @@ COMMISSION_RATE = 0.35
 # 套餐价格（用于算佣金）
 PLAN_PRICES = {
     "single": 99,
-    "monthly": 699,
+    "monthly": 599,
     # custom 定制版：价格面议，后台手动开通，不走线上支付
     # 以下为旧套餐价格（仅兼容历史订单回调）
     "starter": 1980,
@@ -1652,6 +1652,45 @@ class ContentPackReq(BaseModel):
     topic: str
     platforms: list = []
 
+@app.get("/api/brands/{brand_id}/perception")
+async def brand_perception(brand_id: int, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """AI 品牌认知报告：基于最近一次监测，分析『AI眼中的你』。
+    复用已有监测数据，仅一次AI调用聚合，成本可控。"""
+    brand = _owned_brand(brand_id, user, session)
+    # 取最近一次监测报告
+    reports = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    if not reports:
+        return {"has_data": False, "msg": "还没有监测数据，请先完成一次 AI 监测。"}
+    full = _jload(reports[0].full_json, {})
+    raw_results = full.get("raw_results", [])
+    # 提取各平台回答
+    platform_answers = []
+    for r in raw_results:
+        platform_answers.append({
+            "platform": r.get("platform_label") or r.get("platform", "AI"),
+            "answer": r.get("answer_text", ""),
+            "mentioned": r.get("brand_mentioned", False),
+        })
+    # 融合知识库作为对照基准
+    kb_items = session.exec(
+        select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)
+    ).all()
+    kb_text = brand.brand_facts or ""
+    if kb_items:
+        for it in kb_items:
+            kb_text += f"\n{it.title}：{it.content}"
+    from services.generator import analyze_brand_perception
+    result = await analyze_brand_perception(
+        brand.name, brand.product, kb_text, platform_answers)
+    result["brand_name"] = brand.name
+    result["report_date"] = reports[0].generated_at.strftime("%Y-%m-%d") if reports[0].generated_at else ""
+    return result
+
+
 @app.post("/api/content/pack")
 async def gen_content_pack(req: ContentPackReq, request: Request,
                            user: User = Depends(current_user),
@@ -2933,7 +2972,7 @@ def admin_cost_estimate(key: str):
             "total_cost": monthly_cost,
         })
     # 套餐价格对照
-    plan_prices = {"single": 99, "monthly": 699, "starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
+    plan_prices = {"single": 99, "monthly": 599, "starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
     return {
         "scenarios": results,
         "plan_prices": plan_prices,
@@ -3082,7 +3121,7 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <label>套餐</label>
 <select id="plan">
 <option value="single">单次版¥99（1次完整监测+作战包+3次内容）</option>
-<option value="monthly">增长版¥699/月（8次监测+不限内容+pSEO落地页×3）</option>
+<option value="monthly">AI Growth Pro ¥599/月（无限监测+多平台内容+pSEO落地页）</option>
 <option value="custom">定制版（价格面议：全平台+pSEO矩阵30页+代运营）</option>
 <option value="trial">退回免费版</option>
 <option value="starter">[旧]季付版¥1980</option>
