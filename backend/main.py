@@ -32,7 +32,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog, TrackEvent)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog, TrackEvent, IndexTrack)
 from services.monitor import run_monitoring, PLATFORMS, estimate_cost, check_all_keys
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -1656,6 +1656,104 @@ class ContentPackReq(BaseModel):
     platforms: list = []
 
 # ===== 增长引擎 · 4大高阶功能 =====
+# ===== 关键词收录情况 & 收录追踪 =====
+class KeywordAnalyzeReq(BaseModel):
+    brand_id: int
+    keywords: list = []
+
+@app.post("/api/keyword/analyze")
+async def keyword_analyze(req: KeywordAnalyzeReq, user: User = Depends(current_user),
+                          session: Session = Depends(get_session)):
+    """关键词相对热度分析（老实方案，不编精确搜索量）。"""
+    try:
+        brand = _owned_brand(req.brand_id, user, session)
+        kws = req.keywords
+        if not kws:
+            # 没传就用品牌的问题集
+            qs = json.loads(brand.questions_json or "[]")
+            kws = [q.get("question", "") for q in qs[:12] if q.get("question")]
+        from services.generator import analyze_keyword_index
+        return await analyze_keyword_index(brand.name, brand.industry, kws)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"关键词分析失败：{type(e).__name__}: {e}")
+
+class IndexTrackReq(BaseModel):
+    brand_id: int
+    keyword: str
+    platform: str = ""
+    url: str = ""
+
+@app.post("/api/index-track/add")
+def index_track_add(req: IndexTrackReq, user: User = Depends(current_user),
+                    session: Session = Depends(get_session)):
+    """添加一条收录追踪：我在某平台发了关于某关键词的内容，追踪是否被AI收录。"""
+    brand = _owned_brand(req.brand_id, user, session)
+    it = IndexTrack(user_id=user.id, brand_id=brand.id,
+                    keyword=req.keyword[:100], platform=req.platform[:40], url=req.url[:300])
+    session.add(it); session.commit(); session.refresh(it)
+    return {"ok": True, "id": it.id}
+
+@app.get("/api/index-track/list")
+def index_track_list(brand_id: int, user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """列出某品牌的收录追踪记录。"""
+    brand = _owned_brand(brand_id, user, session)
+    items = session.exec(
+        select(IndexTrack).where(IndexTrack.brand_id == brand.id)
+        .order_by(IndexTrack.created_at.desc())
+    ).all()
+    return {"items": [{
+        "id": it.id, "keyword": it.keyword, "platform": it.platform, "url": it.url,
+        "status": it.status, "check_count": it.check_count,
+        "first_indexed": it.first_indexed_at.strftime("%Y-%m-%d") if it.first_indexed_at else None,
+        "created": it.created_at.strftime("%m-%d") if it.created_at else "",
+    } for it in items]}
+
+@app.post("/api/index-track/check/{track_id}")
+async def index_track_check(track_id: int, user: User = Depends(current_user),
+                            session: Session = Depends(get_session)):
+    """检测某条追踪：这个关键词现在 AI 回答里有没有引用到你的内容。
+    基于该品牌最近的监测数据判断（复用已有信源数据，不额外烧钱）。"""
+    it = session.get(IndexTrack, track_id)
+    if not it or it.user_id != user.id:
+        raise HTTPException(404, "记录不存在")
+    brand = session.get(Brand, it.brand_id)
+    # 取最近监测报告，看信源里有没有该平台/URL
+    reports = session.exec(
+        select(Report).where(Report.brand_id == it.brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    indexed = False
+    if reports:
+        full = _jload(reports[0].full_json, {})
+        sources = full.get("citation_targets", [])
+        raw = full.get("raw_results", [])
+        # 判断：品牌是否被提及 + 信源里有没有匹配的平台
+        brand_mentioned = any(r.get("brand_mentioned") for r in raw)
+        platform_hit = False
+        if it.platform:
+            for s in sources:
+                if it.platform.lower() in str(s.get("source", "")).lower():
+                    platform_hit = True; break
+        indexed = brand_mentioned and (platform_hit or not it.platform)
+    it.check_count += 1
+    it.last_check_at = cn_now()
+    if indexed and it.status != "indexed":
+        it.status = "indexed"
+        it.first_indexed_at = cn_now()
+    elif not indexed and it.status == "pending":
+        it.status = "not_yet"
+    session.add(it); session.commit()
+    return {
+        "status": it.status,
+        "indexed": indexed,
+        "msg": "✅ 已被 AI 收录引用！" if indexed else "暂未检测到被 AI 引用，继续投喂内容或过几天再测。",
+        "note": "基于最近一次监测的信源数据判断。建议先重新监测再检测，结果更准。",
+    }
+
+
 @app.get("/api/growth/media-matrix")
 async def growth_media_matrix(user: User = Depends(current_user)):
     """独家高权重媒体直发矩阵。本地数据零成本，对所有登录用户开放（引流钩子）。"""
@@ -3072,6 +3170,100 @@ def admin_operations(key: str, session: Session = Depends(get_session)):
     }
 
 
+@app.get("/api/admin/user-journey")
+def admin_user_journey(key: str, email: str = "", user_id: int = 0,
+                       session: Session = Depends(get_session)):
+    """单个用户的完整行为轨迹：访问→注册→做了什么→卡在哪。用于精准跟进。"""
+    _check_admin(key)
+    # 按邮箱或ID找用户
+    user = None
+    if email:
+        user = session.exec(select(User).where(User.email == email)).first()
+    elif user_id:
+        user = session.get(User, user_id)
+    if not user:
+        return {"found": False, "msg": "未找到该用户"}
+
+    # 1. 基本信息
+    info = {
+        "id": user.id, "email": user.email, "plan": user.plan,
+        "registered": user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "",
+        "monitor_count": user.monitor_count or 0,
+        "content_count": user.content_count or 0,
+        "referred_by": user.referred_by or 0,
+    }
+
+    # 2. 行为事件时间线（TrackEvent）
+    events = session.exec(
+        select(TrackEvent).where(TrackEvent.user_id == user.id)
+        .order_by(TrackEvent.created_at.asc())
+    ).all()
+    ev_label = {
+        "page_view": "访问页面", "register": "注册账号", "login": "登录",
+        "click_check": "点击免费检测", "click_upgrade": "点击升级",
+        "click_pay": "点击支付", "click_demo": "点击预约演示",
+        "monitor": "发起监测", "content_gen": "生成内容", "other": "其他操作",
+    }
+    timeline = [{
+        "time": e.created_at.strftime("%m-%d %H:%M") if e.created_at else "",
+        "event": ev_label.get(e.event, e.event),
+        "raw": e.event, "meta": e.meta or "",
+    } for e in events]
+
+    # 3. 品牌和监测记录
+    brands = session.exec(select(Brand).where(Brand.user_id == user.id)).all()
+    brand_list = []
+    for br in brands:
+        reports = session.exec(
+            select(Report).where(Report.brand_id == br.id)
+            .order_by(Report.generated_at.desc())
+        ).all()
+        brand_list.append({
+            "name": br.name, "industry": br.industry,
+            "monitor_times": len(reports),
+            "latest_rate": round(reports[0].mention_rate, 1) if reports else None,
+            "last_monitor": reports[0].generated_at.strftime("%m-%d %H:%M") if reports and reports[0].generated_at else "",
+        })
+
+    # 4. AI调用记录
+    ai_logs = session.exec(
+        select(ApiCallLog).where(ApiCallLog.user_id == user.id)
+    ).all()
+    ai_total = sum(l.calls for l in ai_logs)
+    ai_cost = round(sum(l.est_cost for l in ai_logs), 2)
+
+    # 5. 订单
+    orders = session.exec(select(Order).where(Order.user_id == user.id)).all()
+    order_list = [{
+        "plan": o.plan, "amount": o.amount,
+        "status": o.status,
+        "time": o.created_at.strftime("%m-%d %H:%M") if o.created_at else "",
+    } for o in orders]
+
+    # 6. 智能诊断"卡在哪"
+    stuck = "未知"
+    if not brands:
+        stuck = "⚠️ 注册后未做任何监测——卡在「第一次成功」，建议引导做首次监测"
+    elif not any(b["monitor_times"] for b in brand_list):
+        stuck = "⚠️ 创建了品牌但没监测成功——可能遇到问题，值得主动联系"
+    elif user.plan == "trial" and any(b["monitor_times"] for b in brand_list):
+        stuck = "💡 已体验监测但未付费——高意向！可推送升级或案例"
+    elif user.plan != "trial":
+        stuck = "✅ 已付费用户——重点维护，防流失"
+    else:
+        stuck = "已注册，观察中"
+
+    return {
+        "found": True,
+        "info": info,
+        "timeline": timeline,
+        "brands": brand_list,
+        "ai": {"total_calls": ai_total, "total_cost": ai_cost},
+        "orders": order_list,
+        "diagnosis": stuck,
+    }
+
+
 @app.get("/api/admin/check-keys")
 async def admin_check_keys(key: str):
     """
@@ -3366,6 +3558,9 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <div class="card">
 <h2>📈 运营数据（今日）<button onclick="loadOps()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="opsBox" style="margin-bottom:20px"><p style="color:#888">点刷新加载今日运营数据</p></div>
+<h2>🔍 用户行为轨迹</h2>
+<div style="margin-bottom:12px"><input id="journeyEmail" placeholder="输入用户邮箱查询轨迹" style="width:70%"><button onclick="loadJourney()" style="width:auto;padding:8px 16px;margin-left:8px">查询</button></div>
+<div id="journeyBox" style="margin-bottom:20px"></div>
 <h2>📊 API 消耗监控 <button onclick="loadUsage()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="usage">点刷新加载</div>
 </div>
@@ -3467,6 +3662,56 @@ async function loadOps(){
     h+="</div>";
     box.innerHTML=h;
   }catch(e){ box.innerHTML="<p style='color:#e34'>加载失败："+e.message+"</p>"; }
+}
+
+async function loadJourney(){
+  const email=document.getElementById("journeyEmail").value.trim();
+  const box=document.getElementById("journeyBox");
+  if(!email){ box.innerHTML="<p style='color:#e34'>请输入邮箱</p>"; return; }
+  box.innerHTML="<p style='color:#888'>查询中…</p>";
+  try{
+    const d=await fetch("/api/admin/user-journey?key="+encodeURIComponent(KEY)+"&email="+encodeURIComponent(email)).then(r=>r.json());
+    if(!d.found){ box.innerHTML="<p style='color:#e34'>"+(d.msg||d.detail||"未找到")+"</p>"; return; }
+    const i=d.info;
+    let h="";
+    // 诊断卡（最重要，先显示）
+    h+="<div style='background:#fff8e1;border-radius:10px;padding:14px;margin-bottom:14px;border:1px solid #f0d890'>";
+    h+="<div style='font-weight:700;margin-bottom:4px'>🎯 跟进诊断</div><div style='font-size:14px'>"+d.diagnosis+"</div></div>";
+    // 基本信息
+    h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:14px'>";
+    h+="<div style='font-weight:700;margin-bottom:8px'>👤 "+i.email+"</div>";
+    h+="<div style='font-size:13px;color:#555;display:flex;gap:16px;flex-wrap:wrap'>";
+    h+="<span>套餐 <b>"+i.plan+"</b></span><span>注册 "+i.registered+"</span><span>监测 "+i.monitor_count+"次</span><span>内容 "+i.content_count+"次</span>";
+    if(i.referred_by) h+="<span>推荐人ID "+i.referred_by+"</span>";
+    h+="</div></div>";
+    // AI消耗+订单
+    h+="<div style='display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap'>";
+    h+="<div style='flex:1;min-width:140px;background:#f7f5f0;border-radius:10px;padding:12px'><div style='font-size:12px;color:#888'>AI调用</div><div style='font-size:20px;font-weight:800'>"+d.ai.total_calls+"次</div><div style='font-size:12px;color:#888'>成本 ¥"+d.ai.total_cost+"</div></div>";
+    h+="<div style='flex:1;min-width:140px;background:#f7f5f0;border-radius:10px;padding:12px'><div style='font-size:12px;color:#888'>订单</div><div style='font-size:20px;font-weight:800'>"+d.orders.length+"笔</div>";
+    if(d.orders.length){ const paid=d.orders.filter(o=>o.status==='paid').length; h+="<div style='font-size:12px;color:#5a7d5a'>已付 "+paid+"笔</div>"; }
+    h+="</div></div>";
+    // 品牌
+    if(d.brands.length){
+      h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:14px'>";
+      h+="<div style='font-weight:700;margin-bottom:8px'>📁 品牌（"+d.brands.length+"）</div>";
+      d.brands.forEach(b=>{
+        h+="<div style='font-size:13px;padding:5px 0;border-bottom:1px solid #eee'>"+b.name+" · "+b.industry+" · 监测"+b.monitor_times+"次";
+        if(b.latest_rate!==null) h+=" · 提及率"+b.latest_rate+"%";
+        h+="</div>";
+      });
+      h+="</div>";
+    }
+    // 行为时间线
+    h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px'>";
+    h+="<div style='font-weight:700;margin-bottom:10px'>🕐 行为时间线（"+d.timeline.length+"条）</div>";
+    if(d.timeline.length){
+      d.timeline.slice(-30).reverse().forEach(t=>{
+        h+="<div style='display:flex;gap:12px;font-size:13px;padding:5px 0;border-bottom:1px solid #eee'><span style='color:#888;width:90px;flex-shrink:0'>"+t.time+"</span><span>"+t.event+"</span></div>";
+      });
+    } else { h+="<p style='color:#888;font-size:13px'>暂无行为记录（埋点部署后才有）</p>"; }
+    h+="</div>";
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML="<p style='color:#e34'>查询失败："+e.message+"</p>"; }
 }
 
 async function loadUsage(){
