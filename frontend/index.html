@@ -534,7 +534,6 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
       <a href="#how">如何运作</a>
       <a href="/tutorial">运营教程</a>
       <a href="/solutions">行业方案</a>
-      <a href="/pricing">价格</a>
       <a href="#cases">成功案例</a>
       <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
       <button class="btn-cyan" style="padding:9px 20px" onclick="gotoAuth('reg')">免费体验</button>
@@ -1106,6 +1105,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
               <div id="repSOP"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
+              <div id="repPerception"></div>
               <div id="repReadiness"></div>
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
@@ -1151,41 +1151,35 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
         <!-- ===== 套餐页 ===== -->
         <div id="pricingView" class="hidden">
           <div class="pricing-page" style="padding-top:0">
-            <h1>选择适合你的方案</h1>
-            <p class="sub">从免费体检到持续优化，覆盖你做 GEO 的每个阶段</p>
+            <h1>选择适合你的 AI 增长方式</h1>
+            <p class="sub">从免费检测到全托管，覆盖你在 AI 时代获客的每个阶段</p>
             <div class="plans">
               <div class="plan">
-                <div class="plan-name">免费版</div>
-                <div class="plan-price">¥0</div>
-                <div class="plan-desc">先看清 AI 到底推不推你</div>
-                <ul class="plan-features"><li>1 次完整监测</li><li>GEO 评分 + 各平台表现</li><li>对话快照·活体证据</li><li>作战包<b>预览</b>（尝一口方案）</li><li style="color:var(--ink-faint)">完整作战包需升级</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">免费开始</button>
-              </div>
-              <div class="plan">
-                <div class="plan-name">单次版</div>
-                <div class="plan-price">¥99<span>/次</span></div>
-                <div class="plan-desc">彻底查清一次 + 拿到完整方案</div>
-                <ul class="plan-features"><li>1 次完整监测（5平台）</li><li>GEO 评分 + 竞品抢位</li><li><b>完整 7 天作战包</b></li><li><b>内容生成 ×1</b></li><li>竞品深度诊断</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="startPay('single')">开通单次版 ¥99</button>
+                <div class="plan-name">AI 可见度检测</div>
+                <div class="plan-price">永久免费</div>
+                <div class="plan-desc">看看 AI 是否认识你的品牌</div>
+                <ul class="plan-features"><li>AI 品牌评分</li><li>AI 推荐率</li><li>AI 真实回答截图</li><li>GEO 评分</li><li>竞争分析（基础）</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">立即免费检测</button>
               </div>
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
-                <div class="plan-name">增长版</div>
-                <div class="plan-price">¥699<span>/月</span></div>
-                <div class="plan-desc">监测优化 + 建站获客，一步到位</div>
-                <ul class="plan-features"><li>3 个品牌</li><li><b>每月 8 次监测</b>（够每周复测）</li><li><b>不限次作战包 + 内容生成</b></li><li><b>pSEO 获客落地页 ×3</b>（自动建站）</li><li>交互工具 + 历史趋势对比</li><li>竞品深度诊断 + 增长建议</li><li>专属顾问支持</li></ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">开通增长版</button>
+                <div class="plan-name">AI Growth Pro</div>
+                <div class="plan-price">¥599<span>/月</span></div>
+                <div class="plan-desc">持续提高 AI 推荐率，让品牌获得更多 AI 曝光与客户咨询</div>
+                <ul class="plan-features"><li><b>AI 监测（无限）</b></li><li>AI 推荐率变化追踪</li><li>竞争分析 + 信源溯源</li><li>AI 关键词 / 长尾词</li><li><b>AI 内容工厂（多平台）</b></li><li>品牌知识库 + 官网 AI 优化</li><li><b>AI 获客落地页</b></li><li>增长驾驶舱 + 邮件周报</li></ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">立即开始增长</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">平均每天不到 20 元，持续建设 AI 影响力</div>
               </div>
               <div class="plan" style="border:2px solid var(--cyan)">
-                <div class="plan-badge" style="background:var(--cyan);color:#fff">👑 定制</div>
-                <div class="plan-name">定制版</div>
-                <div class="plan-price" style="font-size:26px;padding-top:10px">价格面议</div>
-                <div class="plan-desc">大规模矩阵 + 代运营，按需定制</div>
-                <ul class="plan-features"><li>增长版全部能力</li><li><b>8 大 AI 平台全覆盖</b></li><li><b>pSEO 落地页矩阵 ×30</b></li><li><b>持续内容代运营</b>（我们帮你发）</li><li>专属增长顾问 1v1 + 月度复盘</li><li>按行业/规模定制方案</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="alert('定制版请加顾问微信 jenly222 沟通需求与报价')">联系顾问定制</button>
+                <div class="plan-badge" style="background:var(--cyan);color:#fff">👑 企业</div>
+                <div class="plan-name">Enterprise</div>
+                <div class="plan-price" style="font-size:26px;padding-top:10px">联系销售</div>
+                <div class="plan-desc">打造企业级 AI 增长体系，适合企业、集团、品牌矩阵</div>
+                <ul class="plan-features"><li>不限品牌数</li><li>API 接入</li><li>专属顾问</li><li>媒体资源 + PR</li><li>品牌建设</li><li>专属项目经理</li></ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="alert('企业版请加顾问微信 jenly222 沟通需求与报价')">预约方案</button>
               </div>
             </div>
-            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要更大规模的定制服务？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
+            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要全托管增长运营？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
           </div>
         </div>
 
@@ -3411,6 +3405,85 @@ function renderReportBody(rep){
   loadImprovePlan();
   loadProgress();
   loadMonthlyLoss();
+  loadPerception(rep);
+}
+
+// ===== AI 品牌认知报告（AI Brand Asset）=====
+function loadPerception(rep){
+  const el = document.getElementById("repPerception");
+  if(!el) return;
+  const bid = rep.brand_id || currentBrandId || lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  // 入口卡片：默认折叠，点了才生成（省token）
+  el.innerHTML = `
+    <div class="section-card" style="margin-top:20px;background:linear-gradient(135deg,rgba(90,125,90,.06),rgba(176,132,66,.05));border:1px solid rgba(90,125,90,.2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+        <div>
+          <div style="font-weight:700;font-size:15px">🧬 AI 品牌认知报告 <span style="font-size:11px;background:var(--matcha);color:#fff;padding:2px 8px;border-radius:10px;margin-left:6px">品牌资产</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">不止「AI 推不推你」，更看清 <b>AI 眼中的你是什么样</b>——如何描述你、是否理解你的产品、跨平台认知是否一致、优势有没有被正确表达。</div>
+        </div>
+        <button class="btn-cyan" style="padding:10px 20px;font-size:13px;white-space:nowrap" onclick="genPerception(${bid})" id="percBtn">生成认知报告 →</button>
+      </div>
+      <div id="percResult" style="margin-top:16px"></div>
+    </div>`;
+}
+
+async function genPerception(bid){
+  const btn = document.getElementById("percBtn");
+  const box = document.getElementById("percResult");
+  btn.textContent="AI 分析中…"; btn.disabled=true;
+  box.innerHTML='<div class="loading" style="padding:20px"><div class="spinner"></div><p>正在聚合各平台 AI 对你的认知…</p></div>';
+  try{
+    const d = await api(`/api/brands/${bid}/perception`);
+    if(!d.has_data){
+      box.innerHTML=`<div style="padding:16px;background:#fff;border-radius:10px;color:var(--ink-soft);font-size:13.5px">${escHtml(d.msg||'暂无足够数据')}</div>`;
+      btn.style.display="none";
+      return;
+    }
+    const scoreColor = s => s>=70?"var(--good)":s>=40?"var(--warn)":"var(--bad)";
+    const bars = [
+      ["AI 是否理解你的产品", d.product_understanding],
+      ["跨平台认知一致性", d.consistency],
+      ["竞争优势是否被正确表达", d.advantage_conveyed],
+    ];
+    let html = `
+      <div style="background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+        <div style="font-size:12px;color:var(--matcha);font-weight:700;margin-bottom:6px">📝 AI 是如何描述你的</div>
+        <div style="font-size:14px;line-height:1.7;color:var(--ink)">${escHtml(d.brand_description||'')}</div>
+      </div>
+      <div style="display:grid;gap:12px;margin-bottom:14px">`;
+    bars.forEach(([label,obj])=>{
+      const s = (obj&&obj.score)||0; const c = (obj&&obj.comment)||'';
+      html += `
+        <div style="background:#fff;border-radius:10px;padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:13.5px;font-weight:600">${label}</span>
+            <span style="font-size:18px;font-weight:800;color:${scoreColor(s)}">${s}<span style="font-size:12px;color:var(--ink-faint)">/100</span></span>
+          </div>
+          <div style="height:6px;background:#eee;border-radius:3px;overflow:hidden;margin-bottom:8px"><div style="height:100%;width:${s}%;background:${scoreColor(s)}"></div></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6">${escHtml(c)}</div>
+        </div>`;
+    });
+    html += `</div>`;
+    if(d.misperceptions && d.misperceptions.length){
+      html += `<div style="background:#fdf3f2;border-radius:10px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:700;color:var(--clay);margin-bottom:8px">⚠️ AI 说错 / 过时的地方</div>`;
+      d.misperceptions.forEach(m=>{ html+=`<div style="font-size:13px;color:var(--ink);margin-bottom:4px">· ${escHtml(m)}</div>`; });
+      html += `</div>`;
+    }
+    if(d.recommendations && d.recommendations.length){
+      html += `<div style="background:rgba(90,125,90,.08);border-radius:10px;padding:14px 16px">
+        <div style="font-size:13px;font-weight:700;color:var(--matcha);margin-bottom:8px">💡 提升 AI 品牌认知的建议</div>`;
+      d.recommendations.forEach((r,i)=>{ html+=`<div style="font-size:13px;color:var(--ink);margin-bottom:6px">${i+1}. ${escHtml(r)}</div>`; });
+      html += `</div>`;
+    }
+    html += `<div style="font-size:11px;color:var(--ink-faint);margin-top:12px">基于最近一次监测中 ${d.analyzed_count||0} 条 AI 回答分析 · ${escHtml(d.report_date||'')}</div>`;
+    box.innerHTML = html;
+    btn.style.display="none";
+  }catch(e){
+    box.innerHTML=`<div style="padding:16px;color:var(--bad);font-size:13.5px">${e.message}</div>`;
+    btn.textContent="重试"; btn.disabled=false;
+  }
 }
 
 // 根据引用源类型给出针对性动作建议（学 Peec 的 Act on Insights）
