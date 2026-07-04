@@ -608,3 +608,65 @@ async def generate_content_pack(
         })
 
     return {"topic": topic, "brand": brand, "versions": versions}
+
+
+# ============================================================
+# AI 品牌认知报告（AI Brand Perception Report）
+# 把监测拿到的各平台AI回答，聚合成"AI眼中的你"品牌画像
+# 回答4个问题：AI如何描述你 / AI是否理解你的产品 / 跨平台是否一致 / 优势有没有被正确表达
+# ============================================================
+async def analyze_brand_perception(
+    brand: str,
+    product: str,
+    brand_facts: str,
+    platform_answers: list,   # [{"platform":"豆包","answer":"...","mentioned":True}, ...]
+) -> dict:
+    """
+    基于各平台AI的真实回答，分析AI对品牌的认知。
+    只用一次AI调用聚合，控制成本。
+    """
+    # 只取提到品牌的回答（这些才有"AI怎么描述你"的信息），最多12条控制token
+    mentioned = [a for a in platform_answers if a.get("mentioned")][:12]
+    if not mentioned:
+        return {
+            "has_data": False,
+            "msg": "AI 目前几乎没有提到你的品牌，还谈不上「认知」——请先通过内容优化，让 AI 认识你，再来看认知报告。",
+        }
+
+    # 把各平台回答拼给AI分析
+    answers_text = ""
+    for a in mentioned:
+        ans = (a.get("answer") or "")[:400]  # 每条截断控制长度
+        answers_text += f"\n【{a.get('platform','AI')}】的回答片段：{ans}\n"
+
+    system = (
+        "你是品牌认知分析专家。基于多个AI平台对某品牌的真实回答，"
+        "客观分析AI对这个品牌的认知状况。只基于给定的回答内容分析，不编造。"
+        "如果某方面信息不足，如实说明。"
+    )
+    prompt = f"""分析各大AI平台对品牌「{brand}」的认知情况。
+
+品牌真实信息（作为对照基准，判断AI说得对不对）：
+产品/服务：{product or '（未提供）'}
+品牌事实：{brand_facts or '（信息有限）'}
+
+以下是各AI平台提到该品牌时的真实回答片段：
+{answers_text}
+
+请分析并只返回JSON（不要markdown，不要多余文字）：
+{{
+  "brand_description": "综合各AI，用2-3句话概括『AI是如何描述这个品牌的』（基于回答原文，别编）",
+  "product_understanding": {{"score": 0-100的整数, "comment": "AI对产品/服务的理解是否准确，一句话"}},
+  "consistency": {{"score": 0-100的整数, "comment": "不同AI对品牌的描述是否一致，一句话，如有矛盾请指出"}},
+  "advantage_conveyed": {{"score": 0-100的整数, "comment": "品牌的竞争优势有没有被AI正确表达出来，一句话"}},
+  "misperceptions": ["AI说错或过时的地方（数组，没有就空数组）"],
+  "recommendations": ["提升AI品牌认知的2-3条具体建议（数组）"]
+}}"""
+
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "brand_description" not in data:
+        return {"has_data": False, "msg": "分析生成失败，请稍后重试"}
+    data["has_data"] = True
+    data["analyzed_count"] = len(mentioned)
+    return data
