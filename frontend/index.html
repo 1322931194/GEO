@@ -2214,7 +2214,85 @@ function loadGrowthEngineTab(){
         </div>
         <div id="itResult" style="margin-top:14px"></div>
       </div>
+
+      <div class="section-card">
+        <div style="font-weight:700;font-size:15px">📊 关键词收录情况</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px">看你的核心关键词哪些热度高、值得优先做。<span style="color:var(--gold)">热度为相对评估，非精确搜索量</span>。</div>
+        <button class="btn-cyan" style="padding:9px 18px;font-size:13px" onclick="genKeywordAnalyze()" id="kwBtn">分析关键词热度 →</button>
+        <div id="kwResult" style="margin-top:14px"></div>
+      </div>
+
+      <div class="section-card">
+        <div style="font-weight:700;font-size:15px">🎯 收录追踪：发了之后，AI 收录了吗？</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px">在某平台发了内容后，记录下来，追踪 AI 有没有开始引用你——这是 GEO 的效果闭环。</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <input id="itkKeyword" placeholder="关键词/主题" style="flex:1;min-width:130px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px">
+          <input id="itkPlatform" placeholder="平台(如知乎)" style="width:120px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px">
+          <button class="btn-cyan" style="padding:8px 16px;font-size:13px;white-space:nowrap" onclick="addIndexTrack()">+ 添加追踪</button>
+        </div>
+        <div id="itkList"></div>
+      </div>
     </div>`;
+  // 自动加载已有追踪
+  loadIndexTracks();
+}
+
+// 功能5：关键词热度分析
+async function genKeywordAnalyze(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const btn=document.getElementById("kwBtn"), box=document.getElementById("kwResult");
+  btn.disabled=true; btn.textContent="分析中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>分析关键词热度…</p></div>';
+  try{
+    const d=await api("/api/keyword/analyze",{method:"POST",body:JSON.stringify({brand_id:bid,keywords:[]})});
+    let html='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px"><tr style="text-align:left;color:var(--ink-soft)"><th style="padding:6px">关键词</th><th>热度</th><th>购买意图</th><th>难度</th><th>优先级</th></tr>';
+    const hc={"高":"var(--good)","中":"var(--warn)","低":"var(--ink-faint)","强":"var(--good)","弱":"var(--ink-faint)","易":"var(--good)","难":"var(--bad)"};
+    (d.keywords||[]).forEach(k=>{
+      html+=`<tr style="border-top:1px solid var(--line)"><td style="padding:7px 6px">${escHtml(k.word)}</td><td style="color:${hc[k.heat]||'var(--ink)'}">${escHtml(k.heat)}</td><td style="color:${hc[k.intent]||'var(--ink)'}">${escHtml(k.intent)}</td><td>${escHtml(k.difficulty)}</td><td style="color:${hc[k.priority]||'var(--ink)'};font-weight:700">${escHtml(k.priority)}</td></tr>`;
+    });
+    html+='</table></div>';
+    if(d.note) html+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px">${escHtml(d.note)}</div>`;
+    box.innerHTML=html; btn.style.display="none";
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:13px">${e.message}</div>`; btn.disabled=false; btn.textContent="分析关键词热度 →"; }
+}
+
+// 收录追踪
+async function addIndexTrack(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const kw=document.getElementById("itkKeyword").value.trim();
+  const pf=document.getElementById("itkPlatform").value.trim();
+  if(!kw){ toast("请填关键词"); return; }
+  try{
+    await api("/api/index-track/add",{method:"POST",body:JSON.stringify({brand_id:bid,keyword:kw,platform:pf})});
+    document.getElementById("itkKeyword").value=""; document.getElementById("itkPlatform").value="";
+    toast("✅ 已添加追踪");
+    loadIndexTracks();
+  }catch(e){ toast("添加失败："+e.message); }
+}
+async function loadIndexTracks(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const box=document.getElementById("itkList"); if(!box) return;
+  try{
+    const d=await api("/api/index-track/list?brand_id="+bid);
+    if(!d.items||!d.items.length){ box.innerHTML='<p style="font-size:12.5px;color:var(--ink-faint)">还没有追踪记录。发了内容就添加一条，跟踪 AI 收录情况。</p>'; return; }
+    const sc={"indexed":["✅ 已收录","var(--good)"],"not_yet":["⏳ 暂未收录","var(--warn)"],"pending":["待检测","var(--ink-faint)"]};
+    box.innerHTML=d.items.map(it=>{
+      const s=sc[it.status]||sc.pending;
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:rgba(244,241,234,.04);border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+        <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600">${escHtml(it.keyword)}</div><div style="font-size:11.5px;color:var(--ink-soft)">${escHtml(it.platform||'未填平台')} · 检测${it.check_count}次${it.first_indexed?' · 首次收录 '+it.first_indexed:''}</div></div>
+        <span style="font-size:12px;color:${s[1]};white-space:nowrap">${s[0]}</span>
+        <button class="btn-ghost" style="padding:6px 12px;font-size:12px;white-space:nowrap" onclick="checkIndexTrack(${it.id})">检测</button>
+      </div>`;
+    }).join("");
+  }catch(e){ box.innerHTML=`<div style="color:var(--bad);font-size:12px">${e.message}</div>`; }
+}
+async function checkIndexTrack(id){
+  toast("检测中…");
+  try{
+    const d=await api("/api/index-track/check/"+id,{method:"POST"});
+    toast(d.msg);
+    loadIndexTracks();
+  }catch(e){ toast("检测失败："+e.message); }
 }
 
 // 功能1：媒体矩阵
