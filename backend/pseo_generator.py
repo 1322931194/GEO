@@ -670,3 +670,120 @@ async def analyze_brand_perception(
     data["has_data"] = True
     data["analyzed_count"] = len(mentioned)
     return data
+
+
+# ============================================================
+# 增长引擎 · 4大高阶功能
+# ============================================================
+
+# 【功能1】独家高权重媒体直发矩阵（本地数据，零AI成本）
+# 基于各AI引用生态调研，告诉商家：想被哪个AI引用，就往哪个媒体发
+def get_media_matrix(industry: str = "") -> dict:
+    """高权重媒体直发矩阵：各AI优先引用的媒体源清单。"""
+    matrix = [
+        {"platform": "搜狐号", "weight": "★★★★★", "ai": "全平台通吃（豆包/DeepSeek/Kimi/元宝都引）",
+         "why": "几乎所有主流AI都高频引用搜狐，性价比之王", "action": "必开，每周1-2篇", "difficulty": "易"},
+        {"platform": "知乎", "weight": "★★★★★", "ai": "问答类AI引用核心",
+         "why": "「XX哪个好」类问题AI大量引用知乎回答", "action": "发专栏+答高热问题", "difficulty": "中"},
+        {"platform": "百家号", "weight": "★★★★☆", "ai": "百度文心 / 百度AI搜索首选",
+         "why": "文心引用生态的核心，百度系流量入口", "action": "开通认证号，稳定更新", "difficulty": "易"},
+        {"platform": "今日头条号", "weight": "★★★★☆", "ai": "豆包（3.45亿月活）优先引用",
+         "why": "豆包背靠字节生态，优先抓头条+抖音", "action": "配合抖音一起做", "difficulty": "易"},
+        {"platform": "公众号", "weight": "★★★★☆", "ai": "腾讯元宝重度依赖",
+         "why": "元宝几乎只认公众号内容", "action": "你已有，保持更新", "difficulty": "中"},
+        {"platform": "百度百科", "weight": "★★★★★", "ai": "所有AI知识类问题第一引用源",
+         "why": "AI回答定义/背景类问题必引百科", "action": "创建品牌词条+完善行业词条", "difficulty": "难"},
+        {"platform": "CSDN", "weight": "★★★☆☆", "ai": "DeepSeek技术类问题偏好",
+         "why": "技术向GEO内容的高权重源", "action": "适合技术/B2B行业", "difficulty": "中"},
+        {"platform": "抖音", "weight": "★★★★☆", "ai": "豆包生态，视频内容",
+         "why": "视频竞争者远少于图文，蓝海", "action": "发'实测问AI'系列短视频", "difficulty": "中"},
+    ]
+    return {"matrix": matrix, "note": "策略：想被某个AI推荐，就重点铺它引用的媒体。搜狐号+知乎+百度百科是三大必做。"}
+
+
+# 【功能2】Schema结构化数据一键注入（强化版，本地生成，零AI成本）
+def generate_schema_inject(brand: str, product: str, industry: str,
+                           address: str = "", phone: str = "", url: str = "",
+                           faqs: list = None) -> dict:
+    """一键生成可直接注入官网的完整Schema代码（LocalBusiness + FAQPage + Organization）。"""
+    import json as _j
+    faqs = faqs or []
+    org = {
+        "@context": "https://schema.org", "@type": "Organization",
+        "name": brand, "description": f"{brand}是{industry}领域的专业品牌，主营{product or industry}。",
+    }
+    if url: org["url"] = url
+    local = {
+        "@context": "https://schema.org", "@type": "LocalBusiness",
+        "name": brand, "description": f"{brand} - {industry}",
+    }
+    if address: local["address"] = {"@type": "PostalAddress", "streetAddress": address}
+    if phone: local["telephone"] = phone
+    if url: local["url"] = url
+    blocks = [org, local]
+    if faqs:
+        faq_schema = {
+            "@context": "https://schema.org", "@type": "FAQPage",
+            "mainEntity": [{"@type": "Question", "name": f.get("q", ""),
+                            "acceptedAnswer": {"@type": "Answer", "text": f.get("a", "")}} for f in faqs[:8]]
+        }
+        blocks.append(faq_schema)
+    code = "\n".join(f'<script type="application/ld+json">\n{_j.dumps(b, ensure_ascii=False, indent=2)}\n</script>' for b in blocks)
+    return {"schema_code": code, "block_count": len(blocks),
+            "guide": "把以上代码整段复制，粘贴到你官网每个页面的 </head> 之前。AI 和搜索引擎会据此精准理解你的品牌。"}
+
+
+# 【功能3】逆向RAG专家语料生成引擎
+async def generate_rag_corpus(brand: str, product: str, brand_facts: str, topic: str) -> dict:
+    """逆向RAG：反推AI检索逻辑，生成'AI最爱抓取'的结构化专家语料。
+    RAG(检索增强生成)是AI回答的底层机制——AI先检索片段再组织答案。
+    本引擎生成'易被切片检索、易被AI采信'的高密度语料。"""
+    system = (
+        BRAND_TONE + "\n你是精通 RAG（检索增强生成）机制的语料工程专家。"
+        "你深知 AI 检索时偏好：①信息密度高、②事实性强带数据、③结构化易切片、"
+        "④问答配对清晰、⑤权威客观。你生成的语料要让 AI 在检索时优先命中、优先采信。"
+    )
+    prompt = f"""为品牌「{brand}」围绕主题「{topic}」，生成一份'逆向RAG专家语料'。
+
+品牌真实信息：{brand_facts or product or '信息有限'}
+
+【逆向RAG语料要求】——目标是让AI检索时优先抓取、优先采信：
+1. 拆成 5-8 个独立的"知识切片"，每片是一个自包含的事实陈述（AI按片检索）
+2. 每片格式：一句话核心结论 + 支撑细节/数据（有则标来源）
+3. 语言客观、事实性强，像专家/百科，不像广告
+4. 覆盖：定义、优势、对比、场景、常见疑问
+5. 每片可独立成立，不依赖上下文（这是RAG检索的关键）
+
+只返回JSON：
+{{"corpus":[{{"slice_title":"切片主题","content":"自包含的事实陈述(80-150字)"}}],"usage":"这份语料怎么用的一句话建议"}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "corpus" not in data:
+        return {"corpus": [], "usage": "生成失败，请重试"}
+    return data
+
+
+# 【功能4】高转化意图拦截与标题工程
+async def generate_intent_titles(brand: str, product: str, industry: str, brand_facts: str) -> dict:
+    """高转化意图拦截：挖掘高购买意图的搜索问题，并做标题工程（标题=AI命中钩子）。"""
+    system = (
+        BRAND_TONE + "\n你是精通用户搜索意图和标题工程的GEO专家。"
+        "你能识别'高购买意图'的搜索问题（马上要下单的人会问的），"
+        "并写出既能被AI命中、又能吸引点击的标题。"
+    )
+    prompt = f"""为品牌「{brand}」（{industry}，主营{product or industry}）做'高转化意图拦截+标题工程'。
+
+品牌信息：{brand_facts or '信息有限'}
+
+分两部分：
+第一部分【高意图问题拦截】：列出6个'高购买意图'的搜索问题——就是那些'马上准备花钱的客户'会问AI的问题（如"XX多少钱""XX哪家靠谱""XX和YY哪个好"），这些问题的流量转化率最高，要优先拦截。每个标注意图强度（高/极高）。
+
+第二部分【标题工程】：针对这些高意图问题，写出6个'AI命中+高点击'的标题。标题工程原则：①包含问题原话（AI命中）②有具体数字/利益点（吸引点击）③不标题党。
+
+只返回JSON：
+{{"intent_questions":[{{"question":"问题","intent":"高/极高","why":"为什么高意图"}}],"engineered_titles":[{{"title":"标题","target":"针对哪个问题","technique":"用了什么技巧"}}]}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "intent_questions" not in data:
+        return {"intent_questions": [], "engineered_titles": [], "msg": "生成失败，请重试"}
+    return data
