@@ -43,7 +43,7 @@ PLANS = {
         "pseo_limit": 0,
     },
     "monthly": {
-        "name": "增长版", "price_cny": 699, "brands": 3,
+        "name": "AI Growth Pro", "price_cny": 599, "brands": 3,
         "questions": 80, "samples": 1, "platforms": 6, "freq": "weekly",
         "monitor_limit": 8,   # 每月8次监测（够每周复测）
         "battle_limit": 999, "content_limit": 999,
