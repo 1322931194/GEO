@@ -488,3 +488,335 @@ async def generate_content(
     scan = compliance_scan((data.get("title", "") + " " + data.get("body", "")))
     data["compliance"] = scan
     return data
+
+
+# ============================================================
+# 多平台内容包生成
+# 一次生成同一主题的多个平台适配版本，每版套用「AI可收录结构模板」
+# 平台差异化 + 语义微调，规避重复内容惩罚
+# ============================================================
+
+# 各平台的 AI 收录结构模板（基于2026各AI引用生态调研）
+_PLATFORM_TEMPLATES = {
+    "zhihu": {
+        "name": "知乎",
+        "why": "问答类AI引用核心源，「XX哪个好」类问题高频引用知乎",
+        "guide": (
+            "写成知乎专栏/回答风格。要求：①开头直接给结论或核心观点，不铺垫（AI摘要优先抓首段）；"
+            "②用一手经验/数据支撑，显得专业可信；③适当口语化但有深度；④结尾可带FAQ。"
+            "标题就用用户会问的原话。"
+        ),
+    },
+    "souhu": {
+        "name": "搜狐号",
+        "why": "全平台通吃的高权重源，几乎所有主流AI都高频引用搜狐",
+        "guide": (
+            "写成资讯/干货文风格，客观、信息密度高。要求：①标题含关键问题词；"
+            "②多用小标题分段、列表化；③数据带来源；④正文结构化，便于AI提取。"
+        ),
+    },
+    "baijiahao": {
+        "name": "百家号",
+        "why": "百度文心/百度AI搜索首选引用源",
+        "guide": (
+            "写成百家号资讯风格，贴合百度生态偏好。要求：①标题直接、含核心词；"
+            "②段落清晰、事实准确；③适合百度收录的结构化表达；④客观中立口吻。"
+        ),
+    },
+    "toutiao": {
+        "name": "头条号",
+        "why": "豆包（3.45亿月活）优先引用抖音+今日头条生态",
+        "guide": (
+            "写成今日头条风格，标题有吸引力但不标题党，正文接地气、有信息量。"
+            "要求：①开头抛问题或结论抓注意力；②短段落、易读；③豆包生态偏好的通俗专业表达。"
+        ),
+    },
+    "gongzhonghao": {
+        "name": "公众号",
+        "why": "腾讯元宝重度依赖微信公众号内容",
+        "guide": (
+            "写成公众号推文风格，有导语、有节奏。要求：①开头导语点题；"
+            "②小标题分段、可读性强；③结尾自然带品牌信息+行动引导；④适合微信生态阅读。"
+        ),
+    },
+}
+
+
+async def generate_content_pack(
+    brand: str,
+    topic: str,
+    product: str = "",
+    brand_facts: str = "",
+    platforms: list = None,
+) -> dict:
+    """
+    多平台内容包：同一主题生成多个平台适配版本。
+    每版套用 AI 收录结构模板 + 平台差异化 + 语义微调（防重复内容惩罚）。
+    返回 {topic, versions:[{platform, platform_name, why, title, body, publish_tip, compliance}]}
+    """
+    platforms = platforms or ["zhihu", "souhu", "baijiahao", "gongzhonghao"]
+    system = (
+        BRAND_TONE + "\n你是精通 GEO（生成式引擎优化）的内容策略专家。"
+        "你深知 AI 收录内容的规律：标题用用户提问原话、首段直接给结论、"
+        "小标题问句化、数据带来源、结构化（表格/列表/FAQ）、客观不硬广。"
+        "严格遵守合规红线：①不虚假宣传、不编数据；②不用「第一/最佳/顶级」等绝对化用语；"
+        "③不贬低竞品；④不夸大功效；⑤只基于提供的真实事实创作。"
+    )
+
+    versions = []
+    for pf in platforms:
+        tpl = _PLATFORM_TEMPLATES.get(pf)
+        if not tpl:
+            continue
+        prompt = f"""为品牌「{brand}」围绕以下主题，生成一篇【{tpl['name']}】平台的内容。
+
+主题（用户会向AI提问的问题）：{topic}
+主营产品：{product or '（未提供）'}
+品牌真实事实（只能基于这些，不要编造）：
+{brand_facts or '（信息有限，请写通用、可验证的内容，不要编造具体数据）'}
+
+平台适配要求：{tpl['guide']}
+
+【AI可收录结构模板 - 必须遵守】
+1. 标题 = 用户会问AI的原话（如「{topic}」），不要改成营销标题
+2. 首段直接给出核心结论/定义，不要铺垫（AI摘要优先抓首段）
+3. 正文用 ## 小标题分段，小标题尽量是问句
+4. 有数据必须标注来源（如「据XX报告」）；没有可靠来源就不写具体数字
+5. 适当用列表、表格、要点，提升AI提取率
+6. 结尾放 3 条以内 FAQ（问：…答：…）
+7. 品牌只自然提及1-2次，客观口吻，不硬广
+
+【重要】这一版是给【{tpl['name']}】的，请在措辞、案例、标题角度上与其他平台版本做区分（语义微调），避免多平台重复内容被判罚。
+
+只返回 JSON：
+{{"title":"标题","body":"正文(含##小标题+FAQ,完整成文600-1000字)","publish_tip":"针对{tpl['name']}的一句话发布建议"}}"""
+
+        raw = await _chat(prompt, system, json_mode=True, scene="content")
+        data = _safe_parse_json(raw)
+        if not data or "body" not in data:
+            data = {"title": topic, "body": raw, "publish_tip": ""}
+        # 合规扫描
+        scan = compliance_scan((data.get("title", "") + " " + data.get("body", "")))
+        versions.append({
+            "platform": pf,
+            "platform_name": tpl["name"],
+            "why": tpl["why"],
+            "title": data.get("title", topic),
+            "body": data.get("body", ""),
+            "publish_tip": data.get("publish_tip", ""),
+            "compliance": scan,
+        })
+
+    return {"topic": topic, "brand": brand, "versions": versions}
+
+
+# ============================================================
+# AI 品牌认知报告（AI Brand Perception Report）
+# 把监测拿到的各平台AI回答，聚合成"AI眼中的你"品牌画像
+# 回答4个问题：AI如何描述你 / AI是否理解你的产品 / 跨平台是否一致 / 优势有没有被正确表达
+# ============================================================
+async def analyze_brand_perception(
+    brand: str,
+    product: str,
+    brand_facts: str,
+    platform_answers: list,   # [{"platform":"豆包","answer":"...","mentioned":True}, ...]
+) -> dict:
+    """
+    基于各平台AI的真实回答，分析AI对品牌的认知。
+    只用一次AI调用聚合，控制成本。
+    """
+    # 只取提到品牌的回答（这些才有"AI怎么描述你"的信息），最多12条控制token
+    mentioned = [a for a in platform_answers if a.get("mentioned")][:12]
+    if not mentioned:
+        return {
+            "has_data": False,
+            "msg": "AI 目前几乎没有提到你的品牌，还谈不上「认知」——请先通过内容优化，让 AI 认识你，再来看认知报告。",
+        }
+
+    # 把各平台回答拼给AI分析
+    answers_text = ""
+    for a in mentioned:
+        ans = (a.get("answer") or "")[:400]  # 每条截断控制长度
+        answers_text += f"\n【{a.get('platform','AI')}】的回答片段：{ans}\n"
+
+    system = (
+        "你是品牌认知分析专家。基于多个AI平台对某品牌的真实回答，"
+        "客观分析AI对这个品牌的认知状况。只基于给定的回答内容分析，不编造。"
+        "如果某方面信息不足，如实说明。"
+    )
+    prompt = f"""分析各大AI平台对品牌「{brand}」的认知情况。
+
+品牌真实信息（作为对照基准，判断AI说得对不对）：
+产品/服务：{product or '（未提供）'}
+品牌事实：{brand_facts or '（信息有限）'}
+
+以下是各AI平台提到该品牌时的真实回答片段：
+{answers_text}
+
+请分析并只返回JSON（不要markdown，不要多余文字）：
+{{
+  "brand_description": "综合各AI，用2-3句话概括『AI是如何描述这个品牌的』（基于回答原文，别编）",
+  "product_understanding": {{"score": 0-100的整数, "comment": "AI对产品/服务的理解是否准确，一句话"}},
+  "consistency": {{"score": 0-100的整数, "comment": "不同AI对品牌的描述是否一致，一句话，如有矛盾请指出"}},
+  "advantage_conveyed": {{"score": 0-100的整数, "comment": "品牌的竞争优势有没有被AI正确表达出来，一句话"}},
+  "misperceptions": ["AI说错或过时的地方（数组，没有就空数组）"],
+  "recommendations": ["提升AI品牌认知的2-3条具体建议（数组）"]
+}}"""
+
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "brand_description" not in data:
+        return {"has_data": False, "msg": "分析生成失败，请稍后重试"}
+    data["has_data"] = True
+    data["analyzed_count"] = len(mentioned)
+    return data
+
+
+# ============================================================
+# 增长引擎 · 4大高阶功能
+# ============================================================
+
+# 【功能1】独家高权重媒体直发矩阵（本地数据，零AI成本）
+# 基于各AI引用生态调研，告诉商家：想被哪个AI引用，就往哪个媒体发
+def get_media_matrix(industry: str = "") -> dict:
+    """高权重媒体直发矩阵：各AI优先引用的媒体源清单。"""
+    matrix = [
+        {"platform": "搜狐号", "weight": "★★★★★", "ai": "全平台通吃（豆包/DeepSeek/Kimi/元宝都引）",
+         "why": "几乎所有主流AI都高频引用搜狐，性价比之王", "action": "必开，每周1-2篇", "difficulty": "易"},
+        {"platform": "知乎", "weight": "★★★★★", "ai": "问答类AI引用核心",
+         "why": "「XX哪个好」类问题AI大量引用知乎回答", "action": "发专栏+答高热问题", "difficulty": "中"},
+        {"platform": "百家号", "weight": "★★★★☆", "ai": "百度文心 / 百度AI搜索首选",
+         "why": "文心引用生态的核心，百度系流量入口", "action": "开通认证号，稳定更新", "difficulty": "易"},
+        {"platform": "今日头条号", "weight": "★★★★☆", "ai": "豆包（3.45亿月活）优先引用",
+         "why": "豆包背靠字节生态，优先抓头条+抖音", "action": "配合抖音一起做", "difficulty": "易"},
+        {"platform": "公众号", "weight": "★★★★☆", "ai": "腾讯元宝重度依赖",
+         "why": "元宝几乎只认公众号内容", "action": "你已有，保持更新", "difficulty": "中"},
+        {"platform": "百度百科", "weight": "★★★★★", "ai": "所有AI知识类问题第一引用源",
+         "why": "AI回答定义/背景类问题必引百科", "action": "创建品牌词条+完善行业词条", "difficulty": "难"},
+        {"platform": "CSDN", "weight": "★★★☆☆", "ai": "DeepSeek技术类问题偏好",
+         "why": "技术向GEO内容的高权重源", "action": "适合技术/B2B行业", "difficulty": "中"},
+        {"platform": "抖音", "weight": "★★★★☆", "ai": "豆包生态，视频内容",
+         "why": "视频竞争者远少于图文，蓝海", "action": "发'实测问AI'系列短视频", "difficulty": "中"},
+    ]
+    return {"matrix": matrix, "note": "策略：想被某个AI推荐，就重点铺它引用的媒体。搜狐号+知乎+百度百科是三大必做。"}
+
+
+# 【功能2】Schema结构化数据一键注入（强化版，本地生成，零AI成本）
+def generate_schema_inject(brand: str, product: str, industry: str,
+                           address: str = "", phone: str = "", url: str = "",
+                           faqs: list = None) -> dict:
+    """一键生成可直接注入官网的完整Schema代码（LocalBusiness + FAQPage + Organization）。"""
+    import json as _j
+    faqs = faqs or []
+    org = {
+        "@context": "https://schema.org", "@type": "Organization",
+        "name": brand, "description": f"{brand}是{industry}领域的专业品牌，主营{product or industry}。",
+    }
+    if url: org["url"] = url
+    local = {
+        "@context": "https://schema.org", "@type": "LocalBusiness",
+        "name": brand, "description": f"{brand} - {industry}",
+    }
+    if address: local["address"] = {"@type": "PostalAddress", "streetAddress": address}
+    if phone: local["telephone"] = phone
+    if url: local["url"] = url
+    blocks = [org, local]
+    if faqs:
+        faq_schema = {
+            "@context": "https://schema.org", "@type": "FAQPage",
+            "mainEntity": [{"@type": "Question", "name": f.get("q", ""),
+                            "acceptedAnswer": {"@type": "Answer", "text": f.get("a", "")}} for f in faqs[:8]]
+        }
+        blocks.append(faq_schema)
+    code = "\n".join(f'<script type="application/ld+json">\n{_j.dumps(b, ensure_ascii=False, indent=2)}\n</script>' for b in blocks)
+    return {"schema_code": code, "block_count": len(blocks),
+            "guide": "把以上代码整段复制，粘贴到你官网每个页面的 </head> 之前。AI 和搜索引擎会据此精准理解你的品牌。"}
+
+
+# 【功能3】逆向RAG专家语料生成引擎
+async def generate_rag_corpus(brand: str, product: str, brand_facts: str, topic: str) -> dict:
+    """逆向RAG：反推AI检索逻辑，生成'AI最爱抓取'的结构化专家语料。
+    RAG(检索增强生成)是AI回答的底层机制——AI先检索片段再组织答案。
+    本引擎生成'易被切片检索、易被AI采信'的高密度语料。"""
+    system = (
+        BRAND_TONE + "\n你是精通 RAG（检索增强生成）机制的语料工程专家。"
+        "你深知 AI 检索时偏好：①信息密度高、②事实性强带数据、③结构化易切片、"
+        "④问答配对清晰、⑤权威客观。你生成的语料要让 AI 在检索时优先命中、优先采信。"
+    )
+    prompt = f"""为品牌「{brand}」围绕主题「{topic}」，生成一份'逆向RAG专家语料'。
+
+品牌真实信息：{brand_facts or product or '信息有限'}
+
+【逆向RAG语料要求】——目标是让AI检索时优先抓取、优先采信：
+1. 拆成 5-8 个独立的"知识切片"，每片是一个自包含的事实陈述（AI按片检索）
+2. 每片格式：一句话核心结论 + 支撑细节/数据（有则标来源）
+3. 语言客观、事实性强，像专家/百科，不像广告
+4. 覆盖：定义、优势、对比、场景、常见疑问
+5. 每片可独立成立，不依赖上下文（这是RAG检索的关键）
+
+只返回JSON：
+{{"corpus":[{{"slice_title":"切片主题","content":"自包含的事实陈述(80-150字)"}}],"usage":"这份语料怎么用的一句话建议"}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "corpus" not in data:
+        return {"corpus": [], "usage": "生成失败，请重试"}
+    return data
+
+
+# 【功能4】高转化意图拦截与标题工程
+async def generate_intent_titles(brand: str, product: str, industry: str, brand_facts: str) -> dict:
+    """高转化意图拦截：挖掘高购买意图的搜索问题，并做标题工程（标题=AI命中钩子）。"""
+    system = (
+        BRAND_TONE + "\n你是精通用户搜索意图和标题工程的GEO专家。"
+        "你能识别'高购买意图'的搜索问题（马上要下单的人会问的），"
+        "并写出既能被AI命中、又能吸引点击的标题。"
+    )
+    prompt = f"""为品牌「{brand}」（{industry}，主营{product or industry}）做'高转化意图拦截+标题工程'。
+
+品牌信息：{brand_facts or '信息有限'}
+
+分两部分：
+第一部分【高意图问题拦截】：列出6个'高购买意图'的搜索问题——就是那些'马上准备花钱的客户'会问AI的问题（如"XX多少钱""XX哪家靠谱""XX和YY哪个好"），这些问题的流量转化率最高，要优先拦截。每个标注意图强度（高/极高）。
+
+第二部分【标题工程】：针对这些高意图问题，写出6个'AI命中+高点击'的标题。标题工程原则：①包含问题原话（AI命中）②有具体数字/利益点（吸引点击）③不标题党。
+
+只返回JSON：
+{{"intent_questions":[{{"question":"问题","intent":"高/极高","why":"为什么高意图"}}],"engineered_titles":[{{"title":"标题","target":"针对哪个问题","technique":"用了什么技巧"}}]}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "intent_questions" not in data:
+        return {"intent_questions": [], "engineered_titles": [], "msg": "生成失败，请重试"}
+    return data
+
+
+# ============================================================
+# 关键词收录情况分析（老实方案：相对热度 + 收录追踪）
+# 不编造精确搜索量，给相对热度评级 + 基于真实监测数据的收录洞察
+# ============================================================
+async def analyze_keyword_index(brand: str, industry: str, keywords: list) -> dict:
+    """分析一组关键词的相对热度和 GEO 价值。
+    诚实：不给精确搜索量（那需要付费数据源），给相对热度评级 + 收录建议。"""
+    if not keywords:
+        return {"keywords": []}
+    system = (
+        "你是 GEO 关键词分析专家。基于关键词特征判断其相对热度和商业价值。"
+        "诚实：你没有精确搜索量数据，只做相对评估。"
+    )
+    kw_text = "、".join(keywords[:15])
+    prompt = f"""为「{industry}」行业的品牌「{brand}」分析这些关键词在 AI 搜索时代的价值：
+{kw_text}
+
+对每个词评估（基于词的特征，不编造精确数字）：
+- 相对热度：高/中/低（这个词有多少人会问 AI）
+- 购买意图：强/中/弱（问这个词的人离下单有多近）
+- 收录难度：易/中/难（让 AI 在这个词上推荐你的难度）
+- GEO优先级：基于以上综合，值不值得优先做
+
+只返回JSON：
+{{"keywords":[{{"word":"关键词","heat":"高/中/低","intent":"强/中/弱","difficulty":"易/中/难","priority":"高/中/低","reason":"一句话建议"}}]}}"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "keywords" not in data:
+        return {"keywords": [], "note": "分析失败，请重试"}
+    data["note"] = "热度为相对评估（非精确搜索量）。精确搜索量需接入付费数据源。"
+    return data
