@@ -1518,33 +1518,70 @@ function track(event, meta){
 track("page_view");
 
 // ===== 落地页深色兜底：扫描并修正任何"浅底"元素，根治看不清 =====
-function fixLandingContrast(){
-  const lp = document.getElementById("landingView");
-  if(!lp || lp.classList.contains("hidden")) return;
-  const els = lp.querySelectorAll("div,section,p,h1,h2,h3,h4,span,li,ul");
+// ===== 全站文字对比度修复器：扫描所有元素，字和背景对比不足就修 =====
+function _lum(r,g,b){
+  const f=c=>{c=c/255; return c<=0.03928?c/12.92:Math.pow((c+0.055)/1.055,2.4);};
+  return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b);
+}
+function _contrast(c1,c2){
+  const l1=_lum(...c1), l2=_lum(...c2), hi=Math.max(l1,l2), lo=Math.min(l1,l2);
+  return (hi+0.05)/(lo+0.05);
+}
+function _parseRGB(str){
+  const m=str.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+  if(!m) return null;
+  return {rgb:[+m[1],+m[2],+m[3]], a:m[4]!==undefined?parseFloat(m[4]):1};
+}
+// 向上追溯真实背景色（跳过透明层）
+function _realBg(el){
+  let cur=el;
+  while(cur){
+    const p=_parseRGB(getComputedStyle(cur).backgroundColor);
+    if(p && p.a>0.5) return p.rgb;
+    cur=cur.parentElement;
+  }
+  return [26,23,18]; // 兜底深色
+}
+function fixContrast(scope){
+  const root = scope || document.body;
+  const els = root.querySelectorAll("div,section,p,h1,h2,h3,h4,h5,span,li,ul,td,th,label,a,button,strong,b,em");
   els.forEach(el=>{
-    // 排除：故意的模拟AI对话卡片（Hero区白色ChatGPT/豆包演示）
-    if(el.closest(".sim-card,.chat-demo,.ai-mock,.lp-hero-visual,.hero-demo")) return;
-    const s = getComputedStyle(el);
-    const bg = s.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
-    if(bg){
-      const a = bg[4]!==undefined ? parseFloat(bg[4]) : 1;
-      const bright = (+bg[1] + +bg[2] + +bg[3])/3;
-      if(a>0.5 && bright>180){
-        el.style.setProperty("background", "rgba(244,241,234,.05)", "important");
-      }
-    }
-    const col = s.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-    if(col){
-      const cbright = (+col[1] + +col[2] + +col[3])/3;
-      if(cbright < 90){
-        el.style.setProperty("color", "rgba(244,241,234,.85)", "important");
+    // 排除：故意的模拟AI对话白卡片、悬浮客服、支付弹窗等设计元素
+    if(el.closest(".sim-card,.chat-demo,.ai-mock,.lp-hero-visual,.hero-demo,#floatCS,#csCard,#payModal,.pay-modal")) return;
+    // 只处理有直接文字的元素
+    let hasText=false;
+    for(const n of el.childNodes){ if(n.nodeType===3 && n.textContent.trim().length>0){hasText=true;break;} }
+    if(!hasText) return;
+    const s=getComputedStyle(el);
+    const col=_parseRGB(s.color);
+    if(!col) return;
+    const bg=_realBg(el);
+    const cr=_contrast(col.rgb, bg);
+    if(cr < 3.2){  // 对比度不足，需要修
+      const bgBright=(bg[0]+bg[1]+bg[2])/3;
+      // 背景深→字改亮；背景浅→字改深
+      if(bgBright < 128){
+        el.style.setProperty("color","rgba(244,241,234,.9)","important");
+      } else {
+        el.style.setProperty("color","#26221c","important");
       }
     }
   });
 }
-// 页面加载后 + 稍延迟各跑一次（等动态内容渲染）
-window.addEventListener("load", ()=>{ setTimeout(fixLandingContrast, 300); setTimeout(fixLandingContrast, 1200); });
+// 落地页专用（保留原名兼容）
+function fixLandingContrast(){
+  const lp=document.getElementById("landingView");
+  if(lp && !lp.classList.contains("hidden")) fixContrast(lp);
+  const app=document.getElementById("appView");
+  if(app && !app.classList.contains("hidden")) fixContrast(app);
+}
+// 加载后跑，并监听页面切换动态内容
+window.addEventListener("load", ()=>{
+  setTimeout(fixLandingContrast, 300);
+  setTimeout(fixLandingContrast, 1200);
+});
+// 暴露给navTo等切换后调用
+window._fixContrast = fixLandingContrast;
 
 // 从URL读取邀请码并保存（用户可能先看落地页再注册）
 function getInviteCode(){
@@ -1914,6 +1951,8 @@ function navTo(key){
   if(key==="dash" && typeof showDashboard==="function") showDashboard();
   if(key==="ws" && typeof showWorkspace==="function") showWorkspace();
   if(key==="ref" && typeof showReferral==="function") showReferral();
+  // 切换页面后修复文字对比度（动态内容渲染完再扫）
+  if(typeof window._fixContrast==="function"){ setTimeout(window._fixContrast, 200); setTimeout(window._fixContrast, 800); }
 }
 
 // ===== 新手引导 =====
