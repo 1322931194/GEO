@@ -1284,6 +1284,8 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <!-- ===== 监测主流程 ===== -->
         <div id="mainFlow">
           <div class="shell">
+            <!-- GEO 进度地图：小白商家的导航仪 -->
+            <div id="geoProgressMap"></div>
             <!-- 进度条 -->
             <div class="steps">
               <div class="step on" id="s1" onclick="jumpStep(1)"><span class="n">1</span>选模式·填品牌</div>
@@ -1773,10 +1775,67 @@ function enterApp(planInfo){
   injectMobileNav();
   // 登录后自动加载历史品牌
   loadMyBrands();
+  // 加载 GEO 进度地图（小白导航）
+  loadProgressMap();
   // 默认打开作战地图，让用户先看懂整个流程
   if(typeof navTo==="function") navTo('map');
   // 首次进入显示新手引导
   maybeShowOnboarding();
+}
+
+// ===== GEO 进度地图：小白商家的导航仪 =====
+async function loadProgressMap(){
+  const el = document.getElementById("geoProgressMap");
+  if(!el) return;
+  try{
+    const d = await api("/api/my-progress");
+    const steps = d.steps || [];
+    const cur = d.current_step;
+    // 顶部：健康度 + 一句话
+    let h = `<div style="background:linear-gradient(135deg,#211d17,#1a1712);border:1px solid rgba(244,241,234,.1);border-radius:16px;padding:20px 22px;margin-bottom:20px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:16px">
+        <div>
+          <div style="font-size:16px;font-weight:700;color:#f4f1ea">🧭 你的 GEO 进度</div>
+          <div style="font-size:12.5px;color:rgba(244,241,234,.6);margin-top:4px">${escHtml(d.summary||"")}</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:32px;font-weight:800;color:${d.health>=60?'#a8c48c':d.health>=30?'#c99a52':'#c96a5f'}">${d.health}<span style="font-size:16px">分</span></div>
+          <div style="font-size:11px;color:rgba(244,241,234,.5)">GEO 健康度</div>
+        </div>
+      </div>`;
+    // 5步进度（横向流程）
+    h += `<div style="display:flex;gap:6px;flex-wrap:wrap">`;
+    steps.forEach((s,i)=>{
+      const isDone = s.done;
+      const isCur = i===cur && !isDone;
+      const bg = isDone ? "rgba(168,196,140,.15)" : isCur ? "rgba(201,154,82,.18)" : "rgba(244,241,234,.04)";
+      const bd = isDone ? "rgba(168,196,140,.4)" : isCur ? "#c99a52" : "rgba(244,241,234,.1)";
+      const icon = isDone ? "✅" : isCur ? "👉" : (i+1);
+      h += `<div style="flex:1;min-width:120px;background:${bg};border:1px solid ${bd};border-radius:10px;padding:10px 12px">
+        <div style="font-size:13px;font-weight:700;color:${isDone?'#a8c48c':isCur?'#c99a52':'rgba(244,241,234,.5)'}">${icon} ${escHtml(s.title)}</div>
+        ${isCur?`<div style="font-size:11px;color:rgba(244,241,234,.7);margin-top:4px;line-height:1.5">${escHtml(s.action)}</div>`:''}
+      </div>`;
+    });
+    h += `</div>`;
+    // 当前步骤详情卡（为什么 + 行动按钮）
+    if(cur < steps.length && !steps[cur].done){
+      const s = steps[cur];
+      h += `<div style="background:rgba(244,241,234,.05);border-radius:12px;padding:16px 18px;margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:#c99a52;margin-bottom:6px">👉 现在这一步：${escHtml(s.title)}</div>
+        <div style="font-size:12.5px;color:rgba(244,241,234,.8);line-height:1.7;margin-bottom:12px">💡 为什么要这样做：${escHtml(s.why)}</div>
+        <button class="btn-primary" style="font-size:13px;padding:9px 20px" onclick="navTo('${s.nav}')">${escHtml(s.cta)} →</button>
+      </div>`;
+    } else if(d.all_done){
+      h += `<div style="background:rgba(168,196,140,.12);border-radius:12px;padding:16px 18px;margin-top:16px">
+        <div style="font-size:13px;font-weight:700;color:#a8c48c">🎉 你已跑通完整 GEO 流程！</div>
+        <div style="font-size:12.5px;color:rgba(244,241,234,.75);margin-top:6px;line-height:1.6">保持内容产出和定期复测，让 AI 越来越信任你、越来越常推荐你。</div>
+      </div>`;
+    }
+    h += `</div>`;
+    el.innerHTML = h;
+  }catch(e){
+    el.innerHTML = "";  // 失败静默，不影响其他功能
+  }
 }
 
 // 移动端底部导航
@@ -1953,6 +2012,8 @@ function navTo(key){
   if(key==="ref" && typeof showReferral==="function") showReferral();
   // 切换页面后修复文字对比度（动态内容渲染完再扫）
   if(typeof window._fixContrast==="function"){ setTimeout(window._fixContrast, 200); setTimeout(window._fixContrast, 800); }
+  // 回到监测页时刷新进度地图
+  if(key==="flow" && typeof loadProgressMap==="function") loadProgressMap();
 }
 
 // ===== 新手引导 =====
