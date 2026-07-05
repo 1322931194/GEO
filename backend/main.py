@@ -1656,6 +1656,121 @@ class ContentPackReq(BaseModel):
     platforms: list = []
 
 # ===== 增长引擎 · 4大高阶功能 =====
+# ===== GEO进度地图：告诉商家现在在哪一步、为什么、下一步做什么 =====
+@app.get("/api/my-progress")
+def my_progress(user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """商家的GEO旅程进度：把流程拆成5步，判断做到哪、给出为什么+下一步。
+    这是小白商家的'导航仪'——任何时候进来都知道该干什么。"""
+    brands = session.exec(select(Brand).where(Brand.user_id == user.id)).all()
+    has_brand = len(brands) > 0
+    # 统计各项完成情况
+    total_reports = 0
+    has_monitor = False
+    latest_rate = None
+    has_multiple_monitor = False  # 是否监测过2次以上（能看变化）
+    for br in brands:
+        reports = session.exec(
+            select(Report).where(Report.brand_id == br.id)
+            .order_by(Report.generated_at.desc())
+        ).all()
+        total_reports += len(reports)
+        if reports:
+            has_monitor = True
+            if latest_rate is None:
+                latest_rate = reports[0].mention_rate
+        if len(reports) >= 2:
+            has_multiple_monitor = True
+    content_count = user.content_count or 0
+    has_content = content_count > 0
+
+    # 5个阶段的定义（每步：做什么、为什么、去哪）
+    steps = [
+        {
+            "id": "brand",
+            "title": "建立你的品牌",
+            "why": "先告诉系统你是谁、卖什么、对手是谁。这是一切的起点——不填品牌，AI 监测无从谈起。",
+            "action": "填写品牌名、行业、核心竞品",
+            "cta": "去填写品牌",
+            "nav": "flow",
+            "done": has_brand,
+        },
+        {
+            "id": "monitor",
+            "title": "查清 AI 现状",
+            "why": "在动手优化前，必须先知道 AI 现在推不推你、推了哪些对手。不看现状就优化，等于闭眼开车。90% 的商家第一次查，都发现自己是隐形的——这很正常。",
+            "action": "对品牌发起第一次 AI 监测",
+            "cta": "开始监测",
+            "nav": "flow",
+            "done": has_monitor,
+        },
+        {
+            "id": "diagnose",
+            "title": "看懂对手为什么赢",
+            "why": "监测报告会扒出：AI 推竞品，是因为引用了哪些信源。找到这些'AI 信任但还没有你'的信源，就是你的突破口。这一步决定你接下来往哪使劲。",
+            "action": "查看报告里的「信源溯源」和「作战方案」",
+            "cta": "看我的作战方案",
+            "nav": "dash",
+            "done": has_monitor,  # 有监测就有诊断数据
+        },
+        {
+            "id": "content",
+            "title": "生成并发布内容",
+            "why": "光知道差距没用，得补上。用 AI 生成客户真正会问的内容，发到 AI 信任的平台。这是让 AI '重新认识你'的关键动作——内容是 GEO 的弹药。",
+            "action": "用 AI 内容工厂生成内容，发到指定平台",
+            "cta": "去生成内容",
+            "nav": "ws",
+            "done": has_content,
+        },
+        {
+            "id": "track",
+            "title": "复测看效果",
+            "why": "发了内容后，隔 2-3 周再监测一次，看提及率有没有变化、有没有被 AI 引用。GEO 是持续经营，不是一锤子买卖——只有复测，才知道做得对不对，才能滚雪球。",
+            "action": "定期重新监测，对比提及率变化",
+            "cta": "再次监测",
+            "nav": "flow",
+            "done": has_multiple_monitor,
+        },
+    ]
+    # 找当前该做的步骤（第一个未完成的）
+    current_idx = 0
+    for i, s in enumerate(steps):
+        if not s["done"]:
+            current_idx = i
+            break
+    else:
+        current_idx = len(steps)  # 全部完成
+
+    done_count = sum(1 for s in steps if s["done"])
+    all_done = done_count == len(steps)
+
+    # 健康度评分（0-100）
+    health = int(done_count / len(steps) * 100)
+    if all_done and latest_rate is not None:
+        # 全流程走完后，健康度看提及率
+        health = min(100, 60 + int((latest_rate or 0) * 0.4))
+
+    return {
+        "steps": steps,
+        "current_step": current_idx if not all_done else len(steps)-1,
+        "done_count": done_count,
+        "total_steps": len(steps),
+        "all_done": all_done,
+        "health": health,
+        "latest_rate": latest_rate,
+        "summary": _progress_summary(current_idx, all_done, latest_rate, steps),
+    }
+
+def _progress_summary(idx, all_done, rate, steps):
+    """一句话告诉商家现在最该做什么"""
+    if all_done:
+        if rate is not None and rate < 40:
+            return f"你已跑通完整流程！当前 AI 推荐率 {rate}%，继续产出内容、定期复测，让雪球越滚越大。"
+        return "你已跑通完整 GEO 流程！保持内容产出和定期监测，巩固并扩大你的 AI 推荐优势。"
+    if idx < len(steps):
+        s = steps[idx]
+        return f"你的下一步：{s['title']}——{s['action']}。"
+    return "开始你的 GEO 之旅吧。"
+
 # ===== 关键词收录情况 & 收录追踪 =====
 class KeywordAnalyzeReq(BaseModel):
     brand_id: int
