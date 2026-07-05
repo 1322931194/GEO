@@ -1831,6 +1831,21 @@ async function loadProgressMap(){
         <div style="font-size:12.5px;color:rgba(244,241,234,.75);margin-top:6px;line-height:1.6">保持内容产出和定期复测，让 AI 越来越信任你、越来越常推荐你。</div>
       </div>`;
     }
+    // 价值账单：让商家看到"用见微值了多少"
+    if(d.value_bill && d.value_bill.items && d.value_bill.items.length){
+      h += `<div style="background:rgba(201,154,82,.08);border:1px solid rgba(201,154,82,.2);border-radius:12px;padding:14px 18px;margin-top:14px">
+        <div style="font-size:13px;font-weight:700;color:#c99a52;margin-bottom:10px">💰 你的价值账单</div>`;
+      d.value_bill.items.forEach(it=>{
+        h += `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:6px 0;border-bottom:1px solid rgba(244,241,234,.06)">
+          <div style="flex:1">
+            <span style="font-size:13px;color:#f4f1ea;font-weight:600">${escHtml(it.label)}</span>
+            <span style="font-size:13px;color:#a8c48c;font-weight:700;margin-left:8px">${escHtml(it.value)}</span>
+            <div style="font-size:11px;color:rgba(244,241,234,.55);margin-top:2px">${escHtml(it.worth)}</div>
+          </div>
+        </div>`;
+      });
+      h += `<div style="font-size:10.5px;color:rgba(244,241,234,.4);margin-top:8px">${escHtml(d.value_bill.note)}</div></div>`;
+    }
     h += `</div>`;
     el.innerHTML = h;
   }catch(e){
@@ -2997,7 +3012,15 @@ async function genGrowthReport(){
     const delta = Math.round((endRate - startRate)*10)/10;
     const monitorCount = dash.monitor_count || points.length || 1;
     const visitors = dash.ai_visitors || dash.total_visitors || null;
-    drawGrowthReport({brandName, startRate, endRate, delta, points, monitorCount, visitors});
+    // 竞品对比数据（我 vs 对手的AI提及率）
+    let competitors = [];
+    const cs = dash.competitor_share || dash.competitors || {};
+    if(cs && typeof cs==="object"){
+      competitors = Object.entries(cs).map(([name,share])=>({
+        name, rate: typeof share==="number" ? Math.round(share) : (share.rate||share.share||0)
+      })).filter(c=>c.name).slice(0,3);
+    }
+    drawGrowthReport({brandName, startRate, endRate, delta, points, monitorCount, visitors, competitors});
   }catch(e){ toast("生成失败："+e.message); }
 }
 
@@ -3057,7 +3080,7 @@ function drawGrowthReport(data){
 
   // 折线图（如果有多点）
   if(data.points && data.points.length>1){
-    const gx=140, gy=780, gw=W-280, gh=280;
+    const gx=140, gy=760, gw=W-280, gh=200;
     const pts=data.points, max=Math.max(...pts,10), min=0;
     // 网格线
     x.strokeStyle="rgba(244,241,234,.08)"; x.lineWidth=1;
@@ -3075,15 +3098,44 @@ function drawGrowthReport(data){
     coords.forEach(co=>{ x.fillStyle="#a8c48c"; x.beginPath(); x.arc(co[0],co[1],7,0,7); x.fill(); });
   }
 
+  // ===== 竞品对比条（我 vs 对手）=====
+  if(data.competitors && data.competitors.length){
+    const cby=1090;
+    x.textAlign="left";
+    x.fillStyle="rgba(244,241,234,.7)"; x.font="600 26px sans-serif";
+    x.fillText("⚔️ 我 vs 竞品 · AI 推荐率", 90, cby);
+    // 组装对比数据：我 + 竞品，按rate排序
+    const bars=[{name:data.brandName.slice(0,8), rate:data.endRate, me:true}]
+      .concat(data.competitors.map(c=>({name:c.name.slice(0,8), rate:c.rate, me:false})));
+    const maxRate=Math.max(...bars.map(b=>b.rate),10);
+    const barX=90, barW=760, barH=26, gap=14;
+    bars.slice(0,4).forEach((b,i)=>{
+      const yy=cby+24+i*(barH+gap);
+      // 名字
+      x.fillStyle=b.me?"#c99a52":"rgba(244,241,234,.6)"; x.font=(b.me?"bold ":"500 ")+"22px sans-serif";
+      x.textAlign="left"; x.fillText(b.name, barX, yy+19);
+      // 条背景
+      const bx=barX+180;
+      x.fillStyle="rgba(244,241,234,.06)"; roundRect(x,bx,yy,barW-180,barH,13); x.fill();
+      // 条
+      const w=Math.max((barW-180)*(b.rate/maxRate),20);
+      x.fillStyle=b.me?"#a8c48c":"rgba(201,106,95,.6)"; roundRect(x,bx,yy,w,barH,13); x.fill();
+      // 数值
+      x.fillStyle=b.me?"#a8c48c":"rgba(244,241,234,.55)"; x.font="bold 20px sans-serif";
+      x.textAlign="left"; x.fillText(b.rate+"%", bx+w+10, yy+19);
+    });
+    x.textAlign="center";
+  }
+
   // 底部数据条
   x.textAlign="center";
-  const by=1150;
-  x.fillStyle="rgba(244,241,234,.06)"; roundRect(x,80,by,W-160,120,20); x.fill();
+  const by=data.competitors&&data.competitors.length ? 1258 : 1150;
+  x.fillStyle="rgba(244,241,234,.06)"; roundRect(x,80,by,W-160,90,20); x.fill();
   const stats=[["监测次数",data.monitorCount+"次"],["AI平台","8个"],["推荐率",data.endRate+"%"]];
   stats.forEach((s,i)=>{
     const sx=80+(W-160)/3*(i+0.5);
-    x.fillStyle="#f4f1ea"; x.font="bold 40px sans-serif"; x.fillText(s[1],sx,by+55);
-    x.fillStyle="rgba(244,241,234,.5)"; x.font="500 22px sans-serif"; x.fillText(s[0],sx,by+95);
+    x.fillStyle="#f4f1ea"; x.font="bold 34px sans-serif"; x.fillText(s[1],sx,by+42);
+    x.fillStyle="rgba(244,241,234,.5)"; x.font="500 20px sans-serif"; x.fillText(s[0],sx,by+72);
   });
 
   // 落款
