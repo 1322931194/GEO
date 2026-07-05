@@ -820,3 +820,67 @@ async def analyze_keyword_index(brand: str, industry: str, keywords: list) -> di
         return {"keywords": [], "note": "分析失败，请重试"}
     data["note"] = "热度为相对评估（非精确搜索量）。精确搜索量需接入付费数据源。"
     return data
+
+
+# ============================================================
+# 竞品弱点分析 + 商家作战方案（把信源数据变成"照着做"的行动清单）
+# ============================================================
+async def generate_battle_plan(brand: str, industry: str, product: str,
+                                competitors: list, citation_targets: list,
+                                mention_rate: float) -> dict:
+    """基于监测数据，为商家生成一份'看得懂、照着做'的作战方案。
+    输入：品牌信息 + 竞品 + 信源溯源数据 + 当前推荐率
+    输出：竞品弱点 + 我方切入点 + 分平台行动清单 + 预期"""
+    # 整理信源数据给AI
+    src_summary = []
+    for t in (citation_targets or [])[:10]:
+        comps = t.get("competitors_here", [])
+        src_summary.append(
+            f"- {t.get('source','')}：被AI引用{t.get('cited_count',0)}次，"
+            f"{'你已露出' if t.get('brand_present') else '你未露出'}"
+            f"{('，带出竞品:'+('、'.join(comps))) if comps else ''}"
+        )
+    src_text = "\n".join(src_summary) if src_summary else "（暂无信源数据）"
+    comp_text = "、".join(competitors) if competitors else "（未指定竞品）"
+
+    system = (
+        "你是顶尖的GEO作战参谋，服务对象是不懂技术的中小商家。"
+        "你的任务：把冷冰冰的监测数据，翻译成商家一看就懂、照着就能做的作战方案。"
+        "语言要接地气、具体、可执行，不要空话套话。每条建议都要让商家知道'具体去哪、具体做什么'。"
+    )
+    prompt = f"""为品牌「{brand}」（行业：{industry}，产品：{product}）制定AI推荐作战方案。
+
+【当前战况】
+- AI推荐率：{mention_rate}%（{'偏低，急需提升' if mention_rate<30 else '中等，有提升空间' if mention_rate<60 else '不错，需巩固'}）
+- 主要竞品：{comp_text}
+
+【信源情报】AI在这个行业信任的信息源，以及竞品的分布：
+{src_text}
+
+请输出一份作战方案，JSON格式：
+{{
+  "competitor_weakness": [
+    {{"competitor":"竞品名", "weakness":"这个竞品的弱点/你的机会（比如：它只在知乎有内容，小红书是空白；或它内容老旧；或它没覆盖某类问题）", "how_to_beat":"你具体怎么切入抢它的位置"}}
+  ],
+  "my_gaps": [
+    {{"gap":"你缺什么（具体，比如：搜狐号完全没有你的内容）", "why_matters":"为什么这个重要（AI高频引用这里）", "fix":"具体怎么补"}}
+  ],
+  "action_checklist": [
+    {{"step":1, "platform":"平台名（如知乎/搜狐号）", "action":"具体动作（发什么内容、什么主题）", "difficulty":"易/中/难", "expected":"预期效果"}}
+  ],
+  "priority_summary": "一句话总结：现在最该做的第一件事是什么"
+}}
+
+要求：
+1. competitor_weakness 分析2-3个竞品的弱点和你的机会
+2. my_gaps 找出2-4个你的关键缺口
+3. action_checklist 给出4-6个按优先级排序的具体动作，商家照着做就行
+4. 所有建议必须具体、可执行，不要"提升品牌影响力"这种空话
+5. 只基于提供的真实数据分析，不编造"""
+
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data:
+        return {"error": "作战方案生成失败，请重试"}
+    data["note"] = "本方案基于当前监测数据生成，建议监测后及时查看。执行后重新监测可看效果变化。"
+    return data
