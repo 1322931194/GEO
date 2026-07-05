@@ -1758,18 +1758,53 @@ def my_progress(user: User = Depends(current_user), session: Session = Depends(g
         "health": health,
         "latest_rate": latest_rate,
         "summary": _progress_summary(current_idx, all_done, latest_rate, steps),
+        "value_bill": _value_bill(has_monitor, content_count, total_reports, latest_rate),
     }
 
+def _value_bill(has_monitor, content_count, total_reports, latest_rate):
+    """价值账单：告诉商家用见微省了什么、做了什么（CEO视角：让商家看到值）。
+    诚实：这是'等效价值估算'，不是精确数字，用于让商家理解投入产出。"""
+    items = []
+    # 监测价值：一次专业AI可见性检测，市场价参考
+    if has_monitor and total_reports > 0:
+        items.append({
+            "label": "AI 可见性检测",
+            "value": f"{total_reports} 次",
+            "worth": "市场同类检测约 ¥200/次，你已完成 " + str(total_reports) + " 次",
+        })
+    # 内容价值：一篇AI优化内容，代写市场价
+    if content_count > 0:
+        items.append({
+            "label": "AI 优化内容",
+            "value": f"{content_count} 篇",
+            "worth": f"专业代写约 ¥150/篇，等效省下约 ¥{content_count*150}",
+        })
+    # 提及率价值
+    if latest_rate is not None and latest_rate > 0:
+        items.append({
+            "label": "当前 AI 推荐率",
+            "value": f"{latest_rate}%",
+            "worth": "客户问 AI 时，你被推荐的概率" if latest_rate < 50 else "已超过多数同行的 AI 曝光",
+        })
+    return {
+        "items": items,
+        "note": "以上为等效价值估算，帮你理解投入产出，非精确金额。",
+    } if items else None
+
 def _progress_summary(idx, all_done, rate, steps):
-    """一句话告诉商家现在最该做什么"""
+    """一句话告诉商家现在最该做什么（CEO视角：说人话、点痛点）"""
     if all_done:
         if rate is not None and rate < 40:
-            return f"你已跑通完整流程！当前 AI 推荐率 {rate}%，继续产出内容、定期复测，让雪球越滚越大。"
-        return "你已跑通完整 GEO 流程！保持内容产出和定期监测，巩固并扩大你的 AI 推荐优势。"
-    if idx < len(steps):
-        s = steps[idx]
-        return f"你的下一步：{s['title']}——{s['action']}。"
-    return "开始你的 GEO 之旅吧。"
+            return f"你已跑通完整流程！但 AI 推荐率还只有 {rate}%——意味着客户问 AI 时，你被提到的概率不高。继续产出内容、定期复测，把这个数字做上去。"
+        return "你已跑通完整 GEO 流程！保持内容产出和定期监测，巩固你的 AI 推荐优势，让对手追不上。"
+    labels = {
+        0: "你还没建立品牌——系统还不认识你，第一步先花 1 分钟填好品牌信息。",
+        1: "关键一步：查清 AI 现在推不推你。大多数商家一查才发现，客户问 AI 时根本没有自己——你的对手却在名单里。",
+        2: "监测好了，现在去看「作战方案」：AI 为什么推对手、你该从哪里切入抢回来。",
+        3: "找到差距了，该补内容了。用 AI 生成客户会问的内容，发到 AI 信任的平台——这是让 AI 重新认识你的关键。",
+        4: "内容发了，隔 2-3 周复测一次，看提及率涨了没。做对了数据会说话，这就是滚雪球的开始。",
+    }
+    return labels.get(idx, "开始你的 GEO 之旅吧。")
 
 # ===== 关键词收录情况 & 收录追踪 =====
 class KeywordAnalyzeReq(BaseModel):
