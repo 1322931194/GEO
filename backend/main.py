@@ -2167,6 +2167,19 @@ async def battle_plan(brand_id: int, request: Request, user: User = Depends(curr
     session.add(user)
     session.commit()
 
+    # === 新增：竞品弱点深度分析（把信源数据变成"竞品弱在哪、你怎么抢"）===
+    competitor_battle = None
+    try:
+        competitors = [c.strip() for c in (brand.competitors or "").split(",") if c.strip()]
+        if competitors and has_real_data and last_report:
+            full_cts = json.loads(last_report.full_json).get("citation_targets", [])
+            from services.generator import generate_battle_plan
+            competitor_battle = await generate_battle_plan(
+                brand.name, brand.industry or "", brand.product or "",
+                competitors, full_cts, last_report.mention_rate or 0)
+    except Exception:
+        competitor_battle = None
+
     return {
         "brand": brand.name,
         "target_keywords": target_keywords,
@@ -2175,6 +2188,7 @@ async def battle_plan(brand_id: int, request: Request, user: User = Depends(curr
         "present_sources": real_present[:5],      # AI已引用且有你的源（守住）
         "timeline": timeline,
         "targets_note": note,
+        "competitor_battle": competitor_battle,   # ★新增：竞品弱点+我方缺口+行动清单
         "honest_note": "诚实提醒：冷门高意图词约1周可见效；热门大词需要持续积累。这套流程把你上推荐的概率做到最高，但不保证必上——做了大概率有效，谁也不能保证100%。",
         "summary": kw_result.get("top_advice", ""),
     }
