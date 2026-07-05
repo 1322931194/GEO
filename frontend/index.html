@@ -376,12 +376,35 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 #landingView .geo-vs-col li,#landingView .geo-vs-col p{color:rgba(244,241,234,.75)!important}
 #landingView .geo-vs-col.now{background:rgba(90,125,90,.12)!important}
 #landingView .geo-vs-col.now li{color:#e8efe0!important}
+#landingView .geo-vs-col b,#landingView .geo-vs-col.now b{color:#a8c48c!important}
 #landingView .geo-vs-arrow{color:rgba(244,241,234,.4)!important}
 #landingView .geo-vs-tag.new{color:#a8c48c!important}
 /* GEO科普段落大字 */
 #landingView .geo-edu-text,#landingView .geo-intro-big{color:rgba(244,241,234,.8)!important}
 /* 终极兜底：任何在深色区(#landingView直接子孙)的li和纯文本div，保证亮色 */
 #landingView ul li{color:rgba(244,241,234,.72)!important}
+/* 加固：做了GEO之后/改变区块，强制清晰 */
+#landingView .geo-after{background:rgba(244,241,234,.04)!important;border:1px solid rgba(244,241,234,.08)!important;border-radius:20px}
+#landingView .geo-after-head h3{color:#f4f1ea!important;font-weight:800!important}
+#landingView .geo-after-head .eyebrow{color:#a8c48c!important}
+/* ★通用兜底★：落地页任何区块级容器若用了浅色背景，一律改成深色半透明，根治"浅底浅字" */
+#landingView section,#landingView .lp-section>div,#landingView .geo-after,
+#landingView .geo-vs,#landingView .geo-def,#landingView .case-card,
+#landingView [class*="geo-"]:not(.geo-vs-col):not(.geo-after-item),
+#landingView [class*="-card"],#landingView [class*="-box"],#landingView [class*="-item"]{
+  --_lp_bg_check:1;
+}
+/* 精准打击：任何计算后背景是浅色的落地页容器（通过属性选择器覆盖常见浅色值） */
+#landingView [style*="background:#fbf9f4"],#landingView [style*="background:#fff"],
+#landingView [style*="background: #fff"],#landingView [style*="background:#f7f5f0"],
+#landingView [style*="background:#f4f1ea"],#landingView [style*="background:var(--panel)"],
+#landingView [style*="background:var(--bg)"]{
+  background:rgba(244,241,234,.05)!important;
+}
+#landingView .geo-after-item{background:rgba(244,241,234,.05)!important;border:1px solid rgba(244,241,234,.1)!important}
+#landingView .geo-after-item .b{color:rgba(201,106,95,.9)!important}
+#landingView .geo-after-item .a{color:#a8c48c!important;font-weight:600!important}
+#landingView .geo-after-item .ar{color:rgba(244,241,234,.5)!important}
 /* 精准修复①：旧时代SEO标签(浅底浅字) → 深底深绿字更清晰 */
 #landingView .geo-vs-col:not(.now){background:rgba(244,241,234,.04)!important}
 #landingView .geo-vs-tag.old{color:rgba(244,241,234,.55)!important;background:rgba(244,241,234,.08)!important}
@@ -1493,6 +1516,35 @@ function track(event, meta){
 }
 // 页面加载即上报访问
 track("page_view");
+
+// ===== 落地页深色兜底：扫描并修正任何"浅底"元素，根治看不清 =====
+function fixLandingContrast(){
+  const lp = document.getElementById("landingView");
+  if(!lp || lp.classList.contains("hidden")) return;
+  const els = lp.querySelectorAll("div,section,p,h1,h2,h3,h4,span,li,ul");
+  els.forEach(el=>{
+    // 排除：故意的模拟AI对话卡片（Hero区白色ChatGPT/豆包演示）
+    if(el.closest(".sim-card,.chat-demo,.ai-mock,.lp-hero-visual,.hero-demo")) return;
+    const s = getComputedStyle(el);
+    const bg = s.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?/);
+    if(bg){
+      const a = bg[4]!==undefined ? parseFloat(bg[4]) : 1;
+      const bright = (+bg[1] + +bg[2] + +bg[3])/3;
+      if(a>0.5 && bright>180){
+        el.style.setProperty("background", "rgba(244,241,234,.05)", "important");
+      }
+    }
+    const col = s.color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if(col){
+      const cbright = (+col[1] + +col[2] + +col[3])/3;
+      if(cbright < 90){
+        el.style.setProperty("color", "rgba(244,241,234,.85)", "important");
+      }
+    }
+  });
+}
+// 页面加载后 + 稍延迟各跑一次（等动态内容渲染）
+window.addEventListener("load", ()=>{ setTimeout(fixLandingContrast, 300); setTimeout(fixLandingContrast, 1200); });
 
 // 从URL读取邀请码并保存（用户可能先看落地页再注册）
 function getInviteCode(){
