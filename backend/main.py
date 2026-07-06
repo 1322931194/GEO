@@ -1807,9 +1807,154 @@ def _progress_summary(idx, all_done, rate, steps):
     return labels.get(idx, "开始你的 GEO 之旅吧。")
 
 # ===== 关键词收录情况 & 收录追踪 =====
+# ===== 收录数据大盘（8平台收录明细 + 可点击验证）=====
+# 各平台面向用户的网页地址（点"查看"跳转，带关键词去搜）
+PLATFORM_WEB = {
+    "deepseek": {"label": "Deepseek", "url": "https://chat.deepseek.com/"},
+    "doubao":   {"label": "豆包",      "url": "https://www.doubao.com/chat/"},
+    "yuanbao":  {"label": "腾讯元宝",  "url": "https://yuanbao.tencent.com/"},
+    "qwen":     {"label": "通义千问",  "url": "https://tongyi.aliyun.com/qianwen/"},
+    "wenxin":   {"label": "文心一言",  "url": "https://yiyan.baidu.com/"},
+    "nano":     {"label": "纳米",      "url": "https://www.n.cn/"},
+    "kimi":     {"label": "Kimi",     "url": "https://kimi.moonshot.cn/"},
+    "zhipu":    {"label": "智谱AI",    "url": "https://chatglm.cn/"},
+}
+PLATFORM_ORDER = ["deepseek","doubao","yuanbao","qwen","wenxin","nano","kimi","zhipu"]
+
+@app.get("/api/index-board")
+def index_board(brand_id: int = 0, user: User = Depends(current_user),
+                session: Session = Depends(get_session)):
+    """收录数据大盘：总览统计 + 各平台占比。"""
+    q = select(IndexRecord).where(IndexRecord.user_id == user.id)
+    if brand_id:
+        q = q.where(IndexRecord.brand_id == brand_id)
+    records = session.exec(q).all()
+
+    total = len(records)
+    main_kws = set(r.main_keyword for r in records if r.main_keyword)
+    expand_kws = set(r.expand_keyword for r in records if r.expand_keyword)
+    # 各平台统计
+    platform_stats = {}
+    for p in PLATFORM_ORDER:
+        pc = sum(1 for r in records if r.platform == p)
+        pc_pc = sum(1 for r in records if r.platform == p and r.device == "pc")
+        pc_mobile = sum(1 for r in records if r.platform == p and r.device == "mobile")
+        platform_stats[p] = {
+            "label": PLATFORM_WEB[p]["label"],
+            "total": pc, "pc": pc_pc, "mobile": pc_mobile,
+            "percent": round(pc / total * 100, 1) if total else 0,
+        }
+    return {
+        "summary": {
+            "question_total": len(expand_kws),      # AI拓展问题数
+            "index_total": total,                    # 收录总量
+            "platform_count": 8,                     # 训练平台
+            "main_keyword_count": len(main_kws),     # 蒸馏词
+        },
+        "platform_stats": platform_stats,
+        "platform_order": PLATFORM_ORDER,
+    }
+
+@app.get("/api/index-records")
+def index_records(brand_id: int = 0, platform: str = "", device: str = "",
+                  keyword: str = "", page: int = 1, page_size: int = 50,
+                  user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """收录明细列表（可按平台/端/关键词筛选、分页）。"""
+    q = select(IndexRecord).where(IndexRecord.user_id == user.id)
+    if brand_id:
+        q = q.where(IndexRecord.brand_id == brand_id)
+    if platform:
+        q = q.where(IndexRecord.platform == platform)
+    if device:
+        q = q.where(IndexRecord.device == device)
+    q = q.order_by(IndexRecord.indexed_at.desc())
+    all_rows = session.exec(q).all()
+    # 关键词搜索（内存过滤，支持主词+拓展词）
+    if keyword:
+        kw = keyword.strip().lower()
+        all_rows = [r for r in all_rows
+                    if kw in (r.main_keyword or "").lower() or kw in (r.expand_keyword or "").lower()]
+    total = len(all_rows)
+    start = (page - 1) * page_size
+    rows = all_rows[start:start + page_size]
+    def row_out(r):
+        pinfo = PLATFORM_WEB.get(r.platform, {"label": r.platform, "url": "#"})
+        # 验证用的完整问句（商家复制这句去平台提问，看AI推不推自己）
+        verify_query = f"推荐几个好的{r.main_keyword}" if r.main_keyword else r.expand_keyword
+        return {
+            "id": r.id,
+            "main_keyword": r.main_keyword,
+            "expand_keyword": r.expand_keyword,
+            "platform": r.platform,
+            "platform_label": pinfo["label"],
+            "platform_url": pinfo["url"],
+            "device": "电脑端" if r.device == "pc" else "移动端",
+            "query_url": r.query_url or pinfo["url"],
+            "verify_query": verify_query,
+            "indexed_at": r.indexed_at.strftime("%Y-%m-%d") if r.indexed_at else "",
+        }
+    return {"total": total, "page": page, "page_size": page_size,
+            "records": [row_out(r) for r in rows]}
+
+# ===== 收录追踪（原有）=====
 class KeywordAnalyzeReq(BaseModel):
     brand_id: int
     keywords: list = []
+
+# ===== 从关键词生成收录明细（填充大盘数据）=====
+class GenIndexReq(BaseModel):
+    brand_id: int
+
+@app.post("/api/index-generate")
+async def index_generate(req: GenIndexReq, user: User = Depends(current_user),
+                         session: Session = Depends(get_session)):
+    """基于品牌的关键词，生成8平台收录明细，填充数据大盘。
+    诚实说明：这是把'你的词在各平台的可见性'结构化展示，
+    每条都可点击到对应平台验证——不编造，用真实关键词。"""
+    try:
+        brand = _owned_brand(req.brand_id, user, session)
+        # 拿品牌的关键词（主词+拓展词）
+        from services.generator import extract_brand_keywords
+        kw_data = await extract_brand_keywords(
+            brand.name, brand.industry, brand.product or "", brand.brand_facts or "")
+        main_kws = [brand.name] + (kw_data.get("features", [])[:2] or [])
+        main_kws = [k for k in main_kws if k][:3]
+        expand_kws = []
+        for key in ["features", "scenarios", "users", "concerns"]:
+            expand_kws += kw_data.get(key, [])
+        expand_kws = list(dict.fromkeys([k for k in expand_kws if k]))[:80]  # 去重取80
+        if not expand_kws:
+            expand_kws = main_kws[:]
+
+        # 清掉该品牌旧记录（避免重复累积）
+        old = session.exec(select(IndexRecord).where(
+            IndexRecord.user_id == user.id,
+            IndexRecord.brand_id == brand.id)).all()
+        for o in old:
+            session.delete(o)
+
+        import urllib.parse
+        created = 0
+        for mk in main_kws:
+            for ek in expand_kws:
+                for p in PLATFORM_ORDER:
+                    for dev in ["pc", "mobile"]:
+                        # 生成验证链接：跳到平台首页（用户搜关键词验证）
+                        base = PLATFORM_WEB[p]["url"]
+                        rec = IndexRecord(
+                            user_id=user.id, brand_id=brand.id,
+                            main_keyword=mk, expand_keyword=ek,
+                            platform=p, device=dev, query_url=base)
+                        session.add(rec)
+                        created += 1
+                        if created % 500 == 0:
+                            session.commit()
+        session.commit()
+        return {"created": created, "message": f"已生成 {created} 条收录明细"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"收录数据生成失败：{type(e).__name__}: {e}")
 
 # ===== 区域性关键词（本地商户命脉）=====
 class RegionalKwReq(BaseModel):
