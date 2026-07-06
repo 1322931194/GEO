@@ -584,8 +584,12 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
 .mode-card p{font-size:13px;color:var(--ink-soft);line-height:1.5}
 
 /* 平台标签 */
-.kw-tag{display:inline-block;background:var(--cyan-soft);border:1px solid var(--line);
-  color:var(--cyan);border-radius:7px;padding:4px 11px;font-size:12px;margin:3px;white-space:nowrap}
+.kw-tag{display:inline-block;background:rgba(90,125,90,.14);border:1px solid rgba(90,125,90,.35);
+  color:#3a5a3a;border-radius:7px;padding:4px 11px;font-size:12px;margin:3px;white-space:nowrap;font-weight:600}
+.dark-app .kw-tag{background:rgba(168,196,140,.15);border-color:rgba(168,196,140,.4);color:#c5dba8}
+.dark-app .kw-tag.kw-feat{background:rgba(201,154,82,.16);border-color:rgba(201,154,82,.4);color:#e0b878}
+.dark-app .kw-tag.kw-scen{background:rgba(120,180,120,.15);border-color:rgba(120,180,120,.4);color:#9ed49e}
+.dark-app .kw-tag.kw-user{background:rgba(160,150,220,.16);border-color:rgba(160,150,220,.4);color:#c4bcf0}
 .ws-tab{padding:10px 18px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--panel);
   font-size:14px;font-weight:600;color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:.2s}
 .ws-tab:hover{color:var(--ink);border-color:var(--line-2)}
@@ -1380,6 +1384,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               </div>
               <div id="repGuide"></div>
               <div id="repScore"></div>
+              <div id="repBattleFlow"></div>
               <div id="repAlerts"></div>
               <div id="repCrisis"></div>
               <div class="metrics" id="repMetrics"></div>
@@ -3880,9 +3885,9 @@ async function loadQuestions(){
           <span style="float:right;font-size:11px;color:var(--ink-soft)">特征有偏差？返回第1步补充信息后重新生成</span>
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:4px">
-          ${(kw.features||[]).map(f=>`<span class="kw-tag" style="background:#fef3c7;border-color:#fde68a;color:var(--warn)">🏷 ${f}</span>`).join("")}
-          ${(kw.scenarios||[]).map(s=>`<span class="kw-tag" style="background:#f0fdf4;border-color:#a7f3d0;color:var(--good)">📍 ${s}</span>`).join("")}
-          ${(kw.users||[]).map(u=>`<span class="kw-tag" style="background:#f5f3ff;border-color:#ddd6fe;color:#5b21b6">👤 ${u}</span>`).join("")}
+          ${(kw.features||[]).map(f=>`<span class="kw-tag kw-feat">🏷 ${f}</span>`).join("")}
+          ${(kw.scenarios||[]).map(s=>`<span class="kw-tag kw-scen">📍 ${s}</span>`).join("")}
+          ${(kw.users||[]).map(u=>`<span class="kw-tag kw-user">👤 ${u}</span>`).join("")}
           ${(kw.concerns||[]).map(c=>`<span class="kw-tag">❓ ${c}</span>`).join("")}
         </div>`;
       kwCard.classList.remove("hidden");
@@ -4050,6 +4055,49 @@ function togglePfEvid(id){
   if(el) el.style.display = el.style.display==="none" ? "block" : "none";
 }
 
+// ===== GEO 五步作战流程导航（专家视角：把散功能串成一条作战线）=====
+function renderBattleFlow(rep){
+  const el=document.getElementById("repBattleFlow");
+  if(!el) return;
+  const rate=rep.mention_rate||0;
+  const hasComp=Object.keys(rep.competitor_share||{}).length>0;
+  const steps=[
+    {n:1, name:"侦察", desc:"查清AI推不推你、对手是谁", done:true},
+    {n:2, name:"选靶", desc:"锁定该抢的关键词、长尾词、区域词", done:false,
+     cta:"看关键词商机", fn:"document.getElementById('repCitations')?.scrollIntoView({behavior:'smooth'})"},
+    {n:3, name:"备料", desc:"生成客户会问的内容，让AI收录", done:false,
+     cta:"去内容工厂", fn:"navTo('ws')"},
+    {n:4, name:"发射", desc:"发到AI信任的高权重平台", done:false,
+     cta:"看媒体矩阵", fn:"navTo('ws')"},
+    {n:5, name:"复盘", desc:"隔2-3周复测，看推荐率变化", done:false,
+     cta:"了解复测", fn:"toast('发布内容2-3周后，回来重新监测，即可看到AI推荐率的变化')"},
+  ];
+  const curIdx=1;
+  let h=`<div style="background:linear-gradient(135deg,#211d17,#1a1712);border:1px solid rgba(168,196,140,.2);border-radius:16px;padding:20px 22px;margin:20px 0">
+    <div style="font-size:15px;font-weight:700;color:#f4f1ea;margin-bottom:4px">🎖️ 你的 GEO 作战流程</div>
+    <div style="font-size:12.5px;color:rgba(244,241,234,.6);margin-bottom:16px">侦察已完成 ✅ 接下来照着这条线走，一步步让 AI 推荐你</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">`;
+  steps.forEach((s,i)=>{
+    const isCur=i===curIdx;
+    const bg=s.done?"rgba(168,196,140,.15)":isCur?"rgba(201,154,82,.2)":"rgba(244,241,234,.04)";
+    const bd=s.done?"rgba(168,196,140,.4)":isCur?"#c99a52":"rgba(244,241,234,.1)";
+    const ic=s.done?"✅":isCur?"👉":s.n;
+    const col=s.done?"#a8c48c":isCur?"#c99a52":"rgba(244,241,234,.45)";
+    h+=`<div style="flex:1;min-width:100px;background:${bg};border:1px solid ${bd};border-radius:10px;padding:10px 12px">
+      <div style="font-size:13px;font-weight:700;color:${col}">${ic} ${s.name}</div>
+      <div style="font-size:10.5px;color:rgba(244,241,234,.6);margin-top:4px;line-height:1.4">${s.desc}</div>
+    </div>`;
+  });
+  h+=`</div>`;
+  const cur=steps[curIdx];
+  h+=`<div style="background:rgba(244,241,234,.05);border-radius:12px;padding:16px 18px">
+    <div style="font-size:13px;font-weight:700;color:#c99a52;margin-bottom:6px">👉 看完报告，你的下一步：${cur.name}——${cur.desc}</div>
+    <div style="font-size:12px;color:rgba(244,241,234,.7);line-height:1.7;margin-bottom:12px">💡 为什么：监测让你看清了现状，但光看没用。GEO 是"侦察→选靶→备料→发射→复盘"的完整作战，现在该把发现的差距，变成具体要抢的关键词和内容。</div>
+    <button class="btn-primary pulse-cta" style="font-size:13px;padding:9px 20px" onclick="${cur.fn}">${cur.cta} →</button>
+  </div></div>`;
+  el.innerHTML=h;
+}
+
 function renderReport(rep){
   // 安全执行器：任何单个模块渲染失败，都不影响其他模块和整个报告
   const safe = (name, fn) => {
@@ -4085,6 +4133,7 @@ function renderReport(rep){
     return; // 数据全空时，不再渲染下面那些会显示空白的模块
   }
   safe("评分", ()=>renderScore(rep));
+  safe("作战流程", ()=>renderBattleFlow(rep));
   safe("预警", ()=>renderAlerts(rep));
   safe("其余模块", ()=>renderReportBody(rep));
 }
