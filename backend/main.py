@@ -1811,6 +1811,51 @@ class KeywordAnalyzeReq(BaseModel):
     brand_id: int
     keywords: list = []
 
+# ===== 区域性关键词（本地商户命脉）=====
+class RegionalKwReq(BaseModel):
+    brand_id: int
+    region: str = ""
+
+@app.post("/api/regional-keywords")
+async def regional_keywords(req: RegionalKwReq, user: User = Depends(current_user),
+                            session: Session = Depends(get_session)):
+    """为本地商户生成区域性高意图关键词。"""
+    try:
+        brand = _owned_brand(req.brand_id, user, session)
+        region = req.region or brand.region or ""
+        # 如果传了新地区，存下来
+        if req.region and req.region != brand.region:
+            brand.region = req.region
+            session.add(brand); session.commit()
+        from services.generator import generate_regional_keywords
+        return await generate_regional_keywords(
+            brand.name, brand.industry, brand.product or "", region)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"区域词生成失败：{type(e).__name__}: {e}")
+
+# ===== GEO 资料清单 =====
+class MaterialReq(BaseModel):
+    brand_id: int
+    is_local: bool = False
+
+@app.post("/api/material-checklist")
+async def material_checklist(req: MaterialReq, user: User = Depends(current_user),
+                             session: Session = Depends(get_session)):
+    """生成'做GEO要准备哪些资料'的清单。"""
+    try:
+        brand = _owned_brand(req.brand_id, user, session)
+        # 有地区信息则视为本地商户
+        is_local = req.is_local or bool(brand.region)
+        from services.generator import generate_material_checklist
+        return await generate_material_checklist(
+            brand.name, brand.industry, brand.product or "", is_local)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"资料清单生成失败：{type(e).__name__}: {e}")
+
 @app.post("/api/keyword/analyze")
 async def keyword_analyze(req: KeywordAnalyzeReq, user: User = Depends(current_user),
                           session: Session = Depends(get_session)):
