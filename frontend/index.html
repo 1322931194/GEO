@@ -130,6 +130,15 @@ input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:12px
 input::placeholder,textarea::placeholder{color:var(--ink-faint)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);
   box-shadow:0 0 0 3px var(--cyan-soft);background:#fff}
+/* ===== 深色后台输入框：根治白底白字看不清 ===== */
+.dark-app input,.dark-app select,.dark-app textarea{
+  background:#2a251e !important;color:#f4f1ea !important;
+  border-color:rgba(244,241,234,.2) !important}
+.dark-app input:focus,.dark-app select:focus,.dark-app textarea:focus{
+  background:#2a251e !important;border-color:var(--cyan) !important}
+.dark-app input::placeholder,.dark-app textarea::placeholder{
+  color:rgba(244,241,234,.45) !important}
+.dark-app select option{background:#2a251e;color:#f4f1ea}
 select option{background:#fff;color:var(--ink)}
 label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-weight:500}
 .field{margin-bottom:16px}
@@ -1584,44 +1593,73 @@ function _realBg(el){
 }
 function fixContrast(scope){
   const root = scope || document.body;
-  const els = root.querySelectorAll("div,section,p,h1,h2,h3,h4,h5,span,li,ul,td,th,label,a,button,strong,b,em");
+  // 覆盖所有可能有文字的元素 + 输入框
+  const els = root.querySelectorAll("div,section,p,h1,h2,h3,h4,h5,h6,span,li,ul,ol,td,th,label,a,button,strong,b,em,small,input,textarea,select,option");
   els.forEach(el=>{
     // 排除：故意的模拟AI对话白卡片、悬浮客服、支付弹窗等设计元素
     if(el.closest(".sim-card,.chat-demo,.ai-mock,.lp-hero-visual,.hero-demo,#floatCS,#csCard,#payModal,.pay-modal")) return;
-    // 只处理有直接文字的元素
-    let hasText=false;
-    for(const n of el.childNodes){ if(n.nodeType===3 && n.textContent.trim().length>0){hasText=true;break;} }
-    if(!hasText) return;
+    const tag = el.tagName;
+    const isInput = (tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT");
+    // 非输入框：只处理有直接文字的元素
+    if(!isInput){
+      let hasText=false;
+      for(const n of el.childNodes){ if(n.nodeType===3 && n.textContent.trim().length>0){hasText=true;break;} }
+      if(!hasText) return;
+    }
     const s=getComputedStyle(el);
     const col=_parseRGB(s.color);
     if(!col) return;
-    const bg=_realBg(el);
+    // 输入框：背景取自身（因为它有自己的背景色）
+    let bg;
+    if(isInput){
+      const ownBg=_parseRGB(s.backgroundColor);
+      bg = (ownBg && ownBg.a>0.5) ? ownBg.rgb : _realBg(el);
+    } else {
+      bg=_realBg(el);
+    }
     const cr=_contrast(col.rgb, bg);
-    if(cr < 3.2){  // 对比度不足，需要修
+    if(cr < 4.5){  // WCAG AA 标准，提高到4.5彻底清晰
       const bgBright=(bg[0]+bg[1]+bg[2])/3;
-      // 背景深→字改亮；背景浅→字改深
       if(bgBright < 128){
-        el.style.setProperty("color","rgba(244,241,234,.9)","important");
+        // 背景深→字改亮白
+        el.style.setProperty("color","#f4f1ea","important");
       } else {
+        // 背景浅→字改深墨（输入框还要确保背景够浅）
         el.style.setProperty("color","#26221c","important");
+        if(isInput){
+          const ib=_parseRGB(s.backgroundColor);
+          // 输入框如果是深底浅字修不好，强制改成白底深字
+          if(ib && (ib.rgb[0]+ib.rgb[1]+ib.rgb[2])/3 < 128){
+            el.style.setProperty("background","#ffffff","important");
+          }
+        }
       }
     }
   });
 }
-// 落地页专用（保留原名兼容）
+// 全站修复（落地页+后台，改名保留兼容）
 function fixLandingContrast(){
-  const lp=document.getElementById("landingView");
-  if(lp && !lp.classList.contains("hidden")) fixContrast(lp);
-  const app=document.getElementById("appView");
-  if(app && !app.classList.contains("hidden")) fixContrast(app);
+  fixContrast(document.body);
 }
-// 加载后跑，并监听页面切换动态内容
+// 加载后跑多次（等动态内容渲染）
 window.addEventListener("load", ()=>{
   setTimeout(fixLandingContrast, 300);
   setTimeout(fixLandingContrast, 1200);
+  setTimeout(fixLandingContrast, 2500);
 });
 // 暴露给navTo等切换后调用
 window._fixContrast = fixLandingContrast;
+// 监听DOM变化，动态内容出现后自动修复（防抖）
+let _fixTimer;
+if(typeof MutationObserver!=="undefined"){
+  const _obs = new MutationObserver(()=>{
+    clearTimeout(_fixTimer);
+    _fixTimer = setTimeout(()=>{ try{ fixContrast(document.body); }catch(e){} }, 350);
+  });
+  window.addEventListener("load", ()=>{
+    try{ _obs.observe(document.body, {childList:true, subtree:true}); }catch(e){}
+  });
+}
 
 // 从URL读取邀请码并保存（用户可能先看落地页再注册）
 function getInviteCode(){
