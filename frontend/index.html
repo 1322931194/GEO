@@ -126,7 +126,7 @@ button{font-family:inherit;cursor:pointer;border:none;border-radius:var(--r-sm);
 /* 表单 */
 input,select,textarea{font-family:inherit;font-size:14px;width:100%;padding:12px 14px;
   border:1px solid var(--line-2);border-radius:var(--r-sm);
-  background:#fff;color:var(--ink);transition:.18s}
+  background:var(--panel);color:var(--ink);transition:.18s}
 input::placeholder,textarea::placeholder{color:var(--ink-faint)}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);
   box-shadow:0 0 0 3px var(--cyan-soft);background:#fff}
@@ -139,7 +139,23 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);
 .dark-app input::placeholder,.dark-app textarea::placeholder{
   color:rgba(244,241,234,.45) !important}
 .dark-app select option{background:#2a251e;color:#f4f1ea}
-select option{background:#fff;color:var(--ink)}
+/* ===== 根治：写死白底的元素，文字强制深色（不随主题变亮）===== */
+.dark-app [style*="background:#fff"],
+.dark-app [style*="background: #fff"],
+.dark-app [style*="background:#ffffff"],
+.dark-app [style*="background:white"]{
+  color:#26221c !important;
+}
+.dark-app [style*="background:#fff"] *:not(button):not([style*="color:#fff"]):not([style*="color:white"]),
+.dark-app [style*="background:#ffffff"] *:not(button):not([style*="color:#fff"]):not([style*="color:white"]){
+  color:#26221c !important;
+}
+/* 白底里用了--ink-soft的次要文字，改成能看清的中灰 */
+.dark-app [style*="background:#fff"] [style*="--ink-soft"],
+.dark-app [style*="background:#fff"] [style*="ink-soft"]{
+  color:#6b655b !important;
+}
+select option{background:var(--panel);color:var(--ink)}
 label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-weight:500}
 .field{margin-bottom:16px}
 
@@ -203,7 +219,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .ai-chat{position:relative}
 .ai-chat-glow{position:absolute;inset:-40px;z-index:0;
   background:radial-gradient(circle at 50% 30%,var(--cyan-soft),transparent 65%);filter:blur(20px)}
-.ai-chat-win{position:relative;z-index:1;background:#fff;
+.ai-chat-win{position:relative;z-index:1;background:var(--panel);
   backdrop-filter:blur(20px);border:1px solid var(--line-2);border-radius:var(--r-xl);
   box-shadow:var(--sh-lg),0 0 60px var(--cyan-soft);overflow:hidden}
 .ai-chat-bar{display:flex;align-items:center;gap:8px;padding:14px 18px;border-bottom:1px solid var(--line)}
@@ -906,7 +922,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
     <div style="max-width:600px;margin:24px auto 0;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px">
       <!-- 模式切换 -->
       <div style="display:flex;gap:6px;background:var(--bg);border-radius:8px;padding:4px;margin-bottom:14px">
-        <button id="simTabOut" onclick="simSetMode('outbound')" style="flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌍 出海（问英文AI）</button>
+        <button id="simTabOut" onclick="simSetMode('outbound')" style="flex:1;padding:7px;background:var(--panel);color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)">🌍 出海（问英文AI）</button>
         <button id="simTabDom" onclick="simSetMode('domestic')" style="flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer">🇨🇳 国内（问中文AI）</button>
       </div>
       <!-- 输入框 -->
@@ -1435,10 +1451,10 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
                 <div style="font-weight:700;font-size:15px;margin-bottom:6px">⚔️ 竞品对比分析</div>
-                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">输入竞品官网，系统用同样的问题集监测竞品，告诉你对方为什么比你被AI推荐得多</p>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">填竞品公司名即可对比（有官网更准，没有也能测）。系统用同样的问题监测竞品，告诉你对方为什么比你被 AI 推荐得多。</p>
                 <div style="display:flex;gap:10px;flex-wrap:wrap">
-                  <input id="compUrl" placeholder="竞品官网，如 anker.com" style="flex:1;min-width:200px">
-                  <input id="compName" placeholder="竞品名称（可选）" style="width:140px">
+                  <input id="compName" placeholder="竞品公司名（必填）" style="flex:1;min-width:180px">
+                  <input id="compUrl" placeholder="竞品官网（选填，如 anker.com）" style="flex:1;min-width:180px">
                   <button class="btn-primary" style="font-size:13px;padding:11px 18px" onclick="doCompare()" id="compareBtn">开始对比</button>
                 </div>
                 <div id="compareResult" style="margin-top:14px"></div>
@@ -2051,7 +2067,7 @@ function renderBattleMap(){
           <div style="width:46px;height:46px;border-radius:50%;background:${s.color};color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;flex-shrink:0">${s.n}</div>
           ${i<steps.length-1?`<div style="width:2px;flex:1;background:var(--line);margin:4px 0"></div>`:''}
         </div>
-        <div style="flex:1;background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:4px">
+        <div style="flex:1;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:4px">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
             <div style="font-size:17px;font-weight:800;color:var(--ink)">${s.ic} ${escHtml(s.title)}<span style="font-size:14px;font-weight:500;color:var(--ink-soft);margin-left:10px">${escHtml(s.q)}</span></div>
             <button class="btn-ghost" style="padding:8px 18px;font-size:13px;white-space:nowrap" onclick="${s.act}">${escHtml(s.btn)} →</button>
@@ -2393,7 +2409,7 @@ async function genContentPack(){
       html += `<div class="pack-ver" id="packVer${i}" style="display:${i===0?'block':'none'}">
         <div style="font-size:12px;color:var(--matcha);margin-bottom:8px">💡 ${escHtml(v.why)}</div>
         ${warn}
-        <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:10px">
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:10px">
           <div style="font-weight:700;font-size:15px;margin-bottom:10px">${escHtml(v.title)}</div>
           <div style="font-size:13.5px;line-height:1.75;white-space:pre-wrap;color:#333">${escHtml(v.body)}</div>
         </div>
@@ -2949,7 +2965,7 @@ async function genSchema(){
     const faqList = d.faq || d.faqs || [];
     if(faqList.length){
       html += `<div style="font-size:13px;font-weight:600;margin:16px 0 8px">❓ 生成的 FAQ（可发布到官网/知乎）</div>`;
-      faqList.forEach(f=>{ html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">Q: ${escHtml(f.q||f.question||'')}</div><div style="font-size:13px;color:#444;line-height:1.6">A: ${escHtml(f.a||f.answer||'')}</div></div>`; });
+      faqList.forEach(f=>{ html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:8px"><div style="font-weight:600;font-size:13px;margin-bottom:4px">Q: ${escHtml(f.q||f.question||'')}</div><div style="font-size:13px;color:#444;line-height:1.6">A: ${escHtml(f.a||f.answer||'')}</div></div>`; });
     }
     res.innerHTML = html;
     window.__schemaCode = typeof schemaCode==='string'?schemaCode:JSON.stringify(schemaCode,null,2);
@@ -2985,7 +3001,7 @@ function renderKnowledgeTab(d){
         <button class="btn-ghost" style="font-size:13px;padding:10px 18px" onclick="showAddKbForm()">+ 手动添加</button>
       </div>
     </div>
-    <div id="addKbForm" style="display:none;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px">
+    <div id="addKbForm" style="display:none;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px">
       <select id="kbCat" style="width:100%;padding:10px;border:1.5px solid var(--line);border-radius:8px;margin-bottom:10px;font-family:inherit;font-size:14px">
         <option value="selling_point">💎 卖点</option>
         <option value="faq">❓ 常见问答</option>
@@ -3009,7 +3025,7 @@ function renderKnowledgeTab(d){
   } else {
     html+=`<div style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">共 ${d.total} 条知识</div>`;
     d.items.forEach(it=>{
-      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+      html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px">
           <div style="flex:1">
             <div style="font-size:11px;color:var(--good);font-weight:600;margin-bottom:4px">${catLabels[it.category]||it.category}</div>
@@ -3085,7 +3101,7 @@ function renderTopicsTab(d){
     d.topics.forEach((t,i)=>{
       const prioColor=t.priority==='high'?'var(--bad)':'var(--warn)';
       const prioText=t.priority==='high'?'高优先':'推荐';
-      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
+      html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap">
           <div style="flex:1;min-width:180px">
             <div style="font-size:14px;font-weight:600;margin-bottom:4px">${escHtml(t.question)}</div>
@@ -3141,7 +3157,7 @@ function renderContentsTab(d){
       const statusStyle=pub?'background:var(--good-soft);color:var(--good)':pending?'background:var(--warn-soft);color:var(--warn)':'background:#f1f5f9;color:var(--ink-soft)';
       const fullText=(ct.title?ct.title+'\n\n':'')+(ct.body||'');
       const bodyId='wsbody_'+ct.id;
-      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
+      html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;margin-bottom:10px">
           <div style="font-size:15px;font-weight:700;flex:1">${escHtml(ct.title||ct.question)}</div>
           <span style="font-size:11px;padding:3px 10px;border-radius:10px;white-space:nowrap;${statusStyle}">${statusLabel}</span>
@@ -3294,12 +3310,12 @@ function renderReferral(d){
         <div style="font-size:13px;color:var(--warn);margin-bottom:6px">累计佣金</div>
         <div style="font-size:32px;font-weight:900;color:var(--warn)">¥${d.total_commission}</div>
       </div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已邀请</div>
         <div style="font-size:32px;font-weight:900;color:var(--ink)">${d.total_invited}</div>
         <div style="font-size:12px;color:var(--ink-soft)">人注册</div>
       </div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">已付费</div>
         <div style="font-size:32px;font-weight:900;color:var(--good)">${d.total_paid}</div>
         <div style="font-size:12px;color:var(--ink-soft)">人转化</div>
@@ -3307,7 +3323,7 @@ function renderReferral(d){
     </div>
 
     <!-- 邀请链接 -->
-    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:20px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-bottom:20px">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">📨 你的专属邀请链接</div>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">分享这个链接，好友通过它注册并付费，你就能获得<b style="color:var(--warn)">推广奖励</b>，套餐越高奖励越多</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
@@ -3333,7 +3349,7 @@ function renderReferral(d){
 
   // 邀请记录
   if(d.referrals && d.referrals.length){
-    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+    html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
       <div style="font-size:14px;font-weight:700;margin-bottom:14px">📋 邀请记录</div>`;
     d.referrals.forEach(r=>{
       const statusColor = r.status==='paid'?'var(--good)':'var(--ink-faint)';
@@ -3596,23 +3612,23 @@ function renderDashboard(d){
 
     <!-- 核心指标卡 -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:24px">
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">当前 AI 提及率</div>
         <div style="font-size:36px;font-weight:900;color:var(--brand);line-height:1;cursor:pointer;border-bottom:2px dashed var(--cyan);display:inline-block" onclick="showChatSnapshots()" title="点击查看 AI 对话现场">${d.current_rate}%</div>
         <div style="font-size:11px;color:var(--cyan);margin-top:4px;cursor:pointer" onclick="showChatSnapshots()">👆 点击看 AI 对话现场</div>
         <div style="font-size:13px;margin-top:6px;color:${changeColor};font-weight:600">${d.change_vs_prev!==null?`${changeStr} pt 相比上次`:'首次'}</div>
       </div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">累计提升</div>
         <div style="font-size:36px;font-weight:900;color:${d.change_vs_first>=0?'var(--good)':'var(--bad)'};line-height:1">${d.change_vs_first>=0?'+':''}${d.change_vs_first}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">相比首次 ${d.first_rate}%</div>
       </div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">被引用来源</div>
         <div style="font-size:36px;font-weight:900;color:var(--cyan);line-height:1">${d.source_count}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">AI 引用的外部站点</div>
       </div>
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px">
         <div style="font-size:13px;color:var(--ink-soft);margin-bottom:6px">监测次数</div>
         <div style="font-size:36px;font-weight:900;color:var(--ink);line-height:1">${d.monitor_count}</div>
         <div style="font-size:13px;margin-top:6px;color:var(--ink-soft)">累计监测</div>
@@ -3620,7 +3636,7 @@ function renderDashboard(d){
     </div>
 
     <!-- 目标进度 -->
-    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
         <div style="font-size:14px;font-weight:600">🎯 距离目标提及率 ${d.target}%</div>
         <div style="font-size:14px;font-weight:700;color:var(--brand)">${d.progress_pct}%</div>
@@ -3632,13 +3648,13 @@ function renderDashboard(d){
     </div>
 
     <!-- 趋势图 -->
-    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:600;margin-bottom:16px">📈 提及率变化趋势</div>
       <canvas id="dashTrendChart" height="100"></canvas>
     </div>
 
     <!-- 品牌健康度雷达图 -->
-    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:8px">
         <div style="font-size:14px;font-weight:600">🛡️ 品牌健康度雷达</div>
         <div style="display:flex;gap:14px;font-size:12px">
@@ -3654,7 +3670,7 @@ function renderDashboard(d){
 
   // 各平台表现
   if(d.platform_now && Object.keys(d.platform_now).length){
-    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+    html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="font-size:14px;font-weight:600;margin-bottom:16px">📊 各平台当前表现</div>`;
     for(const [pf,rate] of Object.entries(d.platform_now)){
       const chg = d.platform_change?.[pf];
@@ -3706,7 +3722,7 @@ async function loadROI(){
       srcRows+=`<tr style="border-top:1px solid var(--line)"><td style="padding:8px 6px;font-weight:600">${sourceNames[k]||k}</td><td>${v.visits}</td><td>${v.conversions}</td><td style="color:var(--good);font-weight:600">¥${v.value}</td></tr>`;
     });
     const html=`
-    <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:24px">
       <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px">
         <div style="font-size:14px;font-weight:600">💰 AI 带来的真实回报</div>
         <button class="btn-primary" style="font-size:12px;padding:6px 14px" onclick="showAddConversion()">+ 登记一笔成交</button>
@@ -3853,10 +3869,10 @@ function renderSnapshots(d, type){
           <div style="background:#95ec69;color:#26221c;padding:9px 13px;border-radius:8px;font-size:13.5px;max-width:80%;line-height:1.5">${escHtml(s.question)}</div>
         </div>
         <div style="display:flex;justify-content:flex-start">
-          <div style="background:#fff;color:#26221c;padding:11px 14px;border-radius:8px;font-size:13.5px;max-width:88%;line-height:1.7">${ans}</div>
+          <div style="background:var(--panel);color:#26221c;padding:11px 14px;border-radius:8px;font-size:13.5px;max-width:88%;line-height:1.7">${ans}</div>
         </div>
       </div>
-      <div style="background:#fff;border-top:1px solid #e3e3e3;padding:10px 14px;font-size:11px;color:#888;line-height:1.6">${evidText}</div>
+      <div style="background:var(--panel);border-top:1px solid #e3e3e3;padding:10px 14px;font-size:11px;color:#888;line-height:1.6">${evidText}</div>
     </div>`;
   });
 
@@ -3986,7 +4002,7 @@ function renderIndustryBenchmark(b){
         </div>`;
     }
     html=`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📊 行业大盘排名</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${b.message}</p>
         ${seedHtml}
@@ -4000,7 +4016,7 @@ function renderIndustryBenchmark(b){
     const colors={good:'var(--good)',neutral:'var(--warn)',bad:'var(--bad)'};
     const rc=colors[b.rank_color]||'var(--cyan)';
     html=`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:4px">📊 你在「${b.industry}」行业的排名</div>
         <div style="font-size:12px;color:var(--ink-soft);margin-bottom:16px">基于 ${b.sample_count} 个同行品牌的匿名数据</div>
         <div style="background:${rc}15;border:1px solid ${rc}40;border-radius:10px;padding:14px;margin-bottom:18px">
@@ -4048,7 +4064,7 @@ function renderAITraffic(t, bid){
   if(!t.has_tracking || !t.has_data){
     // 没有追踪或没数据，显示引导
     html = `
-      <div style="background:#fff;border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:6px">📡 AI 真实访客追踪</div>
         <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">
           ${t.message||'安装追踪代码，看到从 ChatGPT、Perplexity 等 AI 点链接进入你官网的真实访客。这是 AI 给你带来的真客户。'}
@@ -4064,23 +4080,23 @@ function renderAITraffic(t, bid){
       <div style="background:linear-gradient(135deg,#ecfdf5,#f0fdf4);border:1px solid #a7f3d0;border-radius:14px;padding:24px;margin-top:24px">
         <div style="font-size:16px;font-weight:700;margin-bottom:16px">📡 AI 真实访客（从AI点链接进你官网的人）</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:20px">
-          <div style="background:#fff;border-radius:12px;padding:16px">
+          <div style="background:var(--panel);border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">累计 AI 访客</div>
             <div style="font-size:30px;font-weight:900;color:var(--good)">${t.total_visits}</div>
           </div>
-          <div style="background:#fff;border-radius:12px;padding:16px">
+          <div style="background:var(--panel);border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">近 7 天</div>
             <div style="font-size:30px;font-weight:900;color:var(--ink)">${t.last_7_days}</div>
             <div style="font-size:12px;color:${wcColor};font-weight:600">${wcStr} vs 上周</div>
           </div>
-          <div style="background:#fff;border-radius:12px;padding:16px">
+          <div style="background:var(--panel);border-radius:12px;padding:16px">
             <div style="font-size:12px;color:var(--ink-soft);margin-bottom:4px">主要来源</div>
             <div style="font-size:18px;font-weight:700;color:var(--brand);margin-top:6px">${t.by_source[0]?.source||'—'}</div>
           </div>
         </div>`;
     // 各来源分布
     if(t.by_source.length){
-      html += `<div style="background:#fff;border-radius:12px;padding:16px;margin-bottom:14px">
+      html += `<div style="background:var(--panel);border-radius:12px;padding:16px;margin-bottom:14px">
         <div style="font-size:13px;font-weight:600;margin-bottom:12px">各 AI 平台带来的访客</div>`;
       const maxCount = Math.max(...t.by_source.map(s=>s.count));
       t.by_source.forEach(s=>{
@@ -4109,7 +4125,7 @@ async function showTrackingCode(bid){
     const modal = document.createElement('div');
     modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;display:flex;align-items:center;justify-content:center;padding:20px';
     modal.innerHTML=`
-      <div style="background:#fff;border-radius:16px;padding:28px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
+      <div style="background:var(--panel);border-radius:16px;padding:28px;max-width:560px;width:100%;max-height:85vh;overflow-y:auto" onclick="event.stopPropagation()">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <h3 style="font-size:18px;font-weight:700">📋 你的 AI 访客追踪代码</h3>
           <button onclick="this.closest('div[style*=fixed]').remove()" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--ink-faint)">×</button>
@@ -4285,7 +4301,7 @@ async function goMonitor(){
     ? ["DeepSeek","豆包","通义千问","Kimi","文心一言"]
     : ["ChatGPT","Gemini","Claude","Perplexity","DeepSeek"];
   const monPf=document.getElementById("monPlatforms");
-  monPf.innerHTML=platformLabels.map(p=>`<span style="background:#fff;border:1px solid var(--line);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--ink-soft)">${p}</span>`).join("")
+  monPf.innerHTML=platformLabels.map(p=>`<span style="background:var(--panel);border:1px solid var(--line);padding:5px 12px;border-radius:20px;font-size:12px;color:var(--ink-soft)">${p}</span>`).join("")
     +`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;width:100%">实际监测平台以你配置的 API 密钥为准</div>`;
   const msgs=[
     ...platformLabels.map(p=>`正在让 ${p} 回答你客户的问题…`),
@@ -4348,7 +4364,7 @@ async function goMonitor(){
             <div style="flex:1;background:#f6f5f2;border-radius:8px;padding:10px 8px">漏掉1个客户<br><b style="color:var(--ink);font-size:14px">¥几千+</b></div>
             <div style="flex:1;background:#eef7ee;border:1px solid var(--brand);border-radius:8px;padding:10px 8px">见微单次<br><b style="color:var(--brand);font-size:14px">¥99</b></div>
           </div>
-          <div style="background:#fff;border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:14px">
+          <div style="background:var(--panel);border:2px solid var(--brand);border-radius:12px;padding:16px;margin-bottom:14px">
             <div style="font-size:13px;color:var(--ink-soft);margin-bottom:8px">扫码付款后，发截图给客服开通：</div>
             <div style="font-size:16px;font-weight:700;color:var(--brand)">微信客服：jenly222</div>
             <div style="font-size:12px;color:var(--ink-soft);margin-top:6px">发截图后 5 分钟内开通 · 7×24 小时</div>
@@ -4399,7 +4415,7 @@ function renderGuide(rep){
     hSub = `我们模拟客户问了 ${answeredQ} 次，只有 ${hitQ} 次 AI 提到你。也就是说，问 AI 的客户几乎都被推给了竞品。`;
   }
   el.innerHTML=`
-  <div style="background:#fff;border:2px solid ${hColor};border-radius:14px;padding:20px 24px;margin-bottom:16px">
+  <div style="background:var(--panel);border:2px solid ${hColor};border-radius:14px;padding:20px 24px;margin-bottom:16px">
     <div style="font-size:22px;font-weight:800;color:${hColor};margin-bottom:8px">${headline}</div>
     <div style="font-size:14px;color:var(--ink);line-height:1.7">${hSub}</div>
   </div>
@@ -4580,7 +4596,7 @@ function renderReportBody(rep){
     const picks = [...killer, ...justMiss].slice(0,2);
     if(picks.length>0){
       const cards = picks.map(r=>`
-        <div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-bottom:10px">
           <div style="font-size:11px;color:var(--ink-faint);margin-bottom:6px">${escHtml(r.platform_label||r.platform||"AI")} · 客户这样问</div>
           <div style="font-size:13.5px;color:var(--ink);font-weight:600;margin-bottom:8px">"${escHtml((r.question||"").slice(0,50))}"</div>
           ${r.competitors_mentioned&&r.competitors_mentioned.length?
@@ -4717,7 +4733,7 @@ async function genPerception(bid){
   try{
     const d = await api(`/api/brands/${bid}/perception`);
     if(!d.has_data){
-      box.innerHTML=`<div style="padding:16px;background:#fff;border-radius:10px;color:var(--ink-soft);font-size:13.5px">${escHtml(d.msg||'暂无足够数据')}</div>`;
+      box.innerHTML=`<div style="padding:16px;background:var(--panel);border-radius:10px;color:var(--ink-soft);font-size:13.5px">${escHtml(d.msg||'暂无足够数据')}</div>`;
       btn.style.display="none";
       return;
     }
@@ -4728,7 +4744,7 @@ async function genPerception(bid){
       ["竞争优势是否被正确表达", d.advantage_conveyed],
     ];
     let html = `
-      <div style="background:#fff;border-radius:12px;padding:18px 20px;margin-bottom:14px">
+      <div style="background:var(--panel);border-radius:12px;padding:18px 20px;margin-bottom:14px">
         <div style="font-size:12px;color:var(--matcha);font-weight:700;margin-bottom:6px">📝 AI 是如何描述你的</div>
         <div style="font-size:14px;line-height:1.7;color:var(--ink)">${escHtml(d.brand_description||'')}</div>
       </div>
@@ -4736,7 +4752,7 @@ async function genPerception(bid){
     bars.forEach(([label,obj])=>{
       const s = (obj&&obj.score)||0; const c = (obj&&obj.comment)||'';
       html += `
-        <div style="background:#fff;border-radius:10px;padding:14px 16px">
+        <div style="background:var(--panel);border-radius:10px;padding:14px 16px">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
             <span style="font-size:13.5px;font-weight:600">${label}</span>
             <span style="font-size:18px;font-weight:800;color:${scoreColor(s)}">${s}<span style="font-size:12px;color:var(--ink-faint)">/100</span></span>
@@ -4825,7 +4841,7 @@ async function loadBattlePlan(){
       const name = p.source || p.name || "";
       const advice = p.advice || p.how || "";
       const cited = (p.cited_count!==undefined) ? `<span style="font-size:11px;color:var(--clay);white-space:nowrap">AI引用 ${p.cited_count} 次</span>` : "";
-      return `<div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+      return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;margin-bottom:8px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
           <div style="font-size:14px;font-weight:700;color:var(--ink);word-break:break-all">${escHtml(name)}</div>
           ${cited}
@@ -4868,7 +4884,7 @@ async function loadBattlePlan(){
         <div style="font-size:13px;line-height:1.8;color:rgba(255,255,255,.92);margin-bottom:14px">
           看完别只收藏。<b>现在就做这一件事</b>：点下方按钮，让 AI 帮你针对速效词「${escHtml((d.target_keywords&&d.target_keywords[0]&&d.target_keywords[0].keyword)||'你的核心词')}」写好一篇内容，<b>复制下来发到上面②说的平台</b>。这就是你上推荐的第一步。
         </div>
-        <button class="btn-primary" style="background:#fff;color:var(--matcha);font-size:14px;padding:10px 22px;font-weight:700" onclick="navTo('ws')">✍️ 让 AI 帮我写好这篇内容 →</button>
+        <button class="btn-primary" style="background:var(--panel);color:var(--matcha);font-size:14px;padding:10px 22px;font-weight:700" onclick="navTo('ws')">✍️ 让 AI 帮我写好这篇内容 →</button>
         <div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:10px">写好后，照着「发到哪」复制粘贴发布即可。不会操作随时找客服。</div>
         <div style="margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.15)"><a href="/tutorial" target="_blank" style="color:#fff;font-size:12.5px;text-decoration:underline">📖 不懂 GEO 怎么做？看完整运营教程（监测→写文案→发文章）</a></div>
       </div>`;
@@ -4909,7 +4925,7 @@ function renderCompetitorBattle(cb){
   // 行动清单
   if((cb.action_checklist||[]).length){
     const dc={"易":"var(--good)","中":"var(--warn)","难":"var(--clay)"};
-    html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0">
+    html+=`<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0">
       <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:12px">📋 行动清单（照着做就行）</div>`;
     (cb.action_checklist||[]).forEach(a=>{
       html+=`<div style="display:flex;gap:10px;margin-bottom:12px">
@@ -5083,7 +5099,7 @@ function renderCompDiag(rep){
          </div>` : "";
     const sourceList = (c.sources||[]).length
       ? `<div style="margin-top:10px;font-size:12px;color:var(--ink-soft)">📍 AI 在这些地方"看到"了它：${c.sources.map(s=>escHtml(s)).join("、")}<br><span style="color:var(--matcha)">→ 你也该在这些源露出</span></div>` : "";
-    return `<div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px">
+    return `<div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <span style="font-size:15px;font-weight:700;color:var(--ink)">${escHtml(c.name)}</span>
         <span style="font-size:11px;font-weight:700;color:#fff;background:${vColor};padding:3px 10px;border-radius:10px">${c.verdict}</span>
@@ -5203,7 +5219,7 @@ function renderScore(rep){
       ${dimHtml}
     </div>
   </div>
-  <div style="background:#fff;border:1px solid var(--line);border-left:4px solid ${ptColor};border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:20px">
+  <div style="background:var(--panel);border:1px solid var(--line);border-left:4px solid ${ptColor};border-radius:0 12px 12px 0;padding:16px 20px;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700;color:var(--ink);line-height:1.6;margin-bottom:6px">💬 这个分数说明：${plainTalk}</div>
     <div style="font-size:13px;color:${ptColor};font-weight:600;margin-bottom:${basisLine?'10px':'0'}">👉 ${ptAction}</div>
     ${basisLine?`<div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;background:var(--bg);border-radius:8px;padding:10px 14px">${basisLine}<br><span style="color:var(--ink-faint)">下方「各平台表现」可以点开看 AI 具体怎么回答的。</span></div>`:''}
@@ -5221,7 +5237,7 @@ function renderScore(rep){
       {label:"扫描了几个AI", val:m.platforms_covered+"个", hint:"这次帮你查了这么多AI平台", c:"var(--ink)"},
     ];
     let cardHtml=cards.map(c=>`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px">
         <div style="font-size:24px;font-weight:800;color:${c.c};line-height:1.1">${c.val}</div>
         <div style="font-size:13px;font-weight:600;color:var(--ink);margin-top:6px">${c.label}</div>
         <div style="font-size:11px;color:var(--ink-faint);margin-top:3px;line-height:1.4">${c.hint}</div>
@@ -5241,7 +5257,7 @@ function renderScore(rep){
       <div style="font-size:14px;font-weight:700;margin-bottom:4px">📊 拆开看，你的 6 个体检指标</div>
       <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">每个数字都翻译成了大白话，点开就懂</div>
       <div style="display:grid;grid-template-columns:1fr;gap:16px">
-        <div style="display:flex;justify-content:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">${radarSvg}</div>
+        <div style="display:flex;justify-content:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px">${radarSvg}</div>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
           ${cardHtml}
         </div>
@@ -5645,29 +5661,29 @@ async function loadKeywordOpp(){
     // 顶部统计
     let html=`
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
-        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center">
+        <div style="flex:1;min-width:100px;background:var(--panel);border:1px solid #fde68a;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:24px;font-weight:800;color:var(--warn)">${stats.gold_count||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">黄金词</div>
         </div>
-        <div style="flex:1;min-width:100px;background:#fff;border:1px solid #c7d2fe;border-radius:10px;padding:12px;text-align:center">
+        <div style="flex:1;min-width:100px;background:var(--panel);border:1px solid #c7d2fe;border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:24px;font-weight:800;color:var(--brand)">${stats.blue_ocean_count||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">蓝海机会</div>
         </div>
-        <div style="flex:1;min-width:100px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center">
+        <div style="flex:1;min-width:100px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center">
           <div style="font-size:24px;font-weight:800;color:var(--ink)">${stats.avg_opportunity||0}</div>
           <div style="font-size:11px;color:var(--ink-soft)">平均商机分</div>
         </div>
       </div>`;
     // 核心建议
     if(data.top_advice){
-      html+=`<div style="background:#fff;border-left:3px solid var(--warn);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--warn)">💡 ${data.top_advice}</div>`;
+      html+=`<div style="background:var(--panel);border-left:3px solid var(--warn);border-radius:6px;padding:10px 14px;margin-bottom:14px;font-size:13px;color:var(--warn)">💡 ${data.top_advice}</div>`;
     }
     // 关键词卡片
     const gradeColors={gold:'var(--warn)',green:'var(--good)',gray:'var(--ink-faint)',red:'var(--bad)'};
     kws.forEach((k,i)=>{
       const gc = gradeColors[k.grade_color]||'var(--ink-faint)';
       html+=`
-        <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">
+        <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap">
             <div style="font-size:14px;font-weight:600;color:var(--ink);flex:1;min-width:160px">${i+1}. ${escHtml(k.keyword||'')}</div>
             <span style="background:${gc}1a;color:${gc};border:1px solid ${gc}55;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap">${k.grade||''} · ${k.opportunity_score||0}分</span>
@@ -5759,7 +5775,7 @@ function openExecPDF(d){
   .ptitle{font-size:30px;font-weight:800;letter-spacing:-.02em;margin:32px 0 8px;line-height:1.2}
   .psub{font-size:15px;color:#6b655b;margin-bottom:36px}
   .big{font-size:64px;font-weight:850;line-height:1}
-  .card{background:#fff;border:1px solid #e8e3d8;border-radius:12px;padding:28px;margin-bottom:20px}
+  .card{background:var(--panel);border:1px solid #e8e3d8;border-radius:12px;padding:28px;margin-bottom:20px}
   .foot{position:absolute;bottom:16mm;left:22mm;right:22mm;font-size:11px;color:#9c958a;border-top:1px solid #e8e3d8;padding-top:10px;display:flex;justify-content:space-between}
   @media print{.noprint{display:none}}
 </style></head><body>
@@ -5825,7 +5841,7 @@ function openExecPDF(d){
 
 <div class="noprint" style="position:fixed;top:20px;right:20px;display:flex;gap:10px;z-index:99">
   <button onclick="window.print()" style="background:#3a6b4a;color:#fff;border:none;padding:12px 24px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.2)">🖨️ 打印 / 存为 PDF</button>
-  <button onclick="window.close()" style="background:#fff;color:#26221c;border:1px solid #ddd;padding:12px 20px;border-radius:8px;font-size:14px;cursor:pointer">关闭</button>
+  <button onclick="window.close()" style="background:var(--panel);color:#26221c;border:1px solid #ddd;padding:12px 20px;border-radius:8px;font-size:14px;cursor:pointer">关闭</button>
 </div>
 <script>setTimeout(()=>{try{window.print()}catch(e){}}, 800)<\/script>
 </body></html>`;
@@ -5862,15 +5878,15 @@ async function loadMonthlyLoss(){
 async function doCompare(){
   const url = document.getElementById('compUrl')?.value.trim();
   const name = document.getElementById('compName')?.value.trim();
-  if(!url){ toast('请填写竞品官网地址'); return; }
+  if(!name){ toast('请填写竞品公司名'); return; }
   const btn = document.getElementById('compareBtn');
   const result = document.getElementById('compareResult');
   btn.textContent='对比中…';btn.disabled=true;
-  result.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在抓取竞品官网并监测，约需 1-2 分钟…</p></div>';
+  result.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在监测竞品，约需 1-2 分钟…</p></div>';
   try{
     const data = await api(`/api/brands/${currentBrandId}/competitor-compare`,{
       method:'POST',
-      body:JSON.stringify({brand_id:currentBrandId,competitor_url:url,competitor_name:name||url})
+      body:JSON.stringify({brand_id:currentBrandId,competitor_url:url||'',competitor_name:name})
     });
     const myRate = data.brand_mention_rate;
     const compRate = data.competitor_mention_rate;
@@ -5878,7 +5894,7 @@ async function doCompare(){
     const myColor = myRate >= compRate ? 'var(--good)' : 'var(--bad)';
     const compColor = compRate > myRate ? 'var(--bad)' : 'var(--good)';
     result.innerHTML=`
-      <div style="background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px">
+      <div style="background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px">
         <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:14px">
           <div style="text-align:center;background:var(--bg);border-radius:10px;padding:14px">
             <div style="font-size:11px;color:var(--ink-soft);margin-bottom:4px">你的品牌</div>
@@ -5922,7 +5938,7 @@ async function genSchemaFaq(){
         <div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${f.a||''}</div>
       </div>`).join('');
     result.innerHTML=`
-      <div style="background:#fff;border:1px solid #a7f3d0;border-radius:12px;padding:16px">
+      <div style="background:var(--panel);border:1px solid #a7f3d0;border-radius:12px;padding:16px">
         <div style="font-weight:600;font-size:14px;margin-bottom:12px;color:var(--good)">📋 FAQ 内容（复制到网站FAQ页面）</div>
         ${faqHtml}
         <div style="margin-top:16px">
@@ -5983,7 +5999,7 @@ async function startPay(plan){
   const modal = document.createElement("div");
   modal.id = "payModal";
   modal.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:2000;display:flex;align-items:center;justify-content:center;padding:20px";
-  modal.innerHTML=`<div style="background:#fff;border-radius:var(--r-xl);padding:28px;max-width:380px;width:100%;text-align:center" id="payCard" onclick="event.stopPropagation()">
+  modal.innerHTML=`<div style="background:var(--panel);border-radius:var(--r-xl);padding:28px;max-width:380px;width:100%;text-align:center" id="payCard" onclick="event.stopPropagation()">
     <div class="loading" style="padding:20px"><div class="spinner"></div><p>正在创建订单…</p></div>
   </div>`;
   modal.onclick=()=>closePayModal();
@@ -6092,7 +6108,7 @@ function simSetMode(mode){
   simMode=mode;
   const out=document.getElementById('simTabOut'),dom=document.getElementById('simTabDom');
   if(!out||!dom)return;
-  const onStyle='flex:1;padding:7px;background:#fff;color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)';
+  const onStyle='flex:1;padding:7px;background:var(--panel);color:var(--brand);border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)';
   const offStyle='flex:1;padding:7px;background:none;color:var(--ink-soft);border-radius:6px;font-size:12px;border:none;cursor:pointer';
   out.style.cssText=mode==='outbound'?onStyle:offStyle;
   dom.style.cssText=mode==='domestic'?onStyle:offStyle;
