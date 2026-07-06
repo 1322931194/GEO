@@ -110,6 +110,7 @@ class Brand(SQLModel, table=True):
     mode: str = "outbound"           # outbound=出海模式  domestic=国内模式
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
+    region: str = ""                 # 地区（本地商户用：城市/区，生成区域词）
     questions_json: str = "[]"       # 问题集
     keywords_cache: str = ""         # 关键词提取结果缓存（避免重复调用AI烧token）
     track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
@@ -337,6 +338,7 @@ def _auto_migrate():
         ("brand", "track_id", "VARCHAR DEFAULT ''"),
         ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
         ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
+        ("brand", "region", "VARCHAR DEFAULT ''"),
         ("apicalllog", "scene", "VARCHAR DEFAULT 'other'"),
     ]
     is_sqlite = str(engine.url).startswith("sqlite")
