@@ -1516,34 +1516,99 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div id="pricingView" class="hidden">
           <div class="pricing-page" style="padding-top:0">
             <h1>选择适合你的 AI 增长方式</h1>
-            <p class="sub">从免费检测到全托管，覆盖你在 AI 时代获客的每个阶段</p>
+            <p class="sub">从免费查现状，到全托管代运营，覆盖你在 AI 时代获客的每个阶段</p>
+
+            <!-- 主推4档 -->
             <div class="plans">
+              <!-- 免费 -->
               <div class="plan">
-                <div class="plan-name">AI 可见度检测</div>
-                <div class="plan-price">永久免费</div>
-                <div class="plan-desc">看看 AI 是否认识你的品牌</div>
-                <ul class="plan-features"><li>AI 品牌评分</li><li>AI 推荐率</li><li>AI 真实回答截图</li><li>GEO 评分</li><li>竞争分析（基础）</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">立即免费检测</button>
+                <div class="plan-name">免费版</div>
+                <div class="plan-price">¥0</div>
+                <div class="plan-desc">先查清 AI 到底推不推你</div>
+                <ul class="plan-features">
+                  <li>✅ 8 平台 AI 监测（3 次）</li>
+                  <li>✅ AI 推荐率 + 真实截图</li>
+                  <li>✅ 竞品对比（基础）</li>
+                  <li style="color:var(--ink-faint)">✗ 生成内容 / 作战报告</li>
+                  <li style="color:var(--ink-faint)">✗ 关键词 / 长尾词</li>
+                </ul>
+                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">免费开始</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">看到问题，再决定要不要解决</div>
               </div>
+
+              <!-- 19.9 单次内容包 -->
+              <div class="plan" style="border:1px solid var(--gold)">
+                <div class="plan-badge" style="background:var(--gold);color:#fff">💡 试用装</div>
+                <div class="plan-name">单次内容包</div>
+                <div class="plan-price">¥19.9<span>/次</span></div>
+                <div class="plan-desc">解锁一次完整生成，把方案落地</div>
+                <ul class="plan-features">
+                  <li>✅ 关键词 + 长尾词生成</li>
+                  <li>✅ 完整作战报告（可导出）</li>
+                  <li>✅ 多平台内容生成（5 篇）</li>
+                  <li>✅ 竞品弱点 + 行动清单</li>
+                </ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('single')">¥19.9 解锁一次</button>
+                <div style="text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5">费用主要用于 AI 算力消耗<br>一杯奶茶钱，先体验完整效果</div>
+              </div>
+
+              <!-- 599 增长版 -->
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
-                <div class="plan-name">AI Growth Pro</div>
+                <div class="plan-name">增长版</div>
                 <div class="plan-price">¥599<span>/月</span></div>
-                <div class="plan-desc">持续提高 AI 推荐率，让品牌获得更多 AI 曝光与客户咨询</div>
-                <ul class="plan-features"><li><b>AI 监测（无限）</b></li><li>AI 推荐率变化追踪</li><li>竞争分析 + 信源溯源</li><li>AI 关键词 / 长尾词</li><li><b>AI 内容工厂（多平台）</b></li><li>品牌知识库 + 官网 AI 优化</li><li><b>AI 获客落地页</b></li><li>增长驾驶舱 + 邮件周报</li></ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">立即开始增长</button>
-                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">平均每天不到 20 元，持续建设 AI 影响力</div>
+                <div class="plan-desc">功能全开，适合单店 / 初创自己做</div>
+                <ul class="plan-features">
+                  <li><b>✅ 全部功能开放</b></li>
+                  <li>✅ 监测 50 次 / 月</li>
+                  <li>✅ 内容生成 50 次 / 月</li>
+                  <li>✅ 作战报告 50 次 / 月</li>
+                  <li>✅ 含 3 个 AI 获客落地页</li>
+                  <li>✅ 增长看板 + 战报</li>
+                </ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">开始增长</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">每天不到 20 元，够单店用一个月</div>
               </div>
+
+              <!-- 980 畅享版 -->
               <div class="plan" style="border:2px solid var(--cyan)">
-                <div class="plan-badge" style="background:var(--cyan);color:#fff">👑 企业</div>
-                <div class="plan-name">Enterprise</div>
-                <div class="plan-price" style="font-size:26px;padding-top:10px">联系销售</div>
-                <div class="plan-desc">打造企业级 AI 增长体系，适合企业、集团、品牌矩阵</div>
-                <ul class="plan-features"><li>不限品牌数</li><li>API 接入</li><li>专属顾问</li><li>媒体资源 + PR</li><li>品牌建设</li><li>专属项目经理</li></ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="alert('企业版请加顾问微信 jenly222 沟通需求与报价')">预约方案</button>
+                <div class="plan-badge" style="background:var(--cyan);color:#fff">⚡ 不限次</div>
+                <div class="plan-name">畅享版</div>
+                <div class="plan-price">¥980<span>/月</span></div>
+                <div class="plan-desc">不限次数，适合多店 / 代运营 / 规模化</div>
+                <ul class="plan-features">
+                  <li><b>✅ 全部功能 + 不限次数</b></li>
+                  <li>✅ 监测 / 生成 / 报告 全不限</li>
+                  <li>✅ 管理 10 个品牌</li>
+                  <li>✅ 含 15 个 AI 获客落地页</li>
+                  <li><b>✅ 独家：收录数据大盘</b></li>
+                  <li>✅ 批量操作 + 优先算力</li>
+                </ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('pro_monthly')">畅享不限次</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">多店 / 代运营的最优选择</div>
               </div>
             </div>
-            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">需要全托管增长运营？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
+
+            <!-- 企业定制（大单，引导面谈）-->
+            <div style="margin-top:36px;background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:20px;padding:32px 36px;color:#f4f1ea">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px">
+                <div style="flex:1;min-width:280px">
+                  <div style="font-size:13px;color:#c99a52;font-weight:700;margin-bottom:6px">👑 企业定制 · 代运营</div>
+                  <div style="font-size:24px;font-weight:800;margin-bottom:10px">全托管 GEO 增长，我们帮你做到底</div>
+                  <div style="font-size:13.5px;color:rgba(244,241,234,.7);line-height:1.8">
+                    专属主词 + 必中长尾词 + 海量长尾词覆盖，从内容生产到发布全代运营。<br>
+                    适合：区域性业务、全国市场品牌、高客单深度服务、对品牌口碑要求高的客户。
+                  </div>
+                </div>
+                <div style="text-align:center">
+                  <div style="font-size:13px;color:rgba(244,241,234,.6);margin-bottom:8px">季度 / 半年 / 全年套餐</div>
+                  <div style="font-size:28px;font-weight:800;color:#a8c48c;margin-bottom:4px">活动价面谈</div>
+                  <button class="btn-cyan" style="padding:12px 28px;margin-top:8px" onclick="showCustomPlans()">查看定制方案 →</button>
+                </div>
+              </div>
+            </div>
+
+            <p style="text-align:center;font-size:13px;color:var(--ink-soft);margin-top:28px">所有套餐均可开发票 · 需要全托管代运营？联系顾问微信 <b style="color:var(--cyan)">jenly222</b></p>
           </div>
         </div>
 
@@ -6099,6 +6164,64 @@ function closePayModal(){
   if(m) m.remove();
 }
 function hidePricing(){document.getElementById("pricingView").classList.add("hidden");document.getElementById("mainFlow").classList.remove("hidden")}
+
+// 企业定制方案弹窗（对外版：只显示活动价+服务内容，引导联系顾问）
+function showCustomPlans(){
+  const old=document.getElementById("customPlansModal"); if(old) old.remove();
+  const plans=[
+    {tier:"标准版渠道价", tag:"门槛引流型 · 区域词", color:"#a8c48c", items:[
+      {name:"季度版 (90天)", detail:"1主词 + 10必中长尾词 + 500+长尾词", price:"4980"},
+      {name:"半年版 (180天)", detail:"1主词 + 15必中长尾词 + 1000+长尾词", price:"7980"},
+      {name:"全年版 (365天)", detail:"1主词 + 20必中长尾词 + 1500+长尾词", price:"11980"},
+    ], fit:"适合带地域属性、竞争较小的同城或区域性业务"},
+    {tier:"代运营渠道价", tag:"标准件 · 全国词", color:"#c99a52", items:[
+      {name:"季度版 (90天)", detail:"1主词 + 10必中长尾词 + 500+长尾词", price:"7980"},
+      {name:"半年版 (180天)", detail:"1主词 + 15必中长尾词 + 1500+长尾词", price:"11980"},
+      {name:"全年版 (365天)", detail:"1主词 + 20必中长尾词 + 3000+长尾词", price:"19800"},
+    ], fit:"适合面向全国市场、需要大批量长尾词覆盖的中小企业"},
+    {tier:"深度定制价", tag:"高客单 · 定制化", color:"#c96a5f", items:[
+      {name:"季度版 (90天)", detail:"自选3-5关键词 + 30专属长尾词 + 3000+提问长尾词", price:"6980起"},
+      {name:"半年版 (180天)", detail:"全品牌/单产品优化 + 品牌口碑问答优化", price:"11980起"},
+      {name:"全年版 (365天)", detail:"深度内容布局 + 竞品对标", price:"19800起"},
+    ], fit:"适合对品牌声誉要求高、需针对特定产品或竞品做深度布局的客户"},
+  ];
+  let h=`<div style="background:#1a1712;border:1px solid rgba(244,241,234,.15);border-radius:20px;padding:28px;max-width:920px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+      <div>
+        <div style="font-size:20px;font-weight:800;color:#f4f1ea">👑 企业定制 · 代运营方案</div>
+        <div style="font-size:13px;color:rgba(244,241,234,.6);margin-top:4px">全托管 GEO 增长服务 · 以下为活动价，具体方案与优惠请联系顾问</div>
+      </div>
+      <span onclick="document.getElementById('customPlansModal').remove()" style="cursor:pointer;color:rgba(244,241,234,.5);font-size:24px;line-height:1">×</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin-top:20px">`;
+  plans.forEach(p=>{
+    h+=`<div style="background:rgba(244,241,234,.04);border:1px solid ${p.color}40;border-radius:14px;padding:18px">
+      <div style="font-size:15px;font-weight:700;color:${p.color}">${p.tier}</div>
+      <div style="font-size:11px;color:rgba(244,241,234,.55);margin:4px 0 14px">${p.tag}</div>`;
+    p.items.forEach(it=>{
+      h+=`<div style="padding:10px 0;border-bottom:1px solid rgba(244,241,234,.08)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline">
+          <span style="font-size:13px;font-weight:600;color:#f4f1ea">${it.name}</span>
+          <span style="font-size:17px;font-weight:800;color:${p.color}">¥${it.price}</span>
+        </div>
+        <div style="font-size:11px;color:rgba(244,241,234,.5);margin-top:3px;line-height:1.5">${it.detail}</div>
+      </div>`;
+    });
+    h+=`<div style="font-size:11px;color:rgba(244,241,234,.55);margin-top:10px;line-height:1.5">💡 ${p.fit}</div></div>`;
+  });
+  h+=`</div>
+    <div style="background:linear-gradient(135deg,#5a7d5a,#6b8a5e);border-radius:14px;padding:20px;margin-top:20px;text-align:center">
+      <div style="font-size:15px;font-weight:700;color:#fff;margin-bottom:6px">想要定制方案？一对一沟通你的需求和优惠</div>
+      <div style="font-size:14px;color:#fff">顾问微信：<b>jenly222</b></div>
+    </div>
+  </div>`;
+  const modal=document.createElement("div");
+  modal.id="customPlansModal";
+  modal.style.cssText="position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.innerHTML=h;
+  modal.onclick=(e)=>{ if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
 
 document.addEventListener("keydown",e=>{if(e.key==="Enter"&&!document.getElementById("authView").classList.contains("hidden"))doAuth()});
 
