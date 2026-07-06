@@ -884,3 +884,98 @@ async def generate_battle_plan(brand: str, industry: str, product: str,
         return {"error": "作战方案生成失败，请重试"}
     data["note"] = "本方案基于当前监测数据生成，建议监测后及时查看。执行后重新监测可看效果变化。"
     return data
+
+
+# ============================================================
+# 区域性关键词生成（本地商户命脉：客户问"附近哪家好"）
+# ============================================================
+async def generate_regional_keywords(brand: str, industry: str, product: str,
+                                       region: str) -> dict:
+    """为本地商户生成带地域的高意图关键词。
+    这是本地生意的命脉——客户问AI'XX区哪家好''附近靠谱的XX'。"""
+    system = (
+        "你是本地生活 GEO 专家，深知本地客户是怎么问 AI 找店的。"
+        "你要生成客户真实会问 AI 的、带地域的高意图问题，帮本地商户被 AI 推荐。"
+        "语言要接地气，就是普通消费者会打出来的话。"
+    )
+    region_hint = region or "（商户未填地区，请生成通用地域模板，用[地区]占位）"
+    prompt = f"""为「{region_hint}」的「{industry}」商户「{brand}」（产品/服务：{product}）生成区域性 GEO 关键词。
+
+本地客户找店时，会这样问 AI（举例）：
+- "[地区]哪家[行业]好/靠谱"
+- "[地区]附近的[行业]推荐"
+- "[地区][具体需求]去哪做"
+- "[地区][行业]多少钱"
+
+请生成4类区域词，每类3-5个，要具体、贴近真实提问：
+1. 直接找店类（XX区哪家好、附近推荐）
+2. 价格咨询类（XX多少钱、性价比）
+3. 具体需求类（针对该行业的具体服务/产品需求+地域）
+4. 决策对比类（怎么选、哪家靠谱、避坑）
+
+只返回JSON：
+{{
+  "region": "{region or '通用'}",
+  "keyword_groups": [
+    {{"type":"直接找店","keywords":["词1","词2","词3"],"why":"这类词的客户离下单最近，是必抢的"}},
+    {{"type":"价格咨询","keywords":[...],"why":"..."}},
+    {{"type":"具体需求","keywords":[...],"why":"..."}},
+    {{"type":"决策对比","keywords":[...],"why":"..."}}
+  ],
+  "top_advice": "一句话：本地商户最该先抢哪类词，为什么"
+}}
+
+要求：词要真实（就是消费者会打的字），紧扣「{industry}」和「{region or '本地'}」，不要空泛。"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "keyword_groups" not in data:
+        return {"error": "区域词生成失败，请重试"}
+    data["note"] = ("区域词是本地生意的命脉。建议：①先在地图POI认领并填全信息 "
+                    "②围绕这些词做内容发到本地平台 ③引导老客户留真实评价。")
+    return data
+
+
+# ============================================================
+# GEO 资料清单（告诉商户：做GEO要准备哪些资料、哪些AI爱收录）
+# ============================================================
+async def generate_material_checklist(brand: str, industry: str, product: str,
+                                        is_local: bool = False) -> dict:
+    """生成'做GEO要准备哪些资料'的清单。
+    解决商户'不知道该准备什么、发什么会被AI收录'的痛点。"""
+    system = (
+        "你是 GEO 内容策略专家。你要告诉商户：想让 AI 收录和推荐你，"
+        "需要准备哪些资料、内容，哪些是 AI 最爱引用的。"
+        "要具体、可操作，让商户照着清单准备就行。"
+    )
+    local_hint = "这是本地商户，要包含地图POI、真实评价、门店信息等本地要素。" if is_local else ""
+    prompt = f"""为「{industry}」的「{brand}」（产品/服务：{product}）生成一份 GEO 资料准备清单。{local_hint}
+
+告诉商户：想让 AI 认识你、推荐你，需要准备哪些资料和内容。分为：
+1. 基础资料（必备的品牌信息，AI 识别你的基础）
+2. 内容资料（AI 爱收录引用的内容类型）
+3. 信任背书（让 AI 觉得你可信的东西）
+{'4. 本地要素（地图、评价、门店信息等）' if is_local else ''}
+
+每项要说明：是什么、为什么AI爱收录、商户怎么准备。
+
+只返回JSON：
+{{
+  "checklist": [
+    {{
+      "category": "基础资料",
+      "items": [
+        {{"name":"资料名","why":"为什么AI爱收录这个","how":"具体怎么准备","priority":"必备/推荐"}}
+      ]
+    }}
+  ],
+  "content_that_gets_cited": ["AI最爱收录的内容类型1（如：真实价格拆解）","类型2","类型3","类型4"],
+  "top_advice": "一句话：商户最该先准备什么"
+}}
+
+要求：紧扣「{industry}」，具体可操作，不要空泛的'提升品牌形象'这种话。"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data or "checklist" not in data:
+        return {"error": "资料清单生成失败，请重试"}
+    data["note"] = "备齐这些资料，再用内容工厂生成内容、发到指定平台，AI 收录你的概率最高。"
+    return data
