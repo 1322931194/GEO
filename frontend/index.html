@@ -2309,9 +2309,16 @@ function loadContentPackTab(){
   const bid = currentBrandId || lastBrandIdForDash;
   if(!bid){ c.innerHTML='<p style="padding:20px;color:var(--ink-soft)">请先在「AI 监测」创建并监测一个品牌。</p>'; return; }
   c.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(90,125,90,.08),rgba(176,132,66,.05));border:1px solid rgba(90,125,90,.2);border-radius:14px;padding:16px 20px;margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px">🧰 这里是你的内容工具箱</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.7">下面的工具<b>不用全做</b>——每个都标了「适合谁」，挑跟你相关的用就行。不确定从哪开始？<b style="color:var(--matcha)">先用第一个「多平台内容包」生成内容，就够起步了。</b></div>
+    </div>
     <div class="section-card">
-      <div style="font-weight:700;font-size:16px;margin-bottom:6px">📦 多平台内容包生成</div>
-      <div style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">输入一个客户会问 AI 的问题，一键生成多个平台的适配版本。每版都套用 AI 收录结构（问句标题·首段结论·FAQ·数据带源），并做语义微调避免重复内容惩罚。</div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <div style="font-weight:700;font-size:16px">📦 多平台内容包生成</div>
+        <span style="font-size:11px;background:var(--matcha);color:#fff;padding:2px 10px;border-radius:10px">👍 所有人先做这个</span>
+      </div>
+      <div style="font-size:13px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px"><b>说人话：</b>输入一个客户会问 AI 的问题，一键帮你写好知乎、搜狐等多个平台的文章，复制就能发。这是 GEO 最核心的动作——有内容，AI 才认识你。</div>
       <label style="font-size:13px;font-weight:600;display:block;margin-bottom:6px">主题（用户会问 AI 的问题）</label>
       <input id="packTopic" placeholder="如：深圳装修公司哪家好？" style="width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;margin-bottom:14px;font-family:inherit;font-size:14px">
       <label style="font-size:13px;font-weight:600;display:block;margin-bottom:8px">选择平台（按 AI 引用生态推荐）</label>
@@ -2385,8 +2392,8 @@ function loadGrowthEngineTab(){
 
       <div class="section-card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div><div style="font-weight:700;font-size:15px">📡 独家高权重媒体直发矩阵</div>
-          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">想被哪个 AI 推荐，就往它信任的媒体发。这是各 AI 引用生态的作战地图。</div></div>
+          <div><div style="font-weight:700;font-size:15px">📡 媒体矩阵 <span style="font-size:12px;color:var(--ink-soft);font-weight:400">· 该发到哪个平台</span> <span style="font-size:11px;background:var(--matcha);color:#fff;padding:1px 8px;border-radius:9px">👍 推荐</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px"><b>说人话：</b>想被哪个 AI 推荐，就该往它信任的平台发内容。这告诉你答案。</div></div>
           <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genMediaMatrix()" id="mmBtn">查看矩阵 →</button>
         </div>
         <div id="mmResult" style="margin-top:14px"></div>
@@ -2394,8 +2401,8 @@ function loadGrowthEngineTab(){
 
       <div class="section-card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div><div style="font-weight:700;font-size:15px">🏷️ Schema 结构化数据一键注入</div>
-          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">一键生成完整 Schema 代码（Organization + LocalBusiness + FAQ），贴到官网让 AI 精准理解你。</div></div>
+          <div><div style="font-weight:700;font-size:15px">🏷️ Schema 名片 <span style="font-size:12px;color:var(--ink-soft);font-weight:400">· 给 AI 看的名片</span> <span style="font-size:11px;background:#c99a52;color:#fff;padding:1px 8px;border-radius:9px">🌐 有官网的用</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px"><b>说人话：</b>生成一段代码贴到你官网，让 AI 一眼看懂"你是谁、在哪、卖什么"。没官网可跳过。</div></div>
           <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genSchemaInject()" id="siBtn">生成代码 →</button>
         </div>
         <div id="siResult" style="margin-top:14px"></div>
@@ -2403,8 +2410,8 @@ function loadGrowthEngineTab(){
 
       <div class="section-card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div><div style="font-weight:700;font-size:15px">🧬 逆向 RAG 专家语料生成引擎</div>
-          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">反推 AI 检索机制，生成"最容易被 AI 抓取采信"的知识切片语料。</div></div>
+          <div><div style="font-weight:700;font-size:15px">🧬 专家语料 <span style="font-size:12px;color:var(--ink-soft);font-weight:400">· AI 最爱抓的内容</span> <span style="font-size:11px;background:#8a84f0;color:#fff;padding:1px 8px;border-radius:9px">🔬 进阶玩家用</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px"><b>说人话：</b>生成"最容易被 AI 抓取采信"的专业内容片段。想更深入优化的再用，起步可跳过。</div></div>
         </div>
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <input id="ragTopic" placeholder="主题，如：深圳装修怎么选" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;font-size:13px">
@@ -2415,16 +2422,16 @@ function loadGrowthEngineTab(){
 
       <div class="section-card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
-          <div><div style="font-weight:700;font-size:15px">🎯 高转化意图拦截与标题工程</div>
-          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px">挖掘"马上要下单"的高意图问题，并做标题工程——既被 AI 命中，又高点击。</div></div>
+          <div><div style="font-weight:700;font-size:15px">🎯 高意图挖掘 <span style="font-size:12px;color:var(--ink-soft);font-weight:400">· 抓快下单的客户</span> <span style="font-size:11px;background:#c99a52;color:#fff;padding:1px 8px;border-radius:9px">💰 想快出单用</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:4px"><b>说人话：</b>挖出"马上要下单"的客户会问的问题，帮你写高点击标题，优先抓最值钱的客户。</div></div>
           <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genIntentTitles()" id="itBtn">挖掘意图 →</button>
         </div>
         <div id="itResult" style="margin-top:14px"></div>
       </div>
 
       <div class="section-card">
-        <div style="font-weight:700;font-size:15px">📊 关键词收录情况</div>
-        <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px">看你的核心关键词哪些热度高、值得优先做。<span style="color:var(--gold)">热度为相对评估，非精确搜索量</span>。</div>
+        <div style="font-weight:700;font-size:15px">📊 关键词热度 <span style="font-size:11px;background:#8a84f0;color:#fff;padding:1px 8px;border-radius:9px;margin-left:4px">🔬 想选词的用</span></div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px"><b>说人话：</b>看你的核心词哪些人问得多、值得优先做。<span style="color:var(--gold)">热度为相对评估，非精确搜索量</span>。</div>
         <button class="btn-cyan" style="padding:9px 18px;font-size:13px" onclick="genKeywordAnalyze()" id="kwBtn">分析关键词热度 →</button>
         <div id="kwResult" style="margin-top:14px"></div>
       </div>
