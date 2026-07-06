@@ -293,6 +293,20 @@ class TrackEvent(SQLModel, table=True):
     created_at: datetime = Field(default_factory=cn_now, index=True)
 
 
+class IndexRecord(SQLModel, table=True):
+    """收录明细：收录数据大盘用。每行 = 某拓展词在某平台某端的收录记录。
+    支持点击'查看'跳转到对应 AI 平台验证。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    brand_id: int = Field(default=0, index=True)
+    main_keyword: str = ""                     # 主关键词（蒸馏词）
+    expand_keyword: str = ""                   # 拓展词
+    platform: str = ""                         # deepseek/doubao/yuanbao/qwen/wenxin/nano/kimi/zhipu
+    device: str = "mobile"                     # mobile移动端 / pc电脑端
+    query_url: str = ""                        # 点"查看"跳转的验证链接
+    indexed_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 class IndexTrack(SQLModel, table=True):
     """收录追踪：用户发布内容后，追踪该内容/关键词是否被 AI 引用收录。
     这是 GEO 的核心闭环——发了之后，AI 到底认不认。"""
