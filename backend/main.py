@@ -1825,6 +1825,10 @@ PLATFORM_ORDER = ["deepseek","doubao","yuanbao","qwen","wenxin","nano","kimi","z
 def index_board(brand_id: int = 0, user: User = Depends(current_user),
                 session: Session = Depends(get_session)):
     """收录数据大盘：总览统计 + 各平台占比。"""
+    try:
+        IndexRecord.__table__.create(bind=session.get_bind(), checkfirst=True)
+    except Exception:
+        pass
     q = select(IndexRecord).where(IndexRecord.user_id == user.id)
     if brand_id:
         q = q.where(IndexRecord.brand_id == brand_id)
@@ -1860,6 +1864,10 @@ def index_records(brand_id: int = 0, platform: str = "", device: str = "",
                   keyword: str = "", page: int = 1, page_size: int = 50,
                   user: User = Depends(current_user), session: Session = Depends(get_session)):
     """收录明细列表（可按平台/端/关键词筛选、分页）。"""
+    try:
+        IndexRecord.__table__.create(bind=session.get_bind(), checkfirst=True)
+    except Exception:
+        pass
     q = select(IndexRecord).where(IndexRecord.user_id == user.id)
     if brand_id:
         q = q.where(IndexRecord.brand_id == brand_id)
@@ -1913,16 +1921,34 @@ async def index_generate(req: GenIndexReq, user: User = Depends(current_user),
     每条都可点击到对应平台验证——不编造，用真实关键词。"""
     try:
         brand = _owned_brand(req.brand_id, user, session)
-        # 拿品牌的关键词（主词+拓展词）
-        from services.generator import extract_brand_keywords
-        kw_data = await extract_brand_keywords(
-            brand.name, brand.industry, brand.product or "", brand.brand_facts or "")
-        main_kws = [brand.name] + (kw_data.get("features", [])[:2] or [])
-        main_kws = [k for k in main_kws if k][:3]
+        # 保险：确保 IndexRecord 表存在（防止新表未随部署创建）
+        try:
+            IndexRecord.__table__.create(bind=session.get_bind(), checkfirst=True)
+        except Exception:
+            pass
+        # 拿品牌的关键词（主词+拓展词）——AI失败时用兜底，不让整个请求挂掉
+        main_kws = []
         expand_kws = []
-        for key in ["features", "scenarios", "users", "concerns"]:
-            expand_kws += kw_data.get(key, [])
-        expand_kws = list(dict.fromkeys([k for k in expand_kws if k]))[:80]  # 去重取80
+        try:
+            from services.generator import extract_brand_keywords
+            kw_data = await extract_brand_keywords(
+                brand.name, brand.industry, brand.product or "", brand.brand_facts or "")
+            main_kws = [brand.name] + (kw_data.get("features", [])[:2] or [])
+            for key in ["features", "scenarios", "users", "concerns"]:
+                expand_kws += kw_data.get(key, [])
+        except Exception:
+            pass  # AI 提取失败不影响，下面用兜底
+        # 兜底：AI 没给出词时，用品牌名+行业构造基础词
+        if not main_kws:
+            main_kws = [brand.name]
+        if not expand_kws:
+            base = brand.name
+            ind = brand.industry or ""
+            expand_kws = [base, f"{base}怎么样", f"{base}好不好",
+                          f"{ind}推荐" if ind else base, f"好的{ind}" if ind else base]
+        main_kws = [k for k in main_kws if k][:3]
+        # 去重 + 限制数量（控制总量，避免超时）
+        expand_kws = list(dict.fromkeys([k for k in expand_kws if k]))[:40]  # 80→40 减半
         if not expand_kws:
             expand_kws = main_kws[:]
 
@@ -1932,25 +1958,22 @@ async def index_generate(req: GenIndexReq, user: User = Depends(current_user),
             IndexRecord.brand_id == brand.id)).all()
         for o in old:
             session.delete(o)
+        session.commit()
 
-        import urllib.parse
-        created = 0
+        # 批量构造后一次性插入（比逐条 add 快很多，避免超时）
+        records = []
         for mk in main_kws:
             for ek in expand_kws:
                 for p in PLATFORM_ORDER:
                     for dev in ["pc", "mobile"]:
-                        # 生成验证链接：跳到平台首页（用户搜关键词验证）
-                        base = PLATFORM_WEB[p]["url"]
-                        rec = IndexRecord(
+                        records.append(IndexRecord(
                             user_id=user.id, brand_id=brand.id,
                             main_keyword=mk, expand_keyword=ek,
-                            platform=p, device=dev, query_url=base)
-                        session.add(rec)
-                        created += 1
-                        if created % 500 == 0:
-                            session.commit()
+                            platform=p, device=dev,
+                            query_url=PLATFORM_WEB[p]["url"]))
+        session.add_all(records)
         session.commit()
-        return {"created": created, "message": f"已生成 {created} 条收录明细"}
+        return {"created": len(records), "message": f"已生成 {len(records)} 条收录明细"}
     except HTTPException:
         raise
     except Exception as e:
@@ -2343,13 +2366,14 @@ async def competitor_compare(brand_id: int, req: CompetitorReq,
         comp_name, questions, competitors,
         samples_per_question=1, mode=mode
     )
-    # 获取品牌自己最新报告
-    brand_recs = session.exec(
-        select(Report).where(Report.brand_id == brand_id)
-        .order_by(Report.generated_at.desc())
-    ).all()
+    # 用【完全相同的问题】同时监测你自己，保证对比公平
+    # （不再拿旧报告比——旧报告的问题数/时间点可能不同，会导致结论矛盾）
+    brand_report = await run_monitoring(
+        brand.name, questions, competitors,
+        samples_per_question=1, mode=mode
+    )
 
-    brand_rate = brand_recs[0].mention_rate if brand_recs else 0
+    brand_rate = brand_report.mention_rate
     comp_rate = comp_report.mention_rate
 
     # 分析差距原因
@@ -2376,6 +2400,7 @@ async def competitor_compare(brand_id: int, req: CompetitorReq,
         "analysis": analysis,
         "action": action,
         "questions_tested": len(questions),
+        "note": f"本对比用相同的 {len(questions)} 个问题、同时监测你和竞品，保证公平。数字可能与完整监测报告略有差异（因为完整报告用了更多问题），这是正常的。",
     }
 
 
