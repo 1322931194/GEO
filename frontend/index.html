@@ -148,6 +148,8 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .spinner{width:36px;height:36px;border:3px solid var(--cyan-soft);
   border-top-color:var(--cyan);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(201,154,82,.5)}50%{box-shadow:0 0 0 8px rgba(201,154,82,0)}}
+.pulse-cta{animation:pulseGlow 2s infinite}
 .loading{text-align:center;color:var(--ink-soft)}
 .loading p{margin-top:14px;font-size:14px}
 
@@ -1823,7 +1825,7 @@ async function loadProgressMap(){
       h += `<div style="background:rgba(244,241,234,.05);border-radius:12px;padding:16px 18px;margin-top:16px">
         <div style="font-size:13px;font-weight:700;color:#c99a52;margin-bottom:6px">👉 现在这一步：${escHtml(s.title)}</div>
         <div style="font-size:12.5px;color:rgba(244,241,234,.8);line-height:1.7;margin-bottom:12px">💡 为什么要这样做：${escHtml(s.why)}</div>
-        <button class="btn-primary" style="font-size:13px;padding:9px 20px" onclick="navTo('${s.nav}')">${escHtml(s.cta)} →</button>
+        <button class="btn-primary pulse-cta" style="font-size:13px;padding:9px 20px" onclick="navTo('${s.nav}')">${escHtml(s.cta)} →</button>
       </div>`;
     } else if(d.all_done){
       h += `<div style="background:rgba(168,196,140,.12);border-radius:12px;padding:16px 18px;margin-top:16px">
