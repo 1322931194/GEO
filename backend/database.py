@@ -23,37 +23,49 @@ engine = create_engine(DATABASE_URL, echo=False,
 
 
 # 套餐配额配置
-# ===== 新4档体系：免费 / 99单次 / 699增长 / 定制 =====
+# ===== 最终定价体系：免费 / 19.9单次内容包 / 599增长(限次) / 980畅享(不限) / 定制 =====
 # 成本核算：1次完整监测≈¥1-3(API)，内容生成≈¥0.5/次，pSEO页=0(模板生成零AI成本)
 PLANS = {
     "trial": {
         "name": "免费版", "price_cny": 0, "brands": 1,
-        "questions": 20, "samples": 1, "platforms": 3, "freq": "once",
-        "monitor_limit": 1,   # 免费给1次监测（3平台，让他看到AI不推他）
-        "battle_limit": 0,    # 作战包只给预览（前端控制），完整要付费
-        "content_limit": 0,
+        "questions": 20, "samples": 1, "platforms": 8, "freq": "once",
+        "monitor_limit": 3,   # 免费给3次监测（让他反复查、看到AI不推他）
+        "battle_limit": 0,    # 作战包只给预览，完整要付费
+        "content_limit": 0,   # 不能生成内容 → 制造付费动力
         "pseo_limit": 0,
     },
     "single": {
-        "name": "单次版", "price_cny": 99, "brands": 1,
-        "questions": 50, "samples": 1, "platforms": 5, "freq": "once",
-        "monitor_limit": 1,   # 1次完整监测（5平台）
-        "battle_limit": 1,    # 完整作战包
-        "content_limit": 3,   # 3次内容生成（成本低，给足让他把方案落地）
+        "name": "单次内容包", "price_cny": 19.9, "brands": 1,
+        "questions": 50, "samples": 1, "platforms": 8, "freq": "once",
+        "monitor_limit": 3,   # 保留监测
+        "battle_limit": 1,    # 1次完整作战报告（可导出）
+        "content_limit": 5,   # 1次解锁：关键词+长尾词+内容生成（5次够落地一轮）
         "pseo_limit": 0,
+        "is_onetime": True,   # 单次买断，非订阅
     },
     "monthly": {
-        "name": "AI Growth Pro", "price_cny": 599, "brands": 3,
-        "questions": 80, "samples": 1, "platforms": 6, "freq": "weekly",
-        "monitor_limit": 8,   # 每月8次监测（够每周复测）
-        "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 3,      # ★ 含3个pSEO获客落地页（零边际成本，高感知价值）
+        "name": "增长版", "price_cny": 599, "brands": 3,
+        "questions": 80, "samples": 1, "platforms": 8, "freq": "weekly",
+        "monitor_limit": 50,  # 每月50次监测
+        "battle_limit": 50,   # 50次作战报告
+        "content_limit": 50,  # 50次内容生成
+        "pseo_limit": 3,      # 含3个pSEO获客落地页
+    },
+    "pro_monthly": {
+        "name": "畅享版", "price_cny": 980, "brands": 10,
+        "questions": 120, "samples": 1, "platforms": 8, "freq": "daily",
+        "monitor_limit": 9999,  # 不限次监测
+        "battle_limit": 9999,   # 不限作战报告
+        "content_limit": 9999,  # 不限内容生成
+        "pseo_limit": 15,       # 含15个pSEO落地页
+        "index_board": True,    # 独家：收录数据大盘
     },
     "custom": {
-        "name": "定制版", "price_cny": 0, "brands": 10,
+        "name": "企业定制", "price_cny": 0, "brands": 30,
         "questions": 200, "samples": 3, "platforms": 8, "freq": "daily",
-        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 30,     # 定制客户：pSEO矩阵+代运营，价格面议，后台手动开通
+        "monitor_limit": 9999, "battle_limit": 9999, "content_limit": 9999,
+        "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
+        "index_board": True,
     },
     # ===== 以下为旧套餐（仅兼容历史付费用户，价格页不再展示）=====
     "starter": {
