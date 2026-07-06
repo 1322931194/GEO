@@ -2332,8 +2332,8 @@ def monthly_loss(brand_id: int, user: User = Depends(current_user),
 
 class CompetitorReq(BaseModel):
     brand_id: int
-    competitor_url: str   # 竞品官网URL
-    competitor_name: str = ""  # 竞品名称（可选）
+    competitor_url: str = ""   # 竞品官网URL（选填）
+    competitor_name: str = ""  # 竞品名称（必填）
 
 @app.post("/api/brands/{brand_id}/competitor-compare")
 async def competitor_compare(brand_id: int, req: CompetitorReq,
@@ -2349,13 +2349,14 @@ async def competitor_compare(brand_id: int, req: CompetitorReq,
     if not questions_raw:
         raise HTTPException(400, "请先生成问题集")
 
-    # 抓取竞品官网
+    # 抓取竞品官网（有URL才抓，没有就只用公司名监测）
     comp_name = req.competitor_name or req.competitor_url
     comp_facts = ""
-    try:
-        comp_facts = await build_knowledge_base(req.competitor_url)
-    except Exception:
-        comp_facts = ""
+    if req.competitor_url:
+        try:
+            comp_facts = await build_knowledge_base(req.competitor_url)
+        except Exception:
+            comp_facts = ""
 
     # 用前10个问题监测竞品（节省成本）
     questions = [q.get("question","") for q in questions_raw[:10] if q.get("question")]
