@@ -291,19 +291,38 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
     brand_low = brand.lower().strip()
     brand_norm = _normalize(brand)
 
+    # 提取品牌核心词：去掉括号及其内容（中英文括号）、去掉常见后缀
+    def _core(name):
+        n = name.lower().strip()
+        # 去掉括号及内容：优品茶叶（Premium Tea）→ 优品茶叶
+        n = re.sub(r'[（(\[【].*?[）)\]】]', '', n)
+        # 去掉常见公司后缀
+        n = re.sub(r'(有限公司|股份|集团|科技|旗舰店|官方|品牌|公司|store|inc|ltd|co)\.?$', '', n, flags=re.I)
+        return n.strip()
+    brand_core = _core(brand_low)
+    brand_core_norm = _normalize(brand_core)
+
     # 多种匹配方式，任一命中即为提及
     mentioned = (
-        brand_low in low or           # 精确匹配（已有）
-        brand_norm in low_norm or     # 标准化匹配（处理空格/标点问题）
-        (len(brand_low) >= 2 and      # 品牌名>=2字时，检查各种变体
-         any(v in low for v in [
+        brand_low in low or           # 精确匹配
+        brand_norm in low_norm or     # 标准化匹配（去空格标点）
+        (len(brand_core) >= 2 and brand_core in low) or        # 核心词匹配（去括号后缀）
+        (len(brand_core_norm) >= 2 and brand_core_norm in low_norm) or  # 核心词标准化匹配
+        (len(brand_low) >= 2 and any(v in low for v in [
              brand_low.replace(' ', ''),   # 去空格
              brand_low.replace('-', ''),   # 去横线
-         ]))
+        ]))
     )
-    position = low.find(brand_low) if brand_low in low else (
-        low_norm.find(brand_norm) if brand_norm in low_norm else None
-    )
+    # 记录第一次出现位置（优先用完整名，其次核心词）
+    position = None
+    for probe in [brand_low, brand_core]:
+        idx = low.find(probe)
+        if idx >= 0:
+            position = idx; break
+    if position is None:
+        idx = low_norm.find(brand_norm)
+        if idx < 0: idx = low_norm.find(brand_core_norm)
+        position = idx if idx >= 0 else None
 
     # 竞品同样用增强匹配
     comps_found = []
