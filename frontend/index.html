@@ -150,6 +150,12 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulseGlow{0%,100%{box-shadow:0 0 0 0 rgba(201,154,82,.5)}50%{box-shadow:0 0 0 8px rgba(201,154,82,0)}}
 .pulse-cta{animation:pulseGlow 2s infinite}
+.board-fbtn{padding:6px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel);
+  color:var(--ink-soft);font-size:12px;cursor:pointer;white-space:nowrap;transition:.2s;font-family:inherit}
+.board-fbtn:hover{background:var(--panel-2);color:var(--ink)}
+.board-fbtn.on{background:var(--cyan);color:#fff;border-color:var(--cyan)}
+.dark-app .board-fbtn{background:rgba(244,241,234,.05);color:rgba(244,241,234,.6);border-color:rgba(244,241,234,.12)}
+.dark-app .board-fbtn.on{background:#5a7d5a;color:#fff}
 .loading{text-align:center;color:var(--ink-soft)}
 .loading p{margin-top:14px;font-size:14px}
 
@@ -1221,6 +1227,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div class="sb-item active" id="navMap" onclick="navTo('map')"><span class="ic">🗺️</span>作战地图</div>
         <div class="sb-item" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
         <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
+        <div class="sb-item" id="navBoard" onclick="navTo('board')"><span class="ic">📇</span>收录大盘</div>
         <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
         <div class="sb-item" onclick="window.open('/tutorial','_blank')"><span class="ic">📖</span>运营教程</div>
         <div class="sb-item" onclick="openMyPages()"><span class="ic">🏗️</span>我的落地页</div>
@@ -1452,6 +1459,30 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                 <button class="btn-cyan" onclick="reMonitor()">🔁 复测看提升</button>
                 <button class="btn-ghost" onclick="resetFlow()">+ 监测新品牌</button>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 收录数据大盘 ===== -->
+        <div id="boardView" class="hidden">
+          <div class="shell">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+              <p style="font-size:14px;color:var(--ink-soft)">8 大 AI 平台收录明细 · 每条可点击到平台验证</p>
+              <button class="btn-cyan" style="font-size:13px;padding:8px 16px" onclick="genIndexData()" id="genIdxBtn">🔄 生成/刷新收录数据</button>
+            </div>
+            <!-- 顶部大数字 -->
+            <div id="boardSummary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:16px 0"></div>
+            <!-- 各平台占比 -->
+            <div id="boardPlatforms" class="section-card" style="margin-bottom:16px"></div>
+            <!-- 明细表 -->
+            <div class="section-card">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:12px">
+                <div style="font-weight:700;font-size:15px">关键词详细数据</div>
+                <input id="boardSearch" placeholder="🔍 搜索关键词…" oninput="boardSearchDebounced()" style="padding:8px 14px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink);min-width:200px">
+              </div>
+              <div id="boardFilters" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+              <div id="boardTable" style="overflow-x:auto"></div>
+              <div id="boardPager" style="display:flex;justify-content:center;gap:8px;margin-top:14px"></div>
             </div>
           </div>
         </div>
@@ -1925,6 +1956,7 @@ const NAV_VIEWS = {
   map:   {view:"mapView",         crumb:"作战地图",     sub:"你的GEO作战全流程",  nav:"navMap"},
   flow:  {view:"mainFlow",       crumb:"AI 监测",     sub:"查清 AI 推不推你",  nav:"navFlow"},
   dash:  {view:"dashboardView",  crumb:"增长看板",     sub:"追踪能见度变化",    nav:"navDash"},
+  board: {view:"boardView",      crumb:"收录大盘",     sub:"8平台收录明细，可点击验证", nav:"navBoard"},
   ws:    {view:"workspaceView",  crumb:"内容工作台",   sub:"建库·选题·创作",    nav:"navWs"},
   ref:   {view:"referralView",   crumb:"我的推广",     sub:"分享赚奖励",        nav:"navRef"},
   price: {view:"pricingView",    crumb:"升级套餐",     sub:"选择适合的方案",    nav:"navPrice"},
@@ -2009,14 +2041,14 @@ function navTo(key){
   const cfg = NAV_VIEWS[key];
   if(!cfg) return;
   // 隐藏所有主视图
-  ["mapView","mainFlow","dashboardView","workspaceView","referralView","pricingView"].forEach(v=>{
+  ["mapView","mainFlow","dashboardView","boardView","workspaceView","referralView","pricingView"].forEach(v=>{
     const el=document.getElementById(v); if(el) el.classList.add("hidden");
   });
   // 显示目标
   const target=document.getElementById(cfg.view);
   if(target) target.classList.remove("hidden");
   // 侧边栏高亮
-  ["navMap","navFlow","navDash","navWs","navRef","navPrice"].forEach(n=>{
+  ["navMap","navFlow","navDash","navBoard","navWs","navRef","navPrice"].forEach(n=>{
     const el=document.getElementById(n); if(el) el.classList.remove("active");
   });
   const navEl=document.getElementById(cfg.nav); if(navEl) navEl.classList.add("active");
@@ -2030,6 +2062,7 @@ function navTo(key){
   // 触发各视图的数据加载
   if(key==="map" && typeof renderBattleMap==="function") renderBattleMap();
   if(key==="dash" && typeof showDashboard==="function") showDashboard();
+  if(key==="board" && typeof loadIndexBoard==="function") loadIndexBoard();
   if(key==="ws" && typeof showWorkspace==="function") showWorkspace();
   if(key==="ref" && typeof showReferral==="function") showReferral();
   // 切换页面后修复文字对比度（动态内容渲染完再扫）
@@ -2509,6 +2542,195 @@ async function genMaterialList(){
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
   }catch(e){ box.innerHTML=`<p style="color:var(--bad);padding:12px">❌ ${escHtml(e.message||"生成失败")}</p>`; }
   finally{ btn.disabled=false; btn.textContent="生成资料清单 →"; }
+}
+
+// ===== 收录数据大盘 =====
+let boardState = {brandId:0, platform:"", device:"", keyword:"", page:1};
+
+async function loadIndexBoard(){
+  const bid = currentBrandId || lastBrandIdForDash || 0;
+  boardState.brandId = bid;
+  await Promise.all([loadBoardSummary(), loadBoardRecords()]);
+}
+
+async function loadBoardSummary(){
+  const sumEl = document.getElementById("boardSummary");
+  const platEl = document.getElementById("boardPlatforms");
+  try{
+    const d = await api("/api/index-board?brand_id="+(boardState.brandId||0));
+    const s = d.summary||{};
+    const cards = [
+      {n:s.question_total||0, label:"AI拓展问题数量", sub:"问题总量"},
+      {n:s.index_total||0, label:"八大平台收录量", sub:"收录总量", hl:true},
+      {n:s.platform_count||8, label:"训练平台数量", sub:"训练平台"},
+      {n:s.main_keyword_count||0, label:"主训练词数量", sub:"蒸馏词"},
+    ];
+    sumEl.innerHTML = cards.map(c=>`
+      <div style="background:${c.hl?'linear-gradient(135deg,#211d17,#1a1712)':'var(--panel-2)'};border:1px solid ${c.hl?'rgba(168,196,140,.3)':'var(--line)'};border-radius:14px;padding:20px 18px;text-align:center">
+        <div style="font-family:'Noto Serif SC',serif;font-size:30px;font-weight:800;color:${c.hl?'#a8c48c':'var(--matcha)'}">${(c.n||0).toLocaleString()}</div>
+        <div style="font-size:12px;color:${c.hl?'rgba(244,241,234,.85)':'var(--ink)'};font-weight:600;margin-top:6px">${c.label}</div>
+        <div style="font-size:10.5px;color:${c.hl?'rgba(244,241,234,.5)':'var(--ink-faint)'};margin-top:2px">${c.sub}</div>
+      </div>`).join("");
+    // 各平台占比
+    const ps = d.platform_stats||{};
+    const order = d.platform_order||[];
+    let ph = `<div style="font-weight:700;font-size:15px;margin-bottom:14px">各平台收录占比</div><div style="display:flex;flex-direction:column;gap:10px">`;
+    order.forEach(p=>{
+      const st = ps[p]||{};
+      ph += `<div style="display:flex;align-items:center;gap:12px">
+        <div style="width:80px;font-size:13px;color:var(--ink);flex-shrink:0">${st.label||p}</div>
+        <div style="flex:1;background:var(--panel);border-radius:10px;height:22px;overflow:hidden;position:relative">
+          <div style="height:100%;width:${st.percent||0}%;background:linear-gradient(90deg,#5a7d5a,#a8c48c);border-radius:10px;min-width:${st.total?'24px':'0'}"></div>
+        </div>
+        <div style="width:110px;text-align:right;font-size:12px;color:var(--ink-soft);flex-shrink:0">${(st.total||0).toLocaleString()} · ${st.percent||0}%</div>
+      </div>`;
+    });
+    ph += `</div>`;
+    platEl.innerHTML = ph;
+    // 筛选按钮
+    renderBoardFilters(order, ps);
+  }catch(e){
+    sumEl.innerHTML = `<div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--ink-soft)">还没有收录数据，点右上角「生成收录数据」开始 →</div>`;
+    platEl.innerHTML = "";
+  }
+}
+
+function renderBoardFilters(order, ps){
+  const el = document.getElementById("boardFilters");
+  if(!el) return;
+  let total = 0; Object.values(ps||{}).forEach(s=>total+=(s.total||0));
+  let h = `<button class="board-fbtn ${!boardState.platform?'on':''}" onclick="boardFilter('','')">全部 (${total.toLocaleString()})</button>`;
+  (order||[]).forEach(p=>{
+    const st = ps[p]||{};
+    if(!st.total) return;
+    h += `<button class="board-fbtn ${boardState.platform===p&&boardState.device==='pc'?'on':''}" onclick="boardFilter('${p}','pc')">${st.label} 电脑端(${st.pc||0})</button>`;
+    h += `<button class="board-fbtn ${boardState.platform===p&&boardState.device==='mobile'?'on':''}" onclick="boardFilter('${p}','mobile')">${st.label} 移动端(${st.mobile||0})</button>`;
+  });
+  el.innerHTML = h;
+}
+
+function boardFilter(platform, device){
+  boardState.platform = platform;
+  boardState.device = device;
+  boardState.page = 1;
+  loadBoardRecords();
+  loadBoardSummary();  // 刷新筛选高亮
+}
+
+let _boardSearchTimer;
+function boardSearchDebounced(){
+  clearTimeout(_boardSearchTimer);
+  _boardSearchTimer = setTimeout(()=>{
+    boardState.keyword = (document.getElementById("boardSearch")||{}).value||"";
+    boardState.page = 1;
+    loadBoardRecords();
+  }, 400);
+}
+
+async function loadBoardRecords(){
+  const tblEl = document.getElementById("boardTable");
+  const pagerEl = document.getElementById("boardPager");
+  tblEl.innerHTML = '<div class="loading" style="padding:20px"><div class="spinner"></div><p>加载明细…</p></div>';
+  try{
+    const qs = `?brand_id=${boardState.brandId||0}&platform=${boardState.platform}&device=${boardState.device}&keyword=${encodeURIComponent(boardState.keyword)}&page=${boardState.page}&page_size=50`;
+    const d = await api("/api/index-records"+qs);
+    const rows = d.records||[];
+    if(!rows.length){
+      tblEl.innerHTML = '<p style="padding:24px;text-align:center;color:var(--ink-soft)">暂无收录记录。点右上角「生成收录数据」开始。</p>';
+      pagerEl.innerHTML = "";
+      return;
+    }
+    let h = `<table style="width:100%;border-collapse:collapse;font-size:12.5px">
+      <thead><tr style="text-align:left;color:var(--ink-soft);border-bottom:1px solid var(--line)">
+        <th style="padding:8px 10px">主关键词</th><th>拓展词</th><th>平台</th><th>来源</th><th>查询时间</th><th style="text-align:center">查看</th>
+      </tr></thead><tbody>`;
+    window._boardRows = rows;  // 存下来供验证弹窗用
+    rows.forEach((r,idx)=>{
+      h += `<tr style="border-bottom:1px solid var(--line)">
+        <td style="padding:8px 10px;font-weight:600">${escHtml(r.main_keyword)}</td>
+        <td style="color:var(--matcha)">${escHtml(r.expand_keyword)}</td>
+        <td>${escHtml(r.platform_label)}</td>
+        <td style="color:var(--ink-soft)">${escHtml(r.device)}</td>
+        <td style="color:var(--ink-soft)">${escHtml(r.indexed_at)}</td>
+        <td style="text-align:center"><a href="#" onclick="boardVerify(${idx});return false;" style="color:var(--cyan);text-decoration:none;font-weight:600">查看 ↗</a></td>
+      </tr>`;
+    });
+    h += `</tbody></table>`;
+    tblEl.innerHTML = h;
+    // 分页
+    const totalPages = Math.ceil((d.total||0)/(d.page_size||50));
+    if(totalPages>1){
+      let ph = "";
+      const cur = d.page||1;
+      if(cur>1) ph += `<button class="board-fbtn" onclick="boardGoPage(${cur-1})">‹ 上一页</button>`;
+      ph += `<span style="font-size:13px;color:var(--ink-soft);padding:6px 10px">第 ${cur} / ${totalPages} 页 · 共 ${(d.total||0).toLocaleString()} 条</span>`;
+      if(cur<totalPages) ph += `<button class="board-fbtn" onclick="boardGoPage(${cur+1})">下一页 ›</button>`;
+      pagerEl.innerHTML = ph;
+    } else pagerEl.innerHTML = `<span style="font-size:12px;color:var(--ink-faint)">共 ${(d.total||0).toLocaleString()} 条</span>`;
+  }catch(e){
+    tblEl.innerHTML = `<p style="padding:24px;text-align:center;color:var(--bad)">加载失败：${escHtml(e.message||"")}</p>`;
+  }
+}
+
+function boardGoPage(p){ boardState.page = p; loadBoardRecords(); window.scrollTo({top:0,behavior:'smooth'}); }
+
+// 点"查看"：弹出验证引导（复制问句→去平台提问→看AI推不推你）
+function boardVerify(idx){
+  const r = (window._boardRows||[])[idx];
+  if(!r) return;
+  const q = r.verify_query || ("推荐几个好的"+(r.main_keyword||""));
+  // 移除旧弹窗
+  const old = document.getElementById("verifyModal"); if(old) old.remove();
+  const modal = document.createElement("div");
+  modal.id = "verifyModal";
+  modal.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px";
+  modal.innerHTML = `
+    <div style="background:#1a1712;border:1px solid rgba(244,241,234,.15);border-radius:18px;padding:26px;max-width:400px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div style="font-size:16px;font-weight:700;color:#f4f1ea">🔍 去 ${escHtml(r.platform_label)} 验证收录</div>
+        <span onclick="document.getElementById('verifyModal').remove()" style="cursor:pointer;color:rgba(244,241,234,.5);font-size:22px;line-height:1">×</span>
+      </div>
+      <div style="font-size:13px;color:rgba(244,241,234,.7);line-height:1.7;margin-bottom:16px">3 步验证 AI 认不认你，眼见为实：</div>
+      <div style="background:rgba(244,241,234,.05);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:12px;color:rgba(244,241,234,.55);margin-bottom:6px">① 复制这句话 👇</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div style="flex:1;font-size:14px;color:#a8c48c;font-weight:600" id="verifyQ">${escHtml(q)}</div>
+          <button onclick="boardCopyQ('${escHtml(q).replace(/'/g,"\\'")}')" style="background:#5a7d5a;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;cursor:pointer;font-weight:600;white-space:nowrap">复制</button>
+        </div>
+      </div>
+      <div style="font-size:12.5px;color:rgba(244,241,234,.7);line-height:1.9;margin-bottom:18px">
+        ② 打开 ${escHtml(r.platform_label)}，把这句话粘贴进去提问<br>
+        ③ 看 AI 的回答里，<b style="color:#c99a52">有没有你的品牌</b>——这就是收录的真实效果
+      </div>
+      <a href="${escHtml(r.platform_url||'#')}" target="_blank" rel="noopener" style="display:block;text-align:center;background:linear-gradient(135deg,#5a7d5a,#6b8a5e);color:#fff;text-decoration:none;padding:12px;border-radius:10px;font-size:14px;font-weight:600">打开 ${escHtml(r.platform_label)} →</a>
+    </div>`;
+  modal.onclick = (e)=>{ if(e.target===modal) modal.remove(); };
+  document.body.appendChild(modal);
+}
+
+function boardCopyQ(q){
+  const done=()=>toast("✅ 已复制，去平台粘贴提问");
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(q).then(done).catch(()=>fallbackCopy(q,done));
+  } else { fallbackCopy(q,done); }
+}
+
+async function genIndexData(){
+  const bid = currentBrandId || lastBrandIdForDash || 0;
+  if(!bid){ toast("请先在「AI 监测」创建并监测一个品牌"); return; }
+  const btn = document.getElementById("genIdxBtn");
+  btn.disabled = true; btn.textContent = "生成中…（约需 20-40 秒）";
+  try{
+    const d = await api("/api/index-generate",{method:"POST",body:JSON.stringify({brand_id:bid})});
+    toast(`✅ ${d.message||"生成完成"}`);
+    boardState.brandId = bid; boardState.page = 1; boardState.platform=""; boardState.device=""; boardState.keyword="";
+    const si=document.getElementById("boardSearch"); if(si) si.value="";
+    await loadIndexBoard();
+  }catch(e){
+    toast("生成失败："+(e.message||"请重试"));
+  }finally{
+    btn.disabled = false; btn.textContent = "🔄 生成/刷新收录数据";
+  }
 }
 
 // 功能5：关键词热度分析
