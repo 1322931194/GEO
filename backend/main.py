@@ -728,8 +728,29 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
         full_json=json.dumps(report.__dict__, ensure_ascii=False, default=str),
     )
     session.add(rec)
+    session.flush()  # 拿到rec.id用于关联证据
 
-    # 存行业匿名样本（数据护城河，默默积累）
+    # ===== 保存AI推荐证据（需求⑤：续费核心证据）=====
+    try:
+        AIEvidence.__table__.create(bind=session.get_bind(), checkfirst=True)
+        for r in (report.raw_results or []):
+            ans = r.get("answer") or r.get("answer_text") or ""
+            if not ans:
+                continue
+            comps = r.get("competitors_found") or r.get("competitors") or []
+            srcs = r.get("cited_sources") or r.get("sources") or []
+            ev = AIEvidence(
+                user_id=user.id, brand_id=brand.id, report_id=rec.id,
+                question=(r.get("question") or "")[:500],
+                platform=r.get("platform") or r.get("platform_label") or "",
+                answer_text=ans[:3000],  # 存原文（限长防爆库）
+                mentioned=bool(r.get("mentioned", False)),
+                competitors_found=",".join(comps) if isinstance(comps, list) else str(comps),
+                cited_sources=",".join(srcs) if isinstance(srcs, list) else str(srcs),
+            )
+            session.add(ev)
+    except Exception:
+        pass  # 证据保存失败不影响主流程
     try:
         _save_industry_sample(brand, report.mention_rate, report.source_count, session)
     except Exception:
@@ -1101,6 +1122,157 @@ def exec_report_data(brand_id: int, demo: bool = False,
     }
 
 
+class LocalGeoReq(BaseModel):
+    brand_id: int
+    address: str = ""
+    phone: str = ""
+    hours: str = ""
+
+@app.post("/api/local-geo")
+async def local_geo(req: LocalGeoReq, user: User = Depends(current_user),
+                    session: Session = Depends(get_session)):
+    """需求⑧：本地商家GEO清单（NAP一致性/地图POI/本地问答/落地页）。"""
+    try:
+        brand = _owned_brand(req.brand_id, user, session)
+        # 存下本地信息
+        changed = False
+        if req.address and req.address != getattr(brand, "address", ""):
+            brand.address = req.address; changed = True
+        if req.phone and req.phone != getattr(brand, "phone", ""):
+            brand.phone = req.phone; changed = True
+        if req.hours and req.hours != getattr(brand, "business_hours", ""):
+            brand.business_hours = req.hours; changed = True
+        if changed:
+            session.add(brand); session.commit()
+        from services.generator import generate_local_geo_kit
+        return await generate_local_geo_kit(
+            brand.name, brand.industry, brand.region or "",
+            req.address or getattr(brand, "address", ""),
+            req.phone or getattr(brand, "phone", ""),
+            req.hours or getattr(brand, "business_hours", ""))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"本地GEO清单生成失败：{type(e).__name__}: {e}")
+
+@app.get("/api/brands/{brand_id}/evidence")
+def get_evidence(brand_id: int, platform: str = "", mentioned: str = "",
+                 page: int = 1, page_size: int = 30,
+                 user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """AI推荐证据库：查看历次AI回答原文（续费核心证据）。"""
+    brand = _owned_brand(brand_id, user, session)
+    try:
+        AIEvidence.__table__.create(bind=session.get_bind(), checkfirst=True)
+    except Exception:
+        pass
+    q = select(AIEvidence).where(AIEvidence.brand_id == brand_id)
+    if platform:
+        q = q.where(AIEvidence.platform == platform)
+    if mentioned == "yes":
+        q = q.where(AIEvidence.mentioned == True)
+    elif mentioned == "no":
+        q = q.where(AIEvidence.mentioned == False)
+    q = q.order_by(AIEvidence.captured_at.desc())
+    rows = session.exec(q).all()
+    total = len(rows)
+    start = (page - 1) * page_size
+    page_rows = rows[start:start + page_size]
+    return {
+        "total": total, "page": page, "page_size": page_size,
+        "records": [{
+            "id": r.id, "question": r.question, "platform": r.platform,
+            "answer_text": r.answer_text, "mentioned": r.mentioned,
+            "competitors": r.competitors_found, "sources": r.cited_sources,
+            "captured_at": r.captured_at.strftime("%Y-%m-%d %H:%M") if r.captured_at else "",
+        } for r in page_rows],
+    }
+
+def _boss_report(report_data: dict, brand_name: str) -> dict:
+    """把技术报告翻译成'老板看得懂'的生意语言。
+    需求②：不说'推荐率20%'，说'你在10个问题缺席8个、竞品被推6次、每月错失X咨询、优先补这3个'。"""
+    total = report_data.get("total_queries", 0) or report_data.get("answered_queries", 0)
+    answered = report_data.get("answered_queries", 0) or total
+    rate = report_data.get("mention_rate", 0)
+    comp_share = report_data.get("competitor_share", {}) or {}
+    raw = report_data.get("raw_results", []) or []
+
+    # 1. 你在几个问题里缺席
+    mentioned_count = round(answered * rate / 100) if answered else 0
+    absent_count = answered - mentioned_count
+
+    # 2. 竞品被推荐了几次（取最高的）
+    top_comp = None
+    top_comp_count = 0
+    if comp_share:
+        top_comp = max(comp_share, key=comp_share.get)
+        top_comp_count = round(answered * comp_share[top_comp] / 100) if answered else 0
+
+    # 3. 预计每月错失多少咨询（保守估算：假设每个问题背后有真实客户在问）
+    # 诚实标注：这是估算，基于"缺席问题数 × 保守咨询转化"
+    est_monthly_loss = absent_count * 3  # 每个缺席问题保守估月损3个潜在咨询
+
+    # 4. 最优先补哪3个问题（从缺席的问题里挑）
+    priority_questions = []
+    for r in raw:
+        if not r.get("mentioned", False) and r.get("question"):
+            priority_questions.append(r["question"])
+        if len(priority_questions) >= 3:
+            break
+
+    # 组装老板视角的话
+    headline = ""
+    if rate == 0:
+        headline = f"客户问 AI 时，{answered} 个问题里你一次都没被提到——你在 AI 世界里是「隐形」的。"
+    elif rate < 40:
+        headline = f"客户问 AI 时，{answered} 个问题里你只在 {mentioned_count} 个被提到，缺席了 {absent_count} 个。"
+    else:
+        headline = f"你在 {answered} 个问题里被提到 {mentioned_count} 次，表现不错，但还有 {absent_count} 个问题的机会没抓住。"
+
+    bullets = []
+    bullets.append(f"📊 你在 {answered} 个客户问题里，缺席了 {absent_count} 个")
+    if top_comp:
+        bullets.append(f"⚔️ 竞品「{top_comp}」被 AI 推荐了 {top_comp_count} 次，抢走了本该属于你的曝光")
+    if est_monthly_loss > 0:
+        bullets.append(f"💸 保守估算，这些缺席每月可能让你错失约 {est_monthly_loss} 个潜在咨询")
+    if priority_questions:
+        bullets.append(f"🎯 最优先补这 {len(priority_questions)} 个问题的内容，见效最快")
+
+    return {
+        "headline": headline,
+        "bullets": bullets,
+        "absent_count": absent_count,
+        "mentioned_count": mentioned_count,
+        "answered": answered,
+        "top_competitor": top_comp,
+        "top_competitor_count": top_comp_count,
+        "est_monthly_loss": est_monthly_loss,
+        "priority_questions": priority_questions,
+        "note": "以上为基于本次监测的估算，帮你理解现状，非精确数字。",
+    }
+
+@app.get("/api/brands/{brand_id}/boss-report")
+def boss_report(brand_id: int, user: User = Depends(current_user),
+                session: Session = Depends(get_session)):
+    """老板看得懂的报告：把技术数据翻译成生意语言。"""
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    if not recs:
+        raise HTTPException(404, "还没有监测报告，请先监测")
+    latest = recs[0]
+    report_data = _jload(latest.data_json, {}) if hasattr(latest, "data_json") else {}
+    if not report_data:
+        report_data = {
+            "total_queries": getattr(latest, "total_queries", 0),
+            "answered_queries": getattr(latest, "answered_queries", 0),
+            "mention_rate": latest.mention_rate,
+            "competitor_share": _jload(getattr(latest, "competitor_share_json", "{}"), {}),
+            "raw_results": _jload(getattr(latest, "raw_json", "[]"), []),
+        }
+    return _boss_report(report_data, brand.name)
+
 @app.get("/api/brands/{brand_id}/dashboard")
 def growth_dashboard(brand_id: int, user: User = Depends(current_user),
                      session: Session = Depends(get_session)):
@@ -1378,6 +1550,21 @@ def brand_roi(brand_id: int, user: User = Depends(current_user),
     for s in by_source:
         by_source[s]["value"] = round(by_source[s]["value"], 2)
 
+    # 需求⑦：按转化类型统计（表单提交/微信复制/电话点击分别多少）
+    TYPE_LABELS = {
+        "form": "表单提交", "lead": "留资", "wechat": "微信复制",
+        "phone": "电话点击", "consult": "咨询", "order": "下单",
+    }
+    by_type = {}
+    for c in convs:
+        t = c.event_type or "other"
+        label = TYPE_LABELS.get(t, t)
+        by_type.setdefault(label, {"count": 0, "value": 0.0})
+        by_type[label]["count"] += 1
+        by_type[label]["value"] += c.value
+    for t in by_type:
+        by_type[t]["value"] = round(by_type[t]["value"], 2)
+
     return {
         "has_data": len(visits) > 0 or len(convs) > 0,
         "visits": len(visits),
@@ -1385,6 +1572,7 @@ def brand_roi(brand_id: int, user: User = Depends(current_user),
         "total_value": total_value,
         "conversion_rate": conv_rate,
         "by_source": by_source,
+        "by_type": by_type,
         "note": "ROI 归因基于追踪代码记录的真实 AI 访客与转化数据。",
     }
 
@@ -3024,6 +3212,45 @@ def mark_published(brand_id: int, content_id: int,
     raise HTTPException(404, "内容不存在")
 
 
+class DistributeReq(BaseModel):
+    platform: str          # 官网/知乎/公众号/百家号
+    done: bool = True
+
+@app.post("/api/brands/{brand_id}/content/{content_id}/distribute")
+def update_distribute(brand_id: int, content_id: int, req: DistributeReq,
+                      user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """需求⑥：更新内容的多平台分发状态（发了官网/知乎/公众号/百家号）。"""
+    _owned_brand(brand_id, user, session)
+    c = session.get(GeneratedContent, content_id)
+    if not c or c.brand_id != brand_id:
+        raise HTTPException(404, "内容不存在")
+    dist = _jload(getattr(c, "distribute_json", "{}"), {})
+    dist[req.platform] = req.done
+    c.distribute_json = json.dumps(dist, ensure_ascii=False)
+    if any(dist.values()):
+        c.status = "published"
+    session.add(c); session.commit()
+    return {"distribute": dist, "status": c.status}
+
+class IndexCiteReq(BaseModel):
+    is_indexed: bool = None
+    is_cited: bool = None
+
+@app.post("/api/brands/{brand_id}/content/{content_id}/index-status")
+def update_index_status(brand_id: int, content_id: int, req: IndexCiteReq,
+                        user: User = Depends(current_user), session: Session = Depends(get_session)):
+    """需求⑥：更新内容的收录/被引用状态。"""
+    _owned_brand(brand_id, user, session)
+    c = session.get(GeneratedContent, content_id)
+    if not c or c.brand_id != brand_id:
+        raise HTTPException(404, "内容不存在")
+    if req.is_indexed is not None:
+        c.is_indexed = req.is_indexed
+    if req.is_cited is not None:
+        c.is_cited = req.is_cited
+    session.add(c); session.commit()
+    return {"is_indexed": c.is_indexed, "is_cited": c.is_cited}
+
 @app.post("/api/brands/{brand_id}/content/{content_id}/submit-approval")
 def submit_approval(brand_id: int, content_id: int,
                     user: User = Depends(current_user),
@@ -3168,19 +3395,52 @@ class SimulateReq(BaseModel):
     website: str = ""     # 可选：用户自己的网站，检测有没有被引用
     mode: str = "outbound"  # outbound=英文查海外AI  domestic=中文查国内AI
 
+# 免费模拟器结果缓存（相同关键词1小时内复用，省API费用）
+_sim_cache = {}
+_SIM_CACHE_TTL = 3600  # 1小时
+
 @app.post("/api/simulate")
 async def simulate(req: SimulateReq, request: Request):
     """
     AI推荐模拟器：无需登录，输入关键词立刻查
-    限流：同一IP每小时最多15次，防止恶意刷爆烧API费用
+    多层防护：结果缓存 + IP限流 + 全局每日熔断，防止恶意刷爆烧API费用
     """
-    _rate_limit(f"simulate:{_client_ip(request)}", max_calls=15, window_sec=3600)
+    ip = _client_ip(request)
+    keyword = (req.keyword or "").strip()
+    # 输入校验：关键词长度限制，防超长恶意输入
+    if not keyword or len(keyword) > 50:
+        raise HTTPException(400, "请输入有效关键词（50字以内）")
+
+    # 第1层：结果缓存——相同关键词直接返回，不重复烧token
+    import time as _t
+    cache_key = f"{keyword}|{req.mode}"
+    cached = _sim_cache.get(cache_key)
+    if cached and (_t.time() - cached["ts"] < _SIM_CACHE_TTL):
+        result = dict(cached["data"])
+        result["_cached"] = True
+        return result
+
+    # 第2层：IP限流——同IP每小时最多10次（从15收紧）
+    _rate_limit(f"simulate:{ip}", max_calls=10, window_sec=3600)
+    # 第2.5层：IP每分钟限流——防短时爆刷
+    _rate_limit(f"simulate_min:{ip}", max_calls=3, window_sec=60)
+
+    # 第3层：全站每日免费模拟器熔断——保护钱包
+    _simulate_daily_guard()
+
     try:
-        return await _do_simulate(req)
+        result = await _do_simulate(req)
+        # 写入缓存
+        _sim_cache[cache_key] = {"ts": _t.time(), "data": result}
+        # 缓存清理（超过500条清最旧的，防内存膨胀）
+        if len(_sim_cache) > 500:
+            oldest = sorted(_sim_cache.items(), key=lambda x: x[1]["ts"])[:100]
+            for k, _ in oldest:
+                _sim_cache.pop(k, None)
+        return result
     except HTTPException:
         raise
     except Exception as e:
-        # 任何意外错误都返回友好提示，不返回500
         import traceback
         return {
             "keyword": req.keyword,
@@ -3194,6 +3454,19 @@ async def simulate(req: SimulateReq, request: Request):
             },
             "error_detail": traceback.format_exc()[-500:],
         }
+
+# 免费模拟器专用每日熔断（比登录用户更严，因为无需登录风险更高）
+_sim_daily = {"date": "", "count": 0}
+def _simulate_daily_guard():
+    import datetime as _dt
+    today = _dt.date.today().isoformat()
+    if _sim_daily["date"] != today:
+        _sim_daily["date"] = today
+        _sim_daily["count"] = 0
+    max_daily = int(os.getenv("MAX_DAILY_SIMULATE", "300"))  # 免费模拟器每天全站上限300
+    if _sim_daily["count"] >= max_daily:
+        raise HTTPException(503, "今日免费体验名额已满，注册后可继续使用完整功能～")
+    _sim_daily["count"] += 1
 
 
 async def _do_simulate(req: SimulateReq):
