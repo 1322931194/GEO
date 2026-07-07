@@ -392,8 +392,8 @@ def _auto_migrate():
         ("brand", "phone", "VARCHAR DEFAULT ''"),
         ("brand", "business_hours", "VARCHAR DEFAULT ''"),
         ("generatedcontent", "distribute_json", "VARCHAR DEFAULT '{}'"),
-        ("generatedcontent", "is_indexed", "BOOLEAN DEFAULT 0"),
-        ("generatedcontent", "is_cited", "BOOLEAN DEFAULT 0"),
+        ("generatedcontent", "is_indexed", "BOOLEAN DEFAULT FALSE"),
+        ("generatedcontent", "is_cited", "BOOLEAN DEFAULT FALSE"),
         ("apicalllog", "scene", "VARCHAR DEFAULT 'other'"),
     ]
     is_sqlite = str(engine.url).startswith("sqlite")
