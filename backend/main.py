@@ -220,8 +220,9 @@ def _jload(s, default=None):
 COMMISSION_RATE = 0.35
 # 套餐价格（用于算佣金）
 PLAN_PRICES = {
-    "single": 99,
-    "monthly": 599,
+    "single": 19.9,        # 单次内容包
+    "monthly": 599,        # 增长版
+    "pro_monthly": 980,    # 畅享版（不限次）
     # custom 定制版：价格面议，后台手动开通，不走线上支付
     # 以下为旧套餐价格（仅兼容历史订单回调）
     "starter": 1980,
@@ -4246,4 +4247,10 @@ if os.path.isdir(_FRONTEND):
     @app.get("/pricing")
     def pricing_page():
         return FileResponse(os.path.join(_FRONTEND, "pricing.html"))
+    # ===== 微信域名验证文件 =====
+    # 微信要求在网站根目录放一个校验txt，证明域名归属
+    @app.get("/8dd220cd8c5c55451eeddd5b4e235eaf.txt")
+    def wechat_verify():
+        from fastapi.responses import PlainTextResponse
+        return PlainTextResponse("6cf675ad4bb8c57463a644dcd1b7adf401e81d02")
     app.mount("/static", StaticFiles(directory=_FRONTEND), name="static")
