@@ -3325,10 +3325,49 @@ function renderContentsTab(d){
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="togglePublished(${ct.id})">${pub?'标为草稿':'标为已发布'}</button>
           <button class="btn-ghost" style="font-size:12px;padding:7px 14px;color:var(--cyan);border-color:var(--cyan)" onclick="submitApproval(${ct.id})">📲 提交老板审批</button>
         </div>
+        ${_distributeRow(ct)}
       </div>`;
     });
   }
   c.innerHTML=html;
+}
+
+// ===== 需求⑥：内容分发追踪 =====
+const _DIST_PLATFORMS=["官网","知乎","公众号","百家号","搜狐号","小红书"];
+function _distributeRow(ct){
+  let dist={};
+  try{ dist=JSON.parse(ct.distribute_json||"{}"); }catch(e){ dist={}; }
+  const indexed=ct.is_indexed, cited=ct.is_cited;
+  let h=`<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)">
+    <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:8px">📤 分发追踪（发到哪、收录没）：</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">`;
+  _DIST_PLATFORMS.forEach(p=>{
+    const on=dist[p];
+    h+=`<button class="dist-chip ${on?'on':''}" onclick="toggleDistribute(${ct.id},'${p}',${!on})" style="font-size:11px;padding:4px 10px;border-radius:12px;border:1px solid ${on?'var(--matcha)':'var(--line)'};background:${on?'rgba(168,196,140,.15)':'var(--panel)'};color:${on?'var(--matcha)':'var(--ink-soft)'};cursor:pointer">${on?'✓ ':''}${p}</button>`;
+  });
+  h+=`</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px">
+      <label style="cursor:pointer;color:${indexed?'var(--matcha)':'var(--ink-soft)'}"><input type="checkbox" ${indexed?'checked':''} onchange="toggleIndexStatus(${ct.id},'indexed',this.checked)" style="width:auto;margin-right:4px"> 已被搜索/AI收录</label>
+      <label style="cursor:pointer;color:${cited?'var(--gold)':'var(--ink-soft)'}"><input type="checkbox" ${cited?'checked':''} onchange="toggleIndexStatus(${ct.id},'cited',this.checked)" style="width:auto;margin-right:4px"> ⭐ 已被AI引用（最终目标）</label>
+    </div>
+  </div>`;
+  return h;
+}
+async function toggleDistribute(contentId, platform, done){
+  const bid=currentBrandId||lastBrandIdForDash;
+  try{
+    await api(`/api/brands/${bid}/content/${contentId}/distribute`,{method:"POST",body:JSON.stringify({platform,done})});
+    toast(done?`✓ 已标记发到${platform}`:`已取消${platform}`);
+    loadContentsTab();
+  }catch(e){ toast("更新失败："+(e.message||"")); }
+}
+async function toggleIndexStatus(contentId, type, val){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const body=type==='indexed'?{is_indexed:val}:{is_cited:val};
+  try{
+    await api(`/api/brands/${bid}/content/${contentId}/index-status`,{method:"POST",body:JSON.stringify(body)});
+    toast(val?(type==='cited'?"🎉 太好了，AI引用了你的内容！":"✓ 已标记收录"):"已取消");
+  }catch(e){ toast("更新失败："+(e.message||"")); }
 }
 
 function toggleWsBody(id, btn){
@@ -3859,6 +3898,23 @@ function renderDashboard(d){
 }
 
 // ===== ROI 转化归因 =====
+// 需求⑦：按转化类型统计（表单/微信/电话分别多少）
+function _byTypeBlock(byType){
+  if(!byType||!Object.keys(byType).length) return '';
+  const icons={"表单提交":"📝","微信复制":"💬","电话点击":"📞","留资":"✍️","咨询":"💡","下单":"🛒"};
+  let h=`<div style="margin-top:16px"><div style="font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:10px">📊 客户是怎么找上你的</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px">`;
+  Object.entries(byType).forEach(([type,v])=>{
+    h+=`<div style="text-align:center;background:var(--panel-2);border-radius:10px;padding:12px 8px">
+      <div style="font-size:20px">${icons[type]||"📌"}</div>
+      <div style="font-size:18px;font-weight:800;color:var(--cyan);margin-top:2px">${v.count}</div>
+      <div style="font-size:11px;color:var(--ink-soft)">${escHtml(type)}</div>
+      ${v.value>0?`<div style="font-size:10px;color:var(--good);margin-top:2px">¥${v.value}</div>`:''}
+    </div>`;
+  });
+  h+=`</div></div>`;
+  return h;
+}
+
 async function loadROI(){
   let bid = currentBrandId || lastBrandIdForDash;
   if(!bid) return;
@@ -3889,6 +3945,7 @@ async function loadROI(){
           <div style="text-align:center;background:var(--bg);border-radius:10px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--good)">¥${d.total_value}</div><div style="font-size:11px;color:var(--ink-soft)">成交价值</div></div>
         </div>
         ${srcRows?`<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:var(--ink-soft)"><th style="padding:6px">来源平台</th><th>访客</th><th>成交</th><th>价值</th></tr>${srcRows}</table>`:''}
+        ${_byTypeBlock(d.by_type)}
         <div style="font-size:11px;color:var(--ink-faint);margin-top:12px">${d.note}</div>
       `:`
         <div style="text-align:center;padding:24px;color:var(--ink-soft)">
