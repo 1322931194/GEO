@@ -54,16 +54,16 @@ PLANS = {
     "pro_monthly": {
         "name": "畅享版", "price_cny": 980, "brands": 10,
         "questions": 120, "samples": 1, "platforms": 8, "freq": "daily",
-        "monitor_limit": 9999,  # 不限次监测
-        "battle_limit": 9999,   # 不限作战报告
-        "content_limit": 9999,  # 不限内容生成
+        "monitor_limit": 999,  # 不限次监测
+        "battle_limit": 999,   # 不限作战报告
+        "content_limit": 999,  # 不限内容生成
         "pseo_limit": 15,       # 含15个pSEO落地页
         "index_board": True,    # 独家：收录数据大盘
     },
     "custom": {
         "name": "企业定制", "price_cny": 0, "brands": 30,
         "questions": 200, "samples": 3, "platforms": 8, "freq": "daily",
-        "monitor_limit": 9999, "battle_limit": 9999, "content_limit": 9999,
+        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
         "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
         "index_board": True,
     },
@@ -123,6 +123,9 @@ class Brand(SQLModel, table=True):
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
     region: str = ""                 # 地区（本地商户用：城市/区，生成区域词）
+    address: str = ""                # 门店地址（本地GEO用）
+    phone: str = ""                  # 联系电话（本地GEO用）
+    business_hours: str = ""         # 营业时间（本地GEO用）
     questions_json: str = "[]"       # 问题集
     keywords_cache: str = ""         # 关键词提取结果缓存（避免重复调用AI烧token）
     track_id: str = ""               # AI访客追踪码（首次访问追踪页时生成）
@@ -201,6 +204,22 @@ class Report(SQLModel, table=True):
     full_json: str = "{}"          # 完整报告留档
 
 
+class AIEvidence(SQLModel, table=True):
+    """AI推荐证据库：保存每次AI回答原文、时间、平台、问题、竞品。
+    需求⑤：这是商家续费的核心证据——证明'AI以前不推你/现在推你了'。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    brand_id: int = Field(default=0, index=True)
+    report_id: int = Field(default=0, index=True)  # 关联哪次监测
+    question: str = ""                             # 客户问的问题
+    platform: str = ""                             # 哪个AI平台
+    answer_text: str = ""                          # AI回答原文（核心证据）
+    mentioned: bool = False                        # 这次有没有提到你
+    competitors_found: str = ""                    # 这次回答里出现的竞品（逗号分隔）
+    cited_sources: str = ""                        # AI引用了哪些来源
+    captured_at: datetime = Field(default_factory=cn_now, index=True)
+
+
 class GeneratedContent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     brand_id: int = Field(index=True)
@@ -210,6 +229,10 @@ class GeneratedContent(SQLModel, table=True):
     body: str = ""
     publish_tip: str = ""
     status: str = "draft"          # draft / published(人工标记)
+    # 需求⑥：多平台分发追踪（记录发到哪些平台、是否收录、是否被AI引用）
+    distribute_json: str = "{}"    # {"官网":true,"知乎":true,"公众号":false,"百家号":false}
+    is_indexed: bool = False       # 是否被搜索/AI收录
+    is_cited: bool = False         # 是否被AI引用（最终目标）
     created_at: datetime = Field(default_factory=cn_now)
 
 
@@ -365,6 +388,12 @@ def _auto_migrate():
         ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
         ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
         ("brand", "region", "VARCHAR DEFAULT ''"),
+        ("brand", "address", "VARCHAR DEFAULT ''"),
+        ("brand", "phone", "VARCHAR DEFAULT ''"),
+        ("brand", "business_hours", "VARCHAR DEFAULT ''"),
+        ("generatedcontent", "distribute_json", "VARCHAR DEFAULT '{}'"),
+        ("generatedcontent", "is_indexed", "BOOLEAN DEFAULT 0"),
+        ("generatedcontent", "is_cited", "BOOLEAN DEFAULT 0"),
         ("apicalllog", "scene", "VARCHAR DEFAULT 'other'"),
     ]
     is_sqlite = str(engine.url).startswith("sqlite")
