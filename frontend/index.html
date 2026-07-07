@@ -5364,14 +5364,29 @@ function renderRivalMatrix(rep){
     </div>`;
   }).join("");
   const topRival = rows.find(r=>!r.isYou);
-  const verdict = yourRank===1
-    ? `🏆 你排第 1！AI 推荐里你领先所有竞品，继续保持。`
-    : `😰 你排第 ${yourRank} 名，前面有 ${yourRank-1} 个竞品比你更常被 AI 推荐${topRival?`，尤其是「${escHtml(topRival.name)}」`:''}。这意味着：客户问 AI 时，更多人被推给了他们，不是你。把他们的身位抢过来 = 把这些客户拿回来。`;
+  const youZero = rep.mention_rate === 0;
+  // 标题：0%时不问"谁更常"（答案已明确），直接点明现状，与主报告口径一致
+  const cardTitle = youZero
+    ? `⚔️ AI 推荐名单里，目前只有竞品`
+    : `⚔️ 你和竞品，谁更常被 AI 推荐？`;
+  const cardSub = youZero
+    ? `客户问 AI 时，AI 推的是下面这些竞品——还没有你。把内容做起来，才能挤进这份名单。`
+    : `这是 AI 推荐名单里的真实排名。排越前，客户问 AI 时越容易被推到。`;
+  let verdict;
+  if(youZero){
+    verdict = topRival
+      ? `😰 目前 AI 一次都没提到你，却推荐了「${escHtml(topRival.name)}」等竞品。这意味着客户问 AI 时，全被推给了对手。好消息是：这正是你的增长空间——把内容补上，就能开始被 AI 看见。`
+      : `😰 目前 AI 还没在这些问题里推荐你。把内容补上，就能开始被 AI 看见。`;
+  } else {
+    verdict = yourRank===1
+      ? `🏆 你排第 1！AI 推荐里你领先所有竞品，继续保持。`
+      : `😰 你排第 ${yourRank} 名，前面有 ${yourRank-1} 个竞品比你更常被 AI 推荐${topRival?`，尤其是「${escHtml(topRival.name)}」`:''}。这意味着：客户问 AI 时，更多人被推给了他们，不是你。把他们的身位抢过来 = 把这些客户拿回来。`;
+  }
   el.innerHTML=`<div class="section-card" style="margin-top:20px">
-    <div style="font-weight:700;font-size:15px;margin-bottom:4px">⚔️ 你和竞品，谁更常被 AI 推荐？</div>
-    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">这是 AI 推荐名单里的真实排名。排越前，客户问 AI 时越容易被推到。</div>
+    <div style="font-weight:700;font-size:15px;margin-bottom:4px">${cardTitle}</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">${cardSub}</div>
     ${barHtml}
-    <div style="background:${yourRank===1?'#f0f5ee':'#fdf3f2'};border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);line-height:1.65;margin-top:8px">${verdict}</div>
+    <div style="background:${yourRank===1?'var(--panel-2)':'var(--bad-soft,rgba(201,106,95,.1))'};border-radius:8px;padding:12px 14px;font-size:13px;color:var(--ink);line-height:1.65;margin-top:8px">${verdict}</div>
   </div>`;
 }
 
