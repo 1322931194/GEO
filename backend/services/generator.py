@@ -205,6 +205,24 @@ QUESTION_CATEGORIES = OUTBOUND_CATEGORIES
 # 为高客单、决策链长的行业预置专属问题维度，让监测更精准命中真实购买场景。
 # 匹配到行业时，把这些维度注入 prompt，生成更贴合该赛道的长尾问题。
 VERTICAL_PROMPT_LIBRARY = {
+    "口腔": [
+        "项目与效果（'种植牙能用多久''牙齿矫正效果怎么样'）",
+        "价格与医保（'种一颗牙多少钱''牙齿矫正能报销吗'）",
+        "机构与医生（'哪家口腔医院好''种植牙找哪个医生'）",
+        "安全与避坑（'种植牙有风险吗''牙科怎么避免乱收费'）",
+    ],
+    "外贸": [
+        "Supplier reliability（'reliable XX suppliers''trusted XX manufacturers China'）",
+        "MOQ & pricing（'XX minimum order quantity''XX wholesale price'）",
+        "Certification & quality（'certified XX factory''XX quality standards'）",
+        "OEM/ODM & customization（'XX OEM manufacturer''custom XX supplier'）",
+    ],
+    "B2B": [
+        "Solution & fit（'best XX solution for business''XX for enterprise'）",
+        "Vendor comparison（'top XX vendors''XX vs YY for companies'）",
+        "Integration & support（'does XX integrate with''XX customer support'）",
+        "Pricing & ROI（'XX pricing for business''is XX worth the cost'）",
+    ],
     "医美": [
         "项目效果与恢复期（如'XX项目多久恢复''效果能维持多久'）",
         "安全与资质（'哪家医美机构正规有资质''XX项目安全吗'）",
@@ -882,7 +900,66 @@ async def generate_battle_plan(brand: str, industry: str, product: str,
     data = _safe_parse_json(raw)
     if not data:
         return {"error": "作战方案生成失败，请重试"}
-    data["note"] = "本方案基于当前监测数据生成，建议监测后及时查看。执行后重新监测可看效果变化。"
+    # 需求③：提炼"今天就做这一件事"（从行动清单里挑第一个，降低执行门槛）
+    checklist = data.get("action_checklist", [])
+    if checklist:
+        first = checklist[0]
+        data["today_focus"] = {
+            "title": f"今天就做这一件：{first.get('action', '')}",
+            "platform": first.get("platform", ""),
+            "why": first.get("expected", "这是当前性价比最高的一步"),
+            "tip": "别贪多，今天先把这一件做完。做完了，明天再做下一个。",
+        }
+    data["note"] = "本方案基于当前监测数据生成。执行后重新监测可看效果变化。"
+    return data
+
+
+# ============================================================
+# 本地商家 GEO 专项（需求⑧：地图POI/NAP一致性/本地问答）
+# ============================================================
+async def generate_local_geo_kit(brand: str, industry: str, region: str,
+                                   address: str = "", phone: str = "",
+                                   hours: str = "") -> dict:
+    """为本地服务商生成本地GEO落地清单：
+    地图POI认领、NAP一致性检查、本地问答页、城市+行业落地页建议。"""
+    system = (
+        "你是本地生活 GEO 专家。本地服务商（餐饮、口腔、装修、美容等）"
+        "要被 AI 和地图推荐，靠的是 NAP 信息一致、地图 POI 完善、本地问答内容。"
+        "你要给商家一份具体、可照做的本地 GEO 清单。"
+    )
+    nap_status = "已提供" if (address and phone) else "不完整（缺地址或电话）"
+    prompt = f"""为「{region}」的本地「{industry}」商家「{brand}」生成本地 GEO 优化清单。
+
+【商家信息】
+- 地址：{address or '未填'}
+- 电话：{phone or '未填'}
+- 营业时间：{hours or '未填'}
+- NAP完整度：{nap_status}
+
+请输出本地 GEO 落地清单，JSON格式：
+{{
+  "nap_check": {{
+    "status": "一致性检查结论（NAP=名称Name/地址Address/电话Phone，多平台必须完全一致）",
+    "todo": ["要检查/统一的具体项，如'确保高德、百度地图、大众点评上的电话完全一致'"]
+  }},
+  "map_poi": [
+    {{"platform":"高德地图/百度地图/微信/抖音POI", "action":"具体怎么认领和完善", "why":"为什么重要"}}
+  ],
+  "local_qa": [
+    {{"question":"本地客户会问AI的问题（带地域，如'{region}哪家{industry}好'）", "content_tip":"这条内容怎么写、发哪"}}
+  ],
+  "landing_pages": [
+    {{"page":"城市+行业落地页建议（如'{region}{industry}服务'）", "keywords":"该页该覆盖的词", "why":"抢本地搜索"}}
+  ],
+  "priority": "一句话：本地商家最该先做的第一件事"
+}}
+
+要求：具体可执行，紧扣「{region}」和「{industry}」，不要空话。"""
+    raw = await _chat(prompt, system, json_mode=True, scene="content")
+    data = _safe_parse_json(raw)
+    if not data:
+        return {"error": "本地GEO清单生成失败，请重试"}
+    data["note"] = "本地商家的 GEO 核心是：信息一致 + 地图完善 + 本地问答。做好这三点，AI 和地图才会把你推给附近客户。"
     return data
 
 
