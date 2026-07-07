@@ -32,7 +32,7 @@ from sqlmodel import Session, select
 import jwt
 
 from database import (engine, init_db, get_session, PLANS,
-                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog, TrackEvent, IndexTrack)
+                      User, Brand, Report, GeneratedContent, AIVisit, IndustrySample, Referral, KnowledgeItem, Order, ApiCallLog, TrackEvent, IndexTrack, IndexRecord, AIEvidence)
 from services.monitor import run_monitoring, PLATFORMS, estimate_cost, check_all_keys
 from services.generator import generate_questions, generate_content, extract_brand_keywords
 from services.knowledge import build_knowledge_base
@@ -3166,11 +3166,31 @@ def content_workspace(brand_id: int, user: User = Depends(current_user),
     except Exception:
         pass
 
-    # 已创作的内容
-    contents = session.exec(
-        select(GeneratedContent).where(GeneratedContent.brand_id == brand_id)
-        .order_by(GeneratedContent.created_at.desc())
-    ).all()
+    # 已创作的内容（加容错：新字段迁移未完成时不崩）
+    try:
+        contents = session.exec(
+            select(GeneratedContent).where(GeneratedContent.brand_id == brand_id)
+            .order_by(GeneratedContent.created_at.desc())
+        ).all()
+    except Exception:
+        # 新字段列缺失导致查询失败时，用原生SQL只取基础列兜底
+        session.rollback()
+        contents = []
+        try:
+            from sqlalchemy import text as _sqltext
+            rows = session.execute(_sqltext(
+                "SELECT id, gap_question, title, body, content_type, publish_tip, status, created_at "
+                "FROM generatedcontent WHERE brand_id=:bid ORDER BY created_at DESC"
+            ), {"bid": brand_id}).fetchall()
+            for r in rows:
+                obj = type("C", (), {})()
+                obj.id, obj.gap_question, obj.title, obj.body = r[0], r[1], r[2], r[3]
+                obj.content_type, obj.publish_tip, obj.status, obj.created_at = r[4], r[5], r[6], r[7]
+                obj.distribute_json, obj.is_indexed, obj.is_cited = "{}", False, False
+                contents.append(obj)
+        except Exception:
+            session.rollback()
+            contents = []
     created_questions = {c.gap_question for c in contents}
 
     # 标记哪些选题已创作
@@ -3193,6 +3213,9 @@ def content_workspace(brand_id: int, user: User = Depends(current_user),
             "body": c.body, "content_type": c.content_type,
             "publish_tip": c.publish_tip, "status": c.status,
             "date": str(c.created_at)[:10],
+            "distribute_json": getattr(c, "distribute_json", "{}"),
+            "is_indexed": getattr(c, "is_indexed", False),
+            "is_cited": getattr(c, "is_cited", False),
         } for c in contents],
     }
 
