@@ -553,6 +553,10 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .sb-item:hover{background:var(--panel-2);color:var(--ink)}
 .sb-item.active{background:var(--cyan-soft);color:var(--cyan);border-color:var(--line)}
 .sb-item .ic{font-size:17px}
+.sb-group{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:1px;padding:14px 14px 6px;text-transform:none}
+.sb-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--cyan);color:#fff;font-size:12px;font-weight:800;margin-right:2px;flex-shrink:0}
+.sb-item.active .sb-num{background:#fff;color:var(--cyan)}
+.sb-divider{height:1px;background:var(--line);margin:10px 14px}
 .sb-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
 .sb-plan{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
   background:var(--panel);border-radius:var(--r-sm);font-size:12px;color:var(--ink-soft)}
@@ -1249,11 +1253,18 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
     <aside class="sidebar">
       <div class="sb-logo"><span class="mark">見</span>见微</div>
       <nav class="sb-nav">
-        <div class="sb-item active" id="navMap" onclick="navTo('map')"><span class="ic">🗺️</span>作战地图</div>
-        <div class="sb-item" id="navFlow" onclick="navTo('flow')"><span class="ic">🎯</span>AI 监测</div>
-        <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="ic">📊</span>增长看板</div>
+        <div class="sb-group">开始使用</div>
+        <div class="sb-item active" id="navFlow" onclick="navTo('flow')"><span class="sb-num">1</span>AI 监测</div>
+        <div class="sb-item" id="navMap" onclick="navTo('map')"><span class="ic">🗺️</span>作战地图</div>
+
+        <div class="sb-group">动手优化</div>
+        <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="sb-num">2</span>内容作战</div>
+
+        <div class="sb-group">看见效果</div>
+        <div class="sb-item" id="navDash" onclick="navTo('dash')"><span class="sb-num">3</span>增长看板</div>
         <div class="sb-item" id="navBoard" onclick="navTo('board')"><span class="ic">📇</span>收录大盘</div>
-        <div class="sb-item" id="navWs" onclick="navTo('ws')"><span class="ic">🧠</span>内容工作台</div>
+
+        <div class="sb-divider"></div>
         <div class="sb-item" onclick="window.open('/tutorial','_blank')"><span class="ic">📖</span>运营教程</div>
         <div class="sb-item" onclick="openMyPages()"><span class="ic">🏗️</span>我的落地页</div>
         <div class="sb-item" id="navPrice" onclick="navTo('price')"><span class="ic">✨</span>升级套餐</div>
@@ -1414,6 +1425,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                 <canvas id="lineChart" height="80"></canvas>
                 <p style="font-size:12px;color:var(--ink-soft);margin-top:8px;text-align:center" id="trendDesc"></p>
               </div>
+              <div id="repBossReport"></div>
               <div id="repGuide"></div>
               <div id="repScore"></div>
               <div id="repBattleFlow"></div>
@@ -1447,6 +1459,17 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repCitations"></div>
               <div id="repPerception"></div>
               <div id="repReadiness"></div>
+
+              <!-- 需求⑤：AI推荐证据库 -->
+              <div class="section-card" style="margin-top:20px">
+                <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:6px">
+                  <div style="font-weight:700;font-size:15px">📁 AI 回答证据库</div>
+                  <button class="btn-ghost" style="font-size:12.5px;padding:7px 14px" onclick="loadEvidence()" id="eviBtn">查看 AI 回答原文 →</button>
+                </div>
+                <p style="font-size:12.5px;color:var(--ink-soft);margin-bottom:12px">每次监测的 AI 回答原文都存在这里——这是证明「AI 有没有推你、竞品是谁」的真实证据，也是你日后对比进步的凭证。</p>
+                <div id="evidenceResult"></div>
+              </div>
+
               <div id="contentArea"></div>
               <div class="note" id="repNote"></div>
               <div class="section-card" style="margin-top:20px">
@@ -2576,6 +2599,21 @@ function loadGrowthEngineTab(){
         <div id="matResult" style="margin-top:14px"></div>
       </div>
 
+      <!-- 需求⑧：本地商家GEO -->
+      <div class="section-card" style="border:1px solid rgba(90,125,90,.25);background:linear-gradient(135deg,rgba(90,125,90,.06),rgba(176,132,66,.03))">
+        <div style="font-weight:700;font-size:15px">🏪 本地商家 GEO <span style="font-size:11px;background:var(--matcha);color:#fff;padding:2px 8px;border-radius:10px;margin-left:6px">本地服务商必看</span></div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px"><b>说人话：</b>开实体店/做本地服务的，客户问 AI「附近哪家好」时能不能推你，靠的是地图信息、评价、本地问答。填门店信息，生成你的本地 GEO 清单。</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <input id="localAddr" placeholder="门店地址" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+          <input id="localPhone" placeholder="联系电话" style="padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input id="localHours" placeholder="营业时间，如 9:00-21:00" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+          <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genLocalGeo()" id="localBtn">生成本地清单 →</button>
+        </div>
+        <div id="localResult" style="margin-top:14px"></div>
+      </div>
+
       <div class="section-card">
         <div style="font-weight:700;font-size:15px">🎯 收录追踪：发了之后，AI 收录了吗？</div>
         <div style="font-size:12.5px;color:var(--ink-soft);margin:4px 0 12px">在某平台发了内容后，记录下来，追踪 AI 有没有开始引用你——这是 GEO 的效果闭环。</div>
@@ -2623,6 +2661,54 @@ async function genRegionalKw(){
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
   }catch(e){ box.innerHTML=`<p style="color:var(--bad);padding:12px">❌ ${escHtml(e.message||"生成失败")}</p>`; }
   finally{ btn.disabled=false; btn.textContent="生成区域词 →"; }
+}
+
+// 需求⑧：本地商家GEO清单
+async function genLocalGeo(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先监测一个品牌"); return; }
+  const addr=(document.getElementById("localAddr")||{}).value||"";
+  const phone=(document.getElementById("localPhone")||{}).value||"";
+  const hours=(document.getElementById("localHours")||{}).value||"";
+  const btn=document.getElementById("localBtn"), box=document.getElementById("localResult");
+  btn.disabled=true; btn.textContent="生成中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>生成本地 GEO 清单…</p></div>';
+  try{
+    const d=await api("/api/local-geo",{method:"POST",body:JSON.stringify({brand_id:bid,address:addr,phone:phone,hours:hours})});
+    if(d.error){ box.innerHTML=`<p style="color:var(--bad);padding:12px">${escHtml(d.error)}</p>`; return; }
+    let h="";
+    // NAP检查
+    if(d.nap_check){
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:13.5px;font-weight:700;color:var(--matcha);margin-bottom:6px">📍 NAP 一致性（名称·地址·电话）</div>
+        <div style="font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:8px">${escHtml(d.nap_check.status||"")}</div>
+        ${(d.nap_check.todo||[]).map(t=>`<div style="font-size:12px;color:var(--ink-soft);padding:3px 0">✓ ${escHtml(t)}</div>`).join("")}
+      </div>`;
+    }
+    // 地图POI
+    if((d.map_poi||[]).length){
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;color:var(--gold);margin-bottom:8px">🗺️ 地图 POI 认领</div>`;
+      d.map_poi.forEach(m=>{ h+=`<div style="padding:6px 0;border-bottom:1px solid var(--line)"><b style="font-size:12.5px;color:var(--ink)">${escHtml(m.platform)}</b><div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">${escHtml(m.action)}</div></div>`; });
+      h+=`</div>`;
+    }
+    // 本地问答
+    if((d.local_qa||[]).length){
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;color:var(--matcha);margin-bottom:8px">💬 本地问答内容</div>`;
+      d.local_qa.forEach(q=>{ h+=`<div style="padding:6px 0"><b style="font-size:12.5px;color:var(--ink)">❓ ${escHtml(q.question)}</b><div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">${escHtml(q.content_tip)}</div></div>`; });
+      h+=`</div>`;
+    }
+    // 落地页
+    if((d.landing_pages||[]).length){
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px"><div style="font-size:13.5px;font-weight:700;color:var(--gold);margin-bottom:8px">🌐 城市+行业落地页</div>`;
+      d.landing_pages.forEach(l=>{ h+=`<div style="padding:6px 0"><b style="font-size:12.5px;color:var(--ink)">${escHtml(l.page)}</b><div style="font-size:11.5px;color:var(--ink-soft);margin-top:2px">${escHtml(l.keywords||"")}</div></div>`; });
+      h+=`</div>`;
+    }
+    if(d.priority) h+=`<div style="background:rgba(90,125,90,.1);border-radius:10px;padding:12px 16px;margin-top:6px"><b style="font-size:12.5px;color:var(--matcha)">🎯 先做这个：</b><span style="font-size:12.5px;color:var(--ink)">${escHtml(d.priority)}</span></div>`;
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    box.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ box.innerHTML=`<p style="color:var(--bad);padding:12px">❌ ${escHtml(e.message||"生成失败")}</p>`; }
+  finally{ btn.disabled=false; btn.textContent="生成本地清单 →"; }
 }
 
 // GEO 资料清单生成
@@ -4562,6 +4648,7 @@ function renderReport(rep){
   rep.answered_queries = rep.answered_queries || 0;
 
   safe("导读", ()=>renderGuide(rep));
+  safe("老板报告", ()=>renderBossReport(rep));
   // 数据完全为空的兜底：避免用户看到一堆空模块，不知道发生了什么
   if(rep.answered_queries === 0){
     const guideEl = document.getElementById("repGuide");
@@ -4585,6 +4672,85 @@ function renderReport(rep){
   safe("预警", ()=>renderAlerts(rep));
   safe("其余模块", ()=>renderReportBody(rep));
 }
+
+// ===== 需求②：老板看得懂的报告（把技术数据翻译成生意话）=====
+function renderBossReport(rep){
+  const el=document.getElementById("repBossReport");
+  if(!el) return;
+  const answered=rep.answered_queries||0;
+  const rate=rep.mention_rate||0;
+  if(answered===0){ el.innerHTML=""; return; }
+  const mentioned=Math.round(answered*rate/100);
+  const absent=answered-mentioned;
+  const comp=rep.competitor_share||{};
+  let topComp=null, topCount=0;
+  Object.entries(comp).forEach(([k,v])=>{ if(v>topCount){topComp=k;topCount=Math.round(answered*v/100);} });
+  const estLoss=absent*3;
+  // 缺席的问题（优先补的）
+  const priorityQ=(rep.raw_results||[]).filter(r=>!r.mentioned&&r.question).slice(0,3).map(r=>r.question);
+
+  let headline;
+  if(rate===0) headline=`客户问 AI 时，${answered} 个问题里你<b style="color:var(--clay)">一次都没被提到</b>——你在 AI 世界里是「隐形」的。`;
+  else if(rate<40) headline=`客户问 AI 时，${answered} 个问题里你只在 <b>${mentioned}</b> 个被提到，<b style="color:var(--clay)">缺席了 ${absent} 个</b>。`;
+  else headline=`你在 ${answered} 个问题里被提到 <b style="color:var(--matcha)">${mentioned}</b> 次，表现不错，还有 ${absent} 个机会没抓住。`;
+
+  let bullets=`<div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">`;
+  bullets+=`<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:17px">📊</span><div style="font-size:13.5px;color:var(--ink);line-height:1.6">你在 <b>${answered}</b> 个客户问题里，缺席了 <b style="color:var(--clay)">${absent}</b> 个</div></div>`;
+  if(topComp) bullets+=`<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:17px">⚔️</span><div style="font-size:13.5px;color:var(--ink);line-height:1.6">竞品「<b>${escHtml(topComp)}</b>」被 AI 推荐了 <b style="color:var(--clay)">${topCount}</b> 次，抢走了本该属于你的曝光</div></div>`;
+  if(estLoss>0) bullets+=`<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:17px">💸</span><div style="font-size:13.5px;color:var(--ink);line-height:1.6">保守估算，这些缺席每月可能让你<b style="color:var(--clay)">错失约 ${estLoss} 个潜在咨询</b></div></div>`;
+  if(priorityQ.length) bullets+=`<div style="display:flex;gap:10px;align-items:flex-start"><span style="font-size:17px">🎯</span><div style="font-size:13.5px;color:var(--ink);line-height:1.6">最优先补这 <b>${priorityQ.length}</b> 个问题的内容，见效最快：<br>${priorityQ.map(q=>`<span style="display:inline-block;background:var(--panel-2);border-radius:6px;padding:2px 10px;margin:4px 4px 0 0;font-size:12px">${escHtml(q)}</span>`).join("")}</div></div>`;
+  bullets+=`</div>`;
+
+  el.innerHTML=`
+    <div style="background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:16px;padding:24px 26px;margin-bottom:20px;color:#f4f1ea">
+      <div style="font-size:12px;color:#c99a52;font-weight:700;letter-spacing:1px;margin-bottom:10px">📋 一句话看懂你的现状</div>
+      <div style="font-size:18px;font-weight:700;line-height:1.5">${headline}</div>
+      ${bullets}
+      <div style="font-size:11px;color:rgba(244,241,234,.4);margin-top:16px">以上为基于本次监测的估算，帮你理解现状，非精确数字。</div>
+    </div>`;
+}
+
+// ===== 需求⑤：AI推荐证据库 =====
+let _eviState={platform:"",mentioned:"",page:1};
+async function loadEvidence(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先监测一个品牌"); return; }
+  const btn=document.getElementById("eviBtn"), box=document.getElementById("evidenceResult");
+  btn.disabled=true; btn.textContent="加载中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>加载 AI 回答证据…</p></div>';
+  try{
+    const qs=`?platform=${_eviState.platform}&mentioned=${_eviState.mentioned}&page=${_eviState.page}&page_size=20`;
+    const d=await api(`/api/brands/${bid}/evidence`+qs);
+    const rows=d.records||[];
+    if(!rows.length){
+      box.innerHTML='<p style="padding:20px;text-align:center;color:var(--ink-soft)">还没有证据记录。做一次监测后，AI 回答会自动存到这里。</p>';
+      btn.disabled=false; btn.textContent="查看 AI 回答原文 →"; return;
+    }
+    // 筛选条
+    let h=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="board-fbtn ${_eviState.mentioned===''?'on':''}" onclick="eviFilter('')">全部(${d.total})</button>
+      <button class="board-fbtn ${_eviState.mentioned==='yes'?'on':''}" onclick="eviFilter('yes')">✅ 提到了你</button>
+      <button class="board-fbtn ${_eviState.mentioned==='no'?'on':''}" onclick="eviFilter('no')">❌ 没提到你</button>
+    </div>`;
+    rows.forEach(r=>{
+      const badge=r.mentioned?'<span style="font-size:11px;background:rgba(168,196,140,.2);color:var(--matcha);padding:2px 8px;border-radius:8px">✅ 提到你</span>':'<span style="font-size:11px;background:rgba(201,106,95,.15);color:var(--clay);padding:2px 8px;border-radius:8px">❌ 没提你</span>';
+      const ans=(r.answer_text||"").slice(0,280);
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+          <span style="font-size:13px;font-weight:600;color:var(--ink)">❓ ${escHtml(r.question)}</span>
+          ${badge}
+        </div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:6px">${escHtml(r.platform)} · ${escHtml(r.captured_at)}</div>
+        <div style="font-size:12.5px;color:var(--ink);line-height:1.6;background:var(--panel);border-radius:8px;padding:10px 12px">${escHtml(ans)}${r.answer_text&&r.answer_text.length>280?'…':''}</div>
+        ${r.competitors?`<div style="font-size:11.5px;color:var(--clay);margin-top:6px">⚔️ 出现的竞品：${escHtml(r.competitors)}</div>`:''}
+      </div>`;
+    });
+    box.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ box.innerHTML=`<p style="color:var(--bad);padding:14px">加载失败：${escHtml(e.message||"")}</p>`; }
+  finally{ btn.disabled=false; btn.textContent="刷新证据 →"; }
+}
+function eviFilter(m){ _eviState.mentioned=m; _eviState.page=1; loadEvidence(); }
 
 // 报告主体（原 renderReport 的剩余部分）
 function renderReportBody(rep){
