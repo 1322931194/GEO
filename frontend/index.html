@@ -143,6 +143,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cyan);
 .dark-app [style*="background:#fff"],
 .dark-app [style*="background: #fff"],
 .dark-app [style*="background:#ffffff"],
+.dark-app [style*="background:#fbf9f4"],
+.dark-app [style*="linear-gradient(135deg,#fbf9f4"],
+.dark-app [style*="linear-gradient(135deg, #fbf9f4"],
 .dark-app [style*="background:white"]{
   color:#26221c !important;
 }
@@ -312,7 +315,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 /* 导航 */
 #landingView .lp-nav{background:rgba(26,23,18,.7);backdrop-filter:blur(16px);border-bottom:1px solid rgba(244,241,234,.06)}
 #landingView .lp-logo{color:#f4f1ea}
-#landingView .lp-logo .mark{background:#f4f1ea;color:#1a1712}
+#landingView .lp-logo .mark{background:var(--panel-2);color:#1a1712}
 #landingView .lp-nav-links a{color:rgba(244,241,234,.7)}
 #landingView .lp-nav-links a:hover{color:#f4f1ea}
 /* Hero 光晕 */
@@ -488,7 +491,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
   background:radial-gradient(70% 60% at 25% 15%,rgba(140,170,120,.12),transparent 65%)}
 .auth-visual .av-top,.auth-visual .av-mid,.auth-visual .av-bot{position:relative;z-index:1}
 .auth-visual .av-logo{display:flex;align-items:center;gap:11px;font-weight:700;font-size:20px;color:#f4f1ea}
-.auth-visual .av-logo .mark{width:36px;height:36px;border-radius:8px;background:#f4f1ea;color:#2b322a;font-size:19px;font-weight:600;
+.auth-visual .av-logo .mark{width:36px;height:36px;border-radius:8px;background:var(--panel-2);color:#2b322a;font-size:19px;font-weight:600;
   display:grid;place-items:center;color:#fff;font-size:17px}
 .auth-visual .av-quote{font-size:clamp(26px,3vw,36px);font-weight:700;line-height:1.3;letter-spacing:-.01em;max-width:440px;color:#f4f1ea}
 .auth-visual .av-quote .hl{color:#a8c48c}
@@ -555,7 +558,7 @@ label{font-size:13px;color:var(--ink-soft);display:block;margin-bottom:7px;font-
 .sb-item .ic{font-size:17px}
 .sb-group{font-size:11px;font-weight:700;color:var(--ink-faint);letter-spacing:1px;padding:14px 14px 6px;text-transform:none}
 .sb-num{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--cyan);color:#fff;font-size:12px;font-weight:800;margin-right:2px;flex-shrink:0}
-.sb-item.active .sb-num{background:#fff;color:var(--cyan)}
+.sb-item.active .sb-num{background:var(--panel);color:var(--cyan)}
 .sb-divider{height:1px;background:var(--line);margin:10px 14px}
 .sb-foot{border-top:1px solid var(--line);padding-top:14px;margin-top:8px}
 .sb-plan{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;
@@ -3144,7 +3147,7 @@ function renderKnowledgeTab(d){
   const c = document.getElementById("workspaceContent");
   const catLabels={selling_point:'💎 卖点',faq:'❓ 常见问答',fact:'📌 品牌事实',story:'📖 品牌故事'};
   let html=`
-    <div style="background:#f0fdf4;border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-bottom:20px">
+    <div style="background:var(--panel-2);border:1px solid #a7f3d0;border-radius:14px;padding:20px;margin-bottom:20px">
       <div style="font-size:15px;font-weight:700;margin-bottom:6px">🧠 品牌知识库（你的"品牌大脑"）</div>
       <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">把品牌资料存进来，之后所有内容创作都基于这些资料生成——越丰富，内容越准、越像你的品牌</p>
       <div style="display:flex;gap:10px;flex-wrap:wrap">
@@ -3318,7 +3321,7 @@ function renderContentsTab(d){
           <div class="ws-fade" style="position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(transparent,#fff)"></div>
         </div>
         <button class="btn-ghost" style="font-size:12px;padding:5px 12px;margin-bottom:10px" onclick="toggleWsBody('${bodyId}',this)">展开全文 ▾</button>
-        ${ct.publish_tip?`<div style="background:#f0f4ff;border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
+        ${ct.publish_tip?`<div style="background:var(--panel-2);border-radius:6px;padding:8px 10px;font-size:12px;color:var(--brand-ink);margin-bottom:10px">📍 ${escHtml(ct.publish_tip)}</div>`:''}
         <div style="background:#fffbeb;border-radius:6px;padding:8px 10px;font-size:11px;color:var(--warn);margin-bottom:10px">⚠️ 此为AI生成草稿,发布前请核实数据真实性,避免使用"第一""最佳"等违规用语</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick='safeCopy(${JSON.stringify(fullText)},"✅ 全文已复制，去发布吧！")'>📋 复制全文</button>
@@ -3527,7 +3530,7 @@ function renderReferral(d){
     </div>
 
     <!-- 佣金规则 -->
-    <div style="background:#f0f4ff;border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px">
+    <div style="background:var(--panel-2);border:1px solid #c7d2fe;border-radius:14px;padding:20px;margin-bottom:20px">
       <div style="font-size:14px;font-weight:700;margin-bottom:10px;color:var(--brand-ink)">🎁 推广奖励说明</div>
       <div style="font-size:13px;color:var(--ink-soft);line-height:1.9">
         · 好友通过你的专属链接注册并成为付费用户后，你即可获得推广奖励<br>
@@ -4248,7 +4251,7 @@ function renderIndustryBenchmark(b){
             <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">超过同行</div>
           </div>
         </div>
-        ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:#f0fdf4;border-radius:8px;padding:10px 14px;font-size:13px;color:var(--good);margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
+        ${b.gap_to_avg<0?`<div style="background:#fef2f2;border-radius:8px;padding:10px 14px;font-size:13px;color:#991b1b;margin-top:14px">📍 距离行业平均还差 ${Math.abs(b.gap_to_avg)} 个百分点，加把劲就能追上大盘</div>`:`<div style="background:var(--panel-2);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--good);margin-top:14px">✅ 你已超过行业平均 ${b.gap_to_avg} 个百分点，距离行业第一还差 ${b.gap_to_top} 个百分点</div>`}
         ${b.data_source?`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6;border-top:1px solid var(--line);padding-top:10px">📋 数据说明：${b.data_source}</div>`:''}
       </div>`;
   }
@@ -4341,7 +4344,7 @@ async function showTrackingCode(bid){
         <p style="font-size:13px;color:var(--ink-soft);line-height:1.7;margin-bottom:16px">${d.install_guide}</p>
         <div style="background:var(--ink);color:#e2e8f0;border-radius:10px;padding:16px;font-size:12px;font-family:monospace;white-space:pre-wrap;overflow-x:auto;line-height:1.6;margin-bottom:14px" id="trackCode">${d.tracking_code.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
         <button class="btn-primary" style="width:100%" onclick="safeCopy(document.getElementById('trackCode').innerText,'✅ 追踪代码已复制')">📋 复制追踪代码</button>
-        <div style="background:#f0f4ff;border-radius:8px;padding:12px;margin-top:14px;font-size:12px;color:var(--brand-ink);line-height:1.6">
+        <div style="background:var(--panel-2);border-radius:8px;padding:12px;margin-top:14px;font-size:12px;color:var(--brand-ink);line-height:1.6">
           💡 安装后，访客从 ChatGPT、Perplexity、DeepSeek 等 AI 平台点链接进入你官网时会被自动记录。回到这个看板就能看到 AI 给你带来了多少真实访客。
         </div>
       </div>`;
@@ -4627,7 +4630,7 @@ function renderGuide(rep){
     <div style="font-size:22px;font-weight:800;color:${hColor};margin-bottom:8px">${headline}</div>
     <div style="font-size:14px;color:var(--ink);line-height:1.7">${hSub}</div>
   </div>
-  <div style="background:linear-gradient(135deg,#fbf9f4,#f4f1ea);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:20px">
+  <div style="background:var(--panel-2);border:1px solid var(--line);border-radius:14px;padding:18px 22px;margin-bottom:20px">
     <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:10px">📖 这份报告怎么看？（30秒读懂）</div>
     <div style="font-size:13px;color:var(--ink-soft);line-height:1.9">
       下面这份报告，从上往下回答 4 个问题：<br>
@@ -5301,7 +5304,7 @@ function renderSOP(rep){
       </div>
     </div>`).join("");
 
-  el.innerHTML=`<div class="section-card" style="margin-top:20px;background:linear-gradient(135deg,#fbf9f4,#f4f1ea)">
+  el.innerHTML=`<div class="section-card" style="margin-top:20px;background:var(--panel-2)">
     <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎯 你的专属作战 SOP</div>
     <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:18px">不用想"接下来干啥"——根据你这次的报告，我帮你排好了优先级。照着做就行。</div>
     ${stepHtml}
@@ -6199,7 +6202,7 @@ async function doCompare(){
         <div style="background:${gap>0?'#fef2f2':'#f0fdf4'};border-radius:8px;padding:12px;font-size:13px;color:${gap>0?'#991b1b':'var(--good)'};line-height:1.6;margin-bottom:10px">
           ${data.analysis}
         </div>
-        <div style="background:#f0f4ff;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--brand-ink)">
+        <div style="background:var(--panel-2);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--brand-ink)">
           💡 ${data.action}
         </div>
       </div>`;
@@ -6233,7 +6236,7 @@ async function genSchemaFaq(){
           <div style="font-weight:600;font-size:14px;margin-bottom:8px;color:var(--good)">🏗️ JSON-LD Schema 代码（复制到网站 &lt;head&gt; 里）</div>
           <pre style="background:var(--ink);color:#e2e8f0;border-radius:8px;padding:14px;font-size:11px;overflow-x:auto;white-space:pre-wrap;line-height:1.6">${(data.schema_code||'').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre>
         </div>
-        ${data.publish_tip?`<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;font-size:13px;color:var(--good);margin-top:10px">💡 ${data.publish_tip}</div>`:''}
+        ${data.publish_tip?`<div style="background:var(--panel-2);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--good);margin-top:10px">💡 ${data.publish_tip}</div>`:''}
         <div style="margin-top:12px;display:flex;gap:8px">
           <button class="btn-primary" style="font-size:12px;padding:8px 14px;background:linear-gradient(135deg,var(--good),#047857)"
             onclick="safeCopy(document.querySelector('pre').innerText,'✅ Schema 代码已复制')">
@@ -6462,8 +6465,8 @@ function simSetMode(mode){
   if(kw)kw.placeholder=mode==='outbound'?'best portable charger':'哪款充电宝好用';
   const ex=document.getElementById('simExamples');
   if(ex)ex.innerHTML=mode==='outbound'
-    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('')
-    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:#f0f4ff;border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('');
+    ?['best charger','herbal tea','skincare brand','CRM tools'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:var(--panel-2);border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('')
+    :['哪款充电宝好用','养生茶推荐','护肤品牌推荐','餐饮品牌推荐'].map(t=>`<span onclick="document.getElementById('simKw').value='${t}'" style="background:var(--panel-2);border:1px solid #c7d2fe;color:var(--cyan);padding:4px 10px;border-radius:14px;font-size:11px;cursor:pointer;white-space:nowrap">${t}</span>`).join('');
 }
 
 async function doSimulate(){
