@@ -1478,6 +1478,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repSOP"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
+              <div id="repMediaPlan"></div>
               <div id="repPerception"></div>
               <div id="repReadiness"></div>
 
@@ -5034,6 +5035,8 @@ function renderReportBody(rep){
 
   // 引用源影响力分析（对标 Similarweb 引用分析）
   renderCitations(rep);
+  // ★信源反推发文建议（AI从哪抓答案→你去哪发）
+  loadMediaPlan(rep);
   // 主题维度细分（对标 Goodie Segment by topic）
   renderTopics(rep);
   // 竞品横向抢位矩阵
@@ -5680,6 +5683,48 @@ function renderAlerts(rep){
   });
   html+=`</div>`;
   el.innerHTML=html;
+}
+
+// ★信源反推发文：AI从哪抓答案→你去哪发
+async function loadMediaPlan(rep){
+  const el=document.getElementById("repMediaPlan");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/media-plan`);
+    const fromSrc=d.from_sources||[];
+    const indMedia=d.industry_media;
+    if(!fromSrc.length && !indMedia){ el.innerHTML=""; return; }
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">📮 该去哪发文？（AI 从哪抓答案，你就去哪发）</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">这是 GEO 最关键的一步：AI 回答时引用了哪些信源，就说明它信任这些地方。你在这些平台发内容，最容易被 AI 抓到、推荐。</div>`;
+    if(fromSrc.length){
+      h+=`<div style="font-size:13px;font-weight:600;color:var(--matcha);margin-bottom:10px">🎯 从 AI 真实引用的信源反推（最精准）：</div>`;
+      fromSrc.forEach(s=>{
+        h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:6px">
+            <span style="font-size:14px;font-weight:700;color:var(--ink)">${escHtml(s.platform)} <span style="color:var(--gold);font-size:12px">${escHtml(s.weight)}</span></span>
+            <span style="font-size:11px;color:var(--ink-soft);background:var(--panel);padding:2px 8px;border-radius:8px">难度：${escHtml(s.difficulty)}</span>
+          </div>
+          <div style="font-size:12.5px;color:var(--ink);line-height:1.6">👉 <b>怎么发：</b>${escHtml(s.how)}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">${escHtml(s.reason)}</div>
+        </div>`;
+      });
+    }
+    if(indMedia && indMedia.platforms){
+      h+=`<div style="font-size:13px;font-weight:600;color:var(--gold);margin:16px 0 10px">📊 你所在「${escHtml(indMedia.industry)}」行业，AI 普遍爱引用这些媒体：</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">`;
+      indMedia.platforms.forEach(p=>{
+        h+=`<span style="background:rgba(201,154,82,.12);color:var(--gold);border:1px solid rgba(201,154,82,.3);padding:6px 14px;border-radius:14px;font-size:13px;font-weight:600">${escHtml(p)}</span>`;
+      });
+      h+=`</div>`;
+    }
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
 }
 
 // 引用源分析：告诉商家 AI 信任哪些网站，该去哪发内容
