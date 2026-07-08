@@ -119,6 +119,7 @@ class Brand(SQLModel, table=True):
     industry: str = ""
     product: str = ""
     target_market: str = "海外"
+    target_lang: str = "en"          # 出海目标语言
     mode: str = "outbound"           # outbound=出海模式  domestic=国内模式
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
@@ -388,6 +389,7 @@ def _auto_migrate():
         ("brand", "mode", "VARCHAR DEFAULT 'outbound'"),
         ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
         ("brand", "region", "VARCHAR DEFAULT ''"),
+        ("brand", "target_lang", "VARCHAR DEFAULT 'en'"),
         ("brand", "address", "VARCHAR DEFAULT ''"),
         ("brand", "phone", "VARCHAR DEFAULT ''"),
         ("brand", "business_hours", "VARCHAR DEFAULT ''"),
