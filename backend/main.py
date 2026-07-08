@@ -412,8 +412,14 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
     # 旧版SHA256密码，登录成功后自动升级为加盐版
     if "$" not in user.password_hash:
         user.password_hash = _make_pw_hash(req.password)
+    # 记录登录活跃数据（后台分析用）
+    try:
+        user.last_login_at = datetime.now(timezone(timedelta(hours=8)))
+        user.login_count = (getattr(user, "login_count", 0) or 0) + 1
         session.add(user)
         session.commit()
+    except Exception:
+        session.rollback()
     return {"token": _make_token(user.id, getattr(user, "token_version", 0)), "plan": user.plan,
             "plan_info": plan_of(user)}
 
@@ -2961,6 +2967,17 @@ async def order_notify(request: Request, session: Session = Depends(get_session)
     if user and order.plan in PLANS:
         user.plan = order.plan
         user.monitor_count = 0   # 重置监测次数
+        # 更新消费统计（后台营销分析用）
+        user.total_spent = (getattr(user, "total_spent", 0) or 0) + (order.amount or 0)
+        user.order_count = (getattr(user, "order_count", 0) or 0) + 1
+        # 设置套餐到期日（月付+30天，单次包不设）
+        try:
+            plan_conf = PLANS.get(order.plan, {})
+            if not plan_conf.get("is_onetime") and order.plan not in ("trial", "single"):
+                base = datetime.now(timezone(timedelta(hours=8)))
+                user.plan_expires_at = base + timedelta(days=30)
+        except Exception:
+            pass
         session.add(user)
 
         # 分销佣金自动结算
@@ -4521,28 +4538,133 @@ async function upgrade(){
   }catch(e){show('upR','❌'+e.message,false);}
 }
 const PN={trial:'免费',starter_trial:'¥39.9',starter:'基础',pro:'专业',business:'企业'};
+var _userSort='created';
 async function loadUsers(){
   const t=document.getElementById('users');t.innerHTML='加载中…';
   try{
-    const r=await fetch('/api/admin/users?key='+encodeURIComponent(KEY));
-    const us=await r.json();
-    if(!us.length){t.innerHTML='暂无用户';return;}
-    t.innerHTML='<table><tr><th>邮箱</th><th>套餐</th><th>监测</th><th></th></tr>'+
-      us.map(u=>'<tr><td>'+u.email+'</td><td><span class="badge">'+(PN[u.plan]||u.plan)+'</span></td><td>'+(u.monitor_count||0)+'</td><td><button class="up-btn" onclick="quick(\\''+u.email+'\\')">开通</button></td></tr>').join('')+'</table>';
+    const q=(document.getElementById('userSearch')||{}).value||'';
+    const r=await fetch('/api/admin/users?key='+encodeURIComponent(KEY)+'&q='+encodeURIComponent(q)+'&sort='+_userSort);
+    const d=await r.json();
+    const us=d.users||[];
+    const sm=d.summary||{};
+    // 汇总卡
+    var head='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
+      +'<div style="flex:1;min-width:90px;background:#f0f5ee;border-radius:8px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#5a7d5a">'+(sm.total||0)+'</div><div style="font-size:11px;color:#888">总用户</div></div>'
+      +'<div style="flex:1;min-width:90px;background:#fdf6ec;border-radius:8px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#c99a52">'+(sm.paid||0)+'</div><div style="font-size:11px;color:#888">付费用户</div></div>'
+      +'<div style="flex:1;min-width:90px;background:#fdf6ec;border-radius:8px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#c99a52">¥'+(sm.total_revenue||0)+'</div><div style="font-size:11px;color:#888">总收入</div></div>'
+      +'<div style="flex:1;min-width:90px;background:#f0f5ee;border-radius:8px;padding:10px 12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#5a7d5a">'+(sm.paid_rate||0)+'%</div><div style="font-size:11px;color:#888">付费率</div></div>'
+      +'</div>';
+    // 搜索+排序
+    var ctrl='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'
+      +'<input id="userSearch" placeholder="搜邮箱…" value="'+q+'" onkeydown="if(event.key===\\'Enter\\')loadUsers()" style="flex:1;min-width:160px;padding:7px 10px;border:1px solid #ddd;border-radius:6px">'
+      +'<button onclick="loadUsers()" style="width:auto;padding:7px 14px;font-size:12px">搜索</button>'
+      +'<button onclick="_userSort=\\'spent\\';loadUsers()" style="width:auto;padding:7px 12px;font-size:12px;background:'+(_userSort==='spent'?'#5a7d5a':'#999')+'">按消费</button>'
+      +'<button onclick="_userSort=\\'monitor\\';loadUsers()" style="width:auto;padding:7px 12px;font-size:12px;background:'+(_userSort==='monitor'?'#5a7d5a':'#999')+'">按活跃</button>'
+      +'<button onclick="_userSort=\\'created\\';loadUsers()" style="width:auto;padding:7px 12px;font-size:12px;background:'+(_userSort==='created'?'#5a7d5a':'#999')+'">按注册</button>'
+      +'</div>';
+    if(!us.length){t.innerHTML=head+ctrl+'<p style="color:#999;padding:20px;text-align:center">没有匹配的用户</p>';return;}
+    // 用户表
+    var rows=us.map(function(u){
+      var expWarn='';
+      if(u.days_to_expire!==null&&u.days_to_expire!==undefined){
+        if(u.days_to_expire<0) expWarn='<span style="color:#c96a5f;font-size:11px">已过期</span>';
+        else if(u.days_to_expire<=7) expWarn='<span style="color:#c96a5f;font-size:11px">⚠️'+u.days_to_expire+'天到期</span>';
+        else expWarn='<span style="color:#999;font-size:11px">'+u.days_to_expire+'天</span>';
+      }
+      return '<tr>'
+        +'<td style="max-width:160px;overflow:hidden;text-overflow:ellipsis"><div>'+u.email+'</div><span style="display:inline-block;font-size:10px;padding:1px 7px;border-radius:8px;background:'+u.tier_color+'22;color:'+u.tier_color+';font-weight:600;margin-top:3px">'+u.tier+'</span></td>'
+        +'<td><span class="badge">'+(u.plan_name||u.plan)+'</span>'+(expWarn?'<br>'+expWarn:'')+'</td>'
+        +'<td style="font-size:12px;line-height:1.7">监测 <b>'+u.monitor_count+'</b><br>内容 <b>'+u.content_count+'</b><br>作战 <b>'+u.battle_count+'</b></td>'
+        +'<td style="font-size:12px;line-height:1.7">消费 <b style="color:#c99a52">¥'+u.total_spent+'</b><br>订单 '+u.order_count+'<br>品牌 '+u.brand_count+'</td>'
+        +'<td style="font-size:11px;color:#888">'+u.last_login+'<br>登录'+u.login_count+'次</td>'
+        +'<td><button class="up-btn" onclick="quickUp(\\''+u.email+'\\')">改套餐</button></td>'
+        +'</tr>';
+    }).join('');
+    t.innerHTML=head+ctrl+'<table style="font-size:13px"><tr><th>用户/分层</th><th>套餐</th><th>使用</th><th>消费</th><th>活跃</th><th></th></tr>'+rows+'</table>';
   }catch(e){t.innerHTML='加载失败:'+e.message;}
 }
-function quick(email){document.getElementById('email').value=email;document.getElementById('email').scrollIntoView({behavior:'smooth'});}
+function quickUp(email){
+  document.getElementById('email').value=email;
+  document.getElementById('email').scrollIntoView({behavior:'smooth'});
+  document.getElementById('email').style.background='#fffbe6';
+  setTimeout(function(){document.getElementById('email').style.background='';},1500);
+}
+function quick(email){quickUp(email);}
 </script></div></body></html>"""
     return HTMLResponse(content=html)
 
 @app.get("/api/admin/users")
-def admin_list_users(key: str, session: Session = Depends(get_session)):
-    """列出所有用户（管理员用）"""
+def admin_list_users(key: str, q: str = "", plan: str = "", sort: str = "created",
+                     session: Session = Depends(get_session)):
+    """列出所有用户（管理员用），带行为数据+价值分层+搜索筛选。"""
     _check_admin(key)
     users = session.exec(select(User).order_by(User.created_at.desc())).all()
-    return [{"id": u.id, "email": u.email, "plan": u.plan,
-             "monitor_count": getattr(u, "monitor_count", 0),
-             "created_at": u.created_at} for u in users]
+    now = datetime.now(timezone(timedelta(hours=8)))
+
+    def _tier(u):
+        """用户价值分层（营销管理核心）"""
+        spent = getattr(u, "total_spent", 0) or 0
+        last = getattr(u, "last_login_at", None)
+        days_silent = (now - last.replace(tzinfo=timezone(timedelta(hours=8)))).days if last else 999
+        if spent >= 599:
+            return ("高价值", "#a8c48c") if days_silent <= 14 else ("高价值·沉默", "#c96a5f")
+        if spent > 0:
+            return ("付费用户", "#c99a52") if days_silent <= 14 else ("付费·流失风险", "#c96a5f")
+        if days_silent <= 7:
+            return ("活跃免费", "#5a7d87")
+        if days_silent <= 30:
+            return ("普通免费", "#9c958a")
+        return ("沉默用户", "#6b655b")
+
+    rows = []
+    for u in users:
+        brand_cnt = len(session.exec(select(Brand).where(Brand.user_id == u.id)).all())
+        tier, tier_color = _tier(u)
+        last = getattr(u, "last_login_at", None)
+        exp = getattr(u, "plan_expires_at", None)
+        days_to_expire = None
+        if exp:
+            days_to_expire = (exp.replace(tzinfo=timezone(timedelta(hours=8))) - now).days
+        rows.append({
+            "id": u.id, "email": u.email, "plan": u.plan,
+            "plan_name": PLANS.get(u.plan, {}).get("name", u.plan),
+            "monitor_count": getattr(u, "monitor_count", 0) or 0,
+            "content_count": getattr(u, "content_count", 0) or 0,
+            "battle_count": getattr(u, "battle_count", 0) or 0,
+            "total_spent": round(getattr(u, "total_spent", 0) or 0, 2),
+            "order_count": getattr(u, "order_count", 0) or 0,
+            "login_count": getattr(u, "login_count", 0) or 0,
+            "brand_count": brand_cnt,
+            "last_login": last.strftime("%Y-%m-%d %H:%M") if last else "从未登录",
+            "days_to_expire": days_to_expire,
+            "tier": tier, "tier_color": tier_color,
+            "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "",
+        })
+
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in r["email"].lower()]
+    if plan:
+        rows = [r for r in rows if r["plan"] == plan]
+    if sort == "spent":
+        rows.sort(key=lambda r: -r["total_spent"])
+    elif sort == "active":
+        rows.sort(key=lambda r: r["last_login"], reverse=True)
+    elif sort == "monitor":
+        rows.sort(key=lambda r: -r["monitor_count"])
+
+    total_users = len(rows)
+    paid_users = sum(1 for r in rows if r["total_spent"] > 0)
+    total_revenue = round(sum(r["total_spent"] for r in rows), 2)
+    return {
+        "users": rows,
+        "summary": {
+            "total": total_users, "paid": paid_users,
+            "free": total_users - paid_users,
+            "total_revenue": total_revenue,
+            "paid_rate": round(100 * paid_users / total_users, 1) if total_users else 0,
+        },
+    }
 
 class UpgradeReq(BaseModel):
     email: str
