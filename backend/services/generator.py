@@ -319,12 +319,21 @@ async def generate_questions(
     count: int = 50,
     brand_facts: str = "",
     mode: str = "outbound",
+    target_lang: str = "en",
 ) -> list:
     """
     生成品牌专属问题集。
-    mode=outbound: 出海模式，英文问题+中文翻译，监测 ChatGPT/Gemini 等
+    mode=outbound: 出海模式，按 target_lang 生成对应语言问题+中文翻译，监测 ChatGPT/Gemini 等
     mode=domestic: 国内模式，纯中文问题，监测 DeepSeek/通义千问/豆包/Kimi
+    target_lang: en英语 vi越南语 ja日语 es西班牙语 de德语 fr法语 ko韩语 pt葡萄牙语 ru俄语 th泰语 id印尼语 ar阿拉伯语
     """
+    LANG_NAMES = {
+        "en": "英语", "vi": "越南语", "ja": "日语", "es": "西班牙语",
+        "de": "德语", "fr": "法语", "ko": "韩语", "pt": "葡萄牙语",
+        "ru": "俄语", "th": "泰语", "id": "印尼语", "ar": "阿拉伯语",
+        "it": "意大利语",
+    }
+    lang_name = LANG_NAMES.get(target_lang, "英语")
     categories = DOMESTIC_CATEGORIES if mode == "domestic" else OUTBOUND_CATEGORIES
 
     # 垂直赛道深度维度：匹配到高客单行业时，注入专属问题维度，让监测更精准
@@ -397,7 +406,7 @@ async def generate_questions(
 
 基于以上品牌特征，生成 {count} 个海外真实用户在 ChatGPT/Gemini 等 AI 里会问的问题。
 问题必须：
-1. 用英文写，口语化，是海外用户真实会打出来的话
+1. 用{lang_name}写，口语化，是当地用户真实会打出来的话
 2. 与品牌的具体特征和场景高度相关
 3. 不包含品牌名
 4. 覆盖以下类目，每类均匀分布：
@@ -405,11 +414,11 @@ async def generate_questions(
 
 每个问题返回：
 - category：中文类目名（品类推荐/对比评测/使用场景等）
-- question：英文问题（用于 AI 监测）
+- question：{lang_name}问题（用于 AI 监测）
 - question_cn：对应中文翻译（让中国商家看懂）
 
 只返回 JSON：
-{{"questions":[{{"category":"类目名","question":"英文问题","question_cn":"中文翻译"}}]}}
+{{"questions":[{{"category":"类目名","question":"{lang_name}问题","question_cn":"中文翻译"}}]}}
 """
 
     raw = await _chat(prompt, system, json_mode=True, scene="questions")
@@ -805,6 +814,62 @@ async def generate_intent_titles(brand: str, product: str, industry: str, brand_
     if not data or "intent_questions" not in data:
         return {"intent_questions": [], "engineered_titles": [], "msg": "生成失败，请重试"}
     return data
+
+
+# ============================================================
+# 关键词联想词（免费：优先真实下拉词接口，失败用AI兜底）
+# ============================================================
+async def get_keyword_suggestions(keyword: str, industry: str = "") -> dict:
+    """获取关键词的联想词/长尾词。
+    诚实定位：这是"相关热门搜索词"，不是精确搜索量。
+    数据源：优先百度/搜狗免费下拉词接口，失败时用AI生成相关长尾词兜底。"""
+    kw = (keyword or "").strip()
+    if not kw:
+        return {"keyword": kw, "suggestions": [], "source": "none"}
+
+    suggestions = []
+    source = "ai"
+    # 尝试1：百度免费下拉词接口（真实搜索联想）
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=8) as client:
+            r = await client.get(
+                "https://www.baidu.com/sugrec",
+                params={"prod": "pc", "wd": kw},
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"},
+            )
+            if r.status_code == 200:
+                data = r.json()
+                for g in data.get("g", []):
+                    q = g.get("q", "").strip()
+                    if q and q not in suggestions:
+                        suggestions.append(q)
+                if suggestions:
+                    source = "baidu"
+    except Exception:
+        pass
+
+    # 尝试2：如果下拉词没拿到，用AI生成相关长尾词兜底
+    if not suggestions:
+        try:
+            prompt = f"""围绕关键词「{kw}」{f'（行业：{industry}）' if industry else ''}，
+列出 12 个用户真实会搜索的相关长尾词/联想词。
+要求：口语化、贴近真实搜索习惯、覆盖不同意图（了解/对比/价格/口碑/怎么选）。
+只返回 JSON：{{"suggestions":["词1","词2",...]}}"""
+            raw = await _chat(prompt, "你是搜索行为分析专家，熟悉用户真实搜索习惯。", json_mode=True, scene="other")
+            data = _safe_parse_json(raw)
+            suggestions = [s.strip() for s in data.get("suggestions", []) if s.strip()][:12]
+            source = "ai"
+        except Exception:
+            suggestions = []
+
+    return {
+        "keyword": kw,
+        "suggestions": suggestions[:15],
+        "count": len(suggestions[:15]),
+        "source": source,
+        "note": "这是与该词相关的热门搜索词，帮你发现更多值得布局的长尾词。注意：这是相关词参考，非精确搜索量（精确数据需付费数据源）。",
+    }
 
 
 # ============================================================
