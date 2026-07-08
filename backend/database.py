@@ -109,6 +109,12 @@ class User(SQLModel, table=True):
     referred_by: int = Field(default=0)     # 被谁推荐（推荐人用户ID，0=无）
     created_at: datetime = Field(default_factory=cn_now)
     trial_ends_at: Optional[datetime] = None
+    # ===== 后台管理/营销分析字段 =====
+    total_spent: float = Field(default=0.0)          # 累计消费金额（元）
+    last_login_at: Optional[datetime] = None         # 最后登录时间（判断活跃/沉默）
+    login_count: int = Field(default=0)              # 累计登录次数
+    plan_expires_at: Optional[datetime] = None       # 付费套餐到期日（流失预警用）
+    order_count: int = Field(default=0)              # 累计付费订单数
 
 
 class Brand(SQLModel, table=True):
@@ -379,6 +385,11 @@ def _auto_migrate():
         ("customerpseopage", "buy_link", "VARCHAR DEFAULT ''"),
         ("user", "invite_code", "VARCHAR DEFAULT ''"),
         ("user", "referred_by", "INTEGER DEFAULT 0"),
+        ("user", "total_spent", "FLOAT DEFAULT 0"),
+        ("user", "last_login_at", "TIMESTAMP"),
+        ("user", "login_count", "INTEGER DEFAULT 0"),
+        ("user", "plan_expires_at", "TIMESTAMP"),
+        ("user", "order_count", "INTEGER DEFAULT 0"),
         ("user", "monitor_count", "INTEGER DEFAULT 0"),
         ("user", "battle_count", "INTEGER DEFAULT 0"),
         ("user", "content_count", "INTEGER DEFAULT 0"),
