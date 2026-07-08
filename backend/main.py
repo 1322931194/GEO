@@ -4773,8 +4773,33 @@ def admin_list_users(key: str, q: str = "", plan: str = "", sort: str = "created
                      session: Session = Depends(get_session)):
     """列出所有用户（管理员用），带行为数据+价值分层+搜索筛选。"""
     _check_admin(key)
-    users = session.exec(select(User).order_by(User.created_at.desc())).all()
     now = datetime.now(timezone(timedelta(hours=8)))
+    # 容错：新字段迁移未完成时，select(User) 会因缺列报错。
+    # 先尝试正常查询，失败则用原生SQL只取基础列，保证后台一定能登录。
+    try:
+        users = session.exec(select(User).order_by(User.created_at.desc())).all()
+        _degraded = False
+    except Exception:
+        session.rollback()
+        _degraded = True
+        users = []
+        try:
+            from sqlalchemy import text as _sqltext
+            rs = session.execute(_sqltext(
+                "SELECT id, email, plan, monitor_count, content_count, created_at FROM \"user\" ORDER BY created_at DESC"
+            )).fetchall()
+            for r in rs:
+                o = type("U", (), {})()
+                o.id, o.email, o.plan = r[0], r[1], r[2]
+                o.monitor_count, o.content_count = r[3] or 0, r[4] or 0
+                o.created_at = r[5]
+                o.battle_count = 0
+                o.total_spent = 0; o.order_count = 0; o.login_count = 0
+                o.last_login_at = None; o.plan_expires_at = None
+                users.append(o)
+        except Exception:
+            session.rollback()
+            users = []
 
     def _tier(u):
         """用户价值分层（营销管理核心）"""
@@ -4793,7 +4818,11 @@ def admin_list_users(key: str, q: str = "", plan: str = "", sort: str = "created
 
     rows = []
     for u in users:
-        brand_cnt = len(session.exec(select(Brand).where(Brand.user_id == u.id)).all())
+        try:
+            brand_cnt = len(session.exec(select(Brand).where(Brand.user_id == u.id)).all())
+        except Exception:
+            session.rollback()
+            brand_cnt = 0
         tier, tier_color = _tier(u)
         last = getattr(u, "last_login_at", None)
         exp = getattr(u, "plan_expires_at", None)
