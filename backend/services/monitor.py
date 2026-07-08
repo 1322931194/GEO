@@ -198,20 +198,39 @@ async def _call_perplexity(client, cfg, prompt, key):
 
 
 async def _call_quickrouter(client, cfg, prompt, key, pid):
-    """通过 QuickRouter 中转调用海外平台（OpenAI 兼容格式）。"""
-    model = QUICKROUTER_MODELS.get(pid, cfg.get("model", "gpt-4o"))
-    r = await client.post(
-        QUICKROUTER_BASE,
-        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-        json={"model": model, "messages": [{"role": "user", "content": prompt}],
-              "temperature": 0.7, "max_tokens": 800},
-        timeout=60,
-    )
-    r.raise_for_status()
-    data = r.json()
-    if "choices" not in data or not data["choices"]:
-        raise ValueError(f"QuickRouter 返回缺少 choices: {str(data)[:150]}")
-    return data["choices"][0]["message"]["content"]
+    """通过 QuickRouter 中转调用海外平台（OpenAI 兼容格式）。
+    自动试候选模型名，哪个能用记住哪个，下次直接用。"""
+    candidates = QUICKROUTER_MODELS.get(pid, [cfg.get("model", "gpt-4o")])
+    if isinstance(candidates, str):
+        candidates = [candidates]
+    # 上次成功的模型排在最前，避免重复试错
+    if pid in _qr_working_model and _qr_working_model[pid] in candidates:
+        candidates = [_qr_working_model[pid]] + [m for m in candidates if m != _qr_working_model[pid]]
+
+    last_err = None
+    for model in candidates:
+        try:
+            r = await client.post(
+                QUICKROUTER_BASE,
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                      "temperature": 0.7, "max_tokens": 800},
+                timeout=60,
+            )
+            r.raise_for_status()
+            data = r.json()
+            if "choices" not in data or not data["choices"]:
+                raise ValueError(f"QuickRouter 返回缺少 choices: {str(data)[:120]}")
+            _qr_working_model[pid] = model  # 记住能用的模型
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            last_err = e
+            # 模型不存在(404/400)才试下一个；其他错误(如余额不足401)直接抛出
+            code = getattr(getattr(e, "response", None), "status_code", None)
+            if code in (400, 404):
+                continue
+            raise
+    raise last_err or RuntimeError(f"QuickRouter 所有候选模型均失败 ({pid})")
 
 
 _DISPATCH = {
@@ -235,12 +254,16 @@ DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 # 配了 QUICKROUTER_API_KEY 才启用；国内平台仍走各自直连，不受影响。
 QUICKROUTER_BASE = "https://api.quickrouter.ai/v1/chat/completions"
 # 海外平台在 QuickRouter 上对应的模型名（OpenAI 兼容格式，可按控制台实际模型名调整）
+# 海外平台在 QuickRouter 上对应的模型名（候选列表，监测时自动试哪个能用）
+# 选型：批量监测优先性价比——GPT用mini，Claude用3.5 sonnet，Gemini用2.5 flash
 QUICKROUTER_MODELS = {
-    "chatgpt": "gpt-4o",
-    "gemini": "gemini-2.0-flash",
-    "claude": "claude-sonnet-4-5",
-    "perplexity": "sonar",
+    "chatgpt": ["gpt-5.4-mini", "gpt-5-mini", "gpt-4o-mini", "gpt-4o"],
+    "gemini": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
+    "claude": ["claude-3-5-sonnet", "claude-3-5-sonnet-20241022", "claude-sonnet-4", "claude-3-5-haiku"],
+    "perplexity": ["sonar", "sonar-pro"],
 }
+# 记住每个平台上次成功的模型名，避免每次都从头试
+_qr_working_model = {}
 # 走 QuickRouter 中转的海外平台（deepseek 是国内直连的，不走中转）
 QUICKROUTER_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity"}
 def _quickrouter_key():
