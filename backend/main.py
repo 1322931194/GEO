@@ -20,7 +20,7 @@ try:
 except ImportError:
     httpx = None  # 懒加载兜底，缺失不影响主服务启动
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request
@@ -3526,7 +3526,9 @@ def health():
                               "ANTHROPIC_API_KEY", "PERPLEXITY_API_KEY",
                               "DEEPSEEK_API_KEY")
                   if os.getenv(p)]
-    return {"status": "ok", "ai_platforms_configured": len(configured)}
+    return {"status": "ok", "ai_platforms_configured": len(configured),
+            "version": "2026-07-timezone-fixed",
+            "quickrouter": bool(os.getenv("QUICKROUTER_API_KEY"))}
 
 
 # ----------------------------- AI 推荐模拟器（无需登录） -----------------------------
