@@ -3514,19 +3514,27 @@ async def _do_simulate(req: SimulateReq):
     if not keyword or len(keyword) > 200:
         raise HTTPException(400, "关键词不能为空，且不超过200字")
 
-    # 候选平台列表（便宜平台优先，模拟器是免费钩子，控制成本）
+    # 候选平台列表
     if req.mode == "domestic":
         candidate_keys = ["deepseek", "qwen", "doubao", "kimi", "wenxin"]
         lang_hint = "用中文回答"
     else:
-        # 海外模式：便宜的 DeepSeek/通义 在前，贵的 GPT/Gemini 在后
-        candidate_keys = ["deepseek", "qwen", "gemini", "chatgpt", "perplexity", "claude"]
+        # 海外模式：优先显示真正的海外平台(GPT/Gemini/Claude)，这才符合用户选"海外"的预期
+        candidate_keys = ["chatgpt", "gemini", "claude", "perplexity", "deepseek", "qwen"]
         lang_hint = "Answer in English"
 
-    # 只保留有密钥的平台
+    # 判断平台是否可用：有自己的密钥 OR 海外平台配了QuickRouter中转
+    from services.monitor import QUICKROUTER_PLATFORMS, _quickrouter_key
+    qr_key = _quickrouter_key()
+    def _sim_available(pid, cfg):
+        if pid in QUICKROUTER_PLATFORMS and qr_key:
+            return True
+        return bool(os.getenv(cfg["api_key_env"]))
+
+    # 只保留可用的平台
     available = {
         pid: cfg for pid, cfg in PLATFORMS.items()
-        if pid in candidate_keys and os.getenv(cfg["api_key_env"])
+        if pid in candidate_keys and _sim_available(pid, cfg)
     }
 
     # 按候选顺序排序
@@ -3602,16 +3610,24 @@ async def _do_simulate(req: SimulateReq):
 async def _simulate_one(client, pid, cfg, keyword, website, lang_hint):
     """向单个AI发送关键词查询，返回结构化结果"""
     key = os.getenv(cfg["api_key_env"], "")
-    if not key:
-        raise RuntimeError("no key")
-
     prompt = f"{keyword}"
     messages = [{"role": "user", "content": prompt}]
     body = {"model": cfg["model"], "messages": messages, "temperature": 0.7, "max_tokens": 800}
 
+    # 海外平台无自己密钥时，走 QuickRouter 中转
+    from services.monitor import QUICKROUTER_PLATFORMS, _quickrouter_key, _call_quickrouter
+    qr_key = _quickrouter_key()
+    use_qr = (pid in QUICKROUTER_PLATFORMS and qr_key and not key)
+
+    if not key and not use_qr:
+        raise RuntimeError("no key")
+
     try:
+        if use_qr:
+            # 走 QuickRouter 中转（自动试候选模型）
+            answer = await _call_quickrouter(client, cfg, prompt, qr_key, pid)
         # Gemini 特殊格式
-        if pid == "gemini":
+        elif pid == "gemini":
             url = f"{cfg['url']}?key={key}"
             payload = {"contents": [{"parts": [{"text": prompt}]}]}
             r = await client.post(url, json=payload, timeout=22)
