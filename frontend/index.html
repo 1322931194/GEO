@@ -1376,6 +1376,24 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                   <p style="font-size:12px;color:var(--ink-soft);margin:6px 0 10px">你的核心竞品是谁？监测时我们会同场对比——看清客户问 AI 时，AI 把订单推给了哪个对手、对手凭什么赢。<b>这是整个报告最扎心也最有用的部分。</b></p>
                   <input id="bComp" placeholder="必填，逗号分隔，如 竞品A, 竞品B, 竞品C" style="border-color:rgba(176,82,74,.4)">
                 </div>
+                <div class="field" id="langSelectWrap" style="margin-top:16px;display:none;background:rgba(90,125,90,.06);border:1px solid rgba(90,125,90,.25);border-radius:12px;padding:16px">
+                  <label style="display:flex;align-items:center;gap:6px;font-weight:700"><span>🌍 目标市场语言</span></label>
+                  <p style="font-size:12px;color:var(--ink-soft);margin:6px 0 10px">选你要打的海外市场语言——系统会用这个语言模拟当地客户提问，监测 AI 推不推你。</p>
+                  <select id="bLang" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:14px;background:var(--panel);color:var(--ink)">
+                    <option value="en">英语（English）· 全球通用</option>
+                    <option value="vi">越南语（Tiếng Việt）· 越南市场</option>
+                    <option value="th">泰语（ภาษาไทย）· 泰国市场</option>
+                    <option value="id">印尼语（Bahasa）· 印尼市场</option>
+                    <option value="ja">日语（日本語）· 日本市场</option>
+                    <option value="ko">韩语（한국어）· 韩国市场</option>
+                    <option value="es">西班牙语（Español）· 拉美/西班牙</option>
+                    <option value="pt">葡萄牙语（Português）· 巴西市场</option>
+                    <option value="de">德语（Deutsch）· 德语区</option>
+                    <option value="fr">法语（Français）· 法语区</option>
+                    <option value="ru">俄语（Русский）· 俄语区</option>
+                    <option value="ar">阿拉伯语（العربية）· 中东市场</option>
+                  </select>
+                </div>
                 <button type="button" onclick="toggleExtra()" id="extraBtn" style="background:none;border:none;color:var(--cyan);font-size:13px;cursor:pointer;padding:0;margin:16px 0">+ 填写更多信息（官网、主营产品，可提升问题精准度）</button>
                 <div id="extraFields" style="display:none">
                   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
@@ -4445,6 +4463,9 @@ function selectMode(mode){
   mb.className="mode-badge "+(mode==="outbound"?"outbound":"domestic");
   mb.textContent=mode==="outbound"?"🌏 出海模式":"🇨🇳 国内模式";
   mb.classList.remove("hidden");
+  // 出海模式才显示语言选择器
+  const langWrap=document.getElementById("langSelectWrap");
+  if(langWrap) langWrap.style.display = (mode==="outbound") ? "block" : "none";
 }
 
 // ===== 步骤 =====
@@ -4489,6 +4510,7 @@ async function createBrand(){
       product:document.getElementById("bProduct")?.value.trim()||"",
       competitors:comp,
       target_market:document.getElementById("bMarket")?.value||"海外",
+      target_lang:(currentMode==="outbound" && document.getElementById("bLang"))?document.getElementById("bLang").value:"en",
     })});
     currentBrandId=b.id;
     toast(b.facts_captured?"✅ 官网资料已抓取建库":"✅ 品牌信息已保存");
