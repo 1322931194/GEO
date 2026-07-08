@@ -3968,11 +3968,20 @@ async def admin_check_keys(key: str):
     results = await check_all_keys()
     ok_count = sum(1 for r in results if r["ok"])
     configured = sum(1 for r in results if r["configured"])
+    # QuickRouter 中转状态
+    import os as _os
+    qr_configured = bool(_os.getenv("QUICKROUTER_API_KEY"))
+    qr_platforms = [r for r in results if "QuickRouter" in r.get("status", "")]
     return {
         "results": results,
         "total": len(results),
         "configured": configured,
         "working": ok_count,
+        "quickrouter": {
+            "configured": qr_configured,
+            "platforms_via_qr": len(qr_platforms),
+            "status": ("已启用，海外平台走中转" if qr_configured else "未配置（海外平台走直连或不可用）"),
+        },
         "summary": f"{ok_count} 个平台密钥正常可用" if ok_count else "⚠️ 没有任何平台密钥可用，监测会全部失败！",
     }
 
@@ -4287,6 +4296,17 @@ async function checkKeys(){
     if(!r.ok){ document.getElementById('keycheck').innerHTML='<span style="color:#b0524a">检测接口错误（'+r.status+'）。请确认已部署最新的 monitor.py 和 main.py。</span>'; return; }
     const d=await r.json();
     var html='<div style="font-size:14px;font-weight:700;margin-bottom:12px;padding:10px;border-radius:8px;background:'+(d.working>0?'#f0f5ee;color:#5a7d5a':'#fdf3f2;color:#b0524a')+'">'+d.summary+'</div>';
+    // QuickRouter 中转状态卡
+    if(d.quickrouter){
+      var qr=d.quickrouter;
+      var qrColor=qr.configured?'#5a7d5a':'#999';
+      var qrBg=qr.configured?'#f0f5ee':'#f7f5f0';
+      var qrIcon=qr.configured?'🔀':'⚪';
+      html+='<div style="margin-bottom:14px;padding:12px 14px;border-radius:8px;background:'+qrBg+';border:1px solid '+(qr.configured?'#cfe0c4':'#eee')+'">'
+        +'<div style="font-weight:700;color:'+qrColor+';font-size:13.5px">'+qrIcon+' QuickRouter 中转：'+qr.status+'</div>'
+        +'<div style="font-size:12px;color:#888;margin-top:4px">'+(qr.configured?('海外平台（ChatGPT/Gemini/Claude/Perplexity）无自己密钥时，自动走 QuickRouter 中转。当前有 '+qr.platforms_via_qr+' 个平台正走中转。'):'未配置 QUICKROUTER_API_KEY。海外平台将走各自直连密钥（若有）。在 Render 环境变量加 QUICKROUTER_API_KEY 即可启用中转。')+'</div>'
+        +'</div>';
+    }
     html+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:6px">平台</th><th>状态</th><th>说明</th></tr>';
     d.results.forEach(function(it){
       var color=it.ok?'#5a7d5a':(it.configured?'#b0524a':'#999');
