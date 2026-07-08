@@ -4773,6 +4773,22 @@ def admin_list_users(key: str, q: str = "", plan: str = "", sort: str = "created
                      session: Session = Depends(get_session)):
     """列出所有用户（管理员用），带行为数据+价值分层+搜索筛选。"""
     _check_admin(key)
+    try:
+        return _admin_list_users_impl(q, plan, sort, session)
+    except Exception as e:
+        # 最外层兜底：任何错误都不返回500，保证后台能登录进去
+        try:
+            session.rollback()
+        except Exception:
+            pass
+        return {
+            "users": [],
+            "summary": {"total": 0, "paid": 0, "free": 0, "total_revenue": 0, "paid_rate": 0},
+            "error": f"用户数据加载出错（不影响登录）：{type(e).__name__}: {str(e)[:150]}",
+        }
+
+
+def _admin_list_users_impl(q, plan, sort, session):
     now = datetime.now(timezone(timedelta(hours=8)))
     # 容错：新字段迁移未完成时，select(User) 会因缺列报错。
     # 先尝试正常查询，失败则用原生SQL只取基础列，保证后台一定能登录。
