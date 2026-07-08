@@ -705,8 +705,48 @@ async def analyze_brand_perception(
 
 # 【功能1】独家高权重媒体直发矩阵（本地数据，零AI成本）
 # 基于各AI引用生态调研，告诉商家：想被哪个AI引用，就往哪个媒体发
+
+# 信源域名 → 发文平台映射（监测抓到的域名，反推该去哪发）
+SOURCE_TO_PLATFORM = {
+    "zhihu.com": {"platform": "知乎", "weight": "★★★★★", "how": "发专栏文章 + 回答该问题下的高热问题", "difficulty": "中"},
+    "sohu.com": {"platform": "搜狐号", "weight": "★★★★★", "how": "开通搜狐号，每周1-2篇行业内容", "difficulty": "易"},
+    "baijiahao.baidu.com": {"platform": "百家号", "weight": "★★★★☆", "how": "开通认证百家号，稳定更新", "difficulty": "易"},
+    "baidu.com": {"platform": "百度系(百科/百家号)", "weight": "★★★★★", "how": "创建品牌百科词条 + 百家号内容", "difficulty": "难"},
+    "baike.baidu.com": {"platform": "百度百科", "weight": "★★★★★", "how": "创建/完善品牌词条，AI知识类问题必引", "difficulty": "难"},
+    "toutiao.com": {"platform": "今日头条号", "weight": "★★★★☆", "how": "开通头条号，配合抖音一起做", "difficulty": "易"},
+    "csdn.net": {"platform": "CSDN", "weight": "★★★☆☆", "how": "技术/B2B行业发技术文", "difficulty": "中"},
+    "jianshu.com": {"platform": "简书", "weight": "★★★☆☆", "how": "发深度长文", "difficulty": "易"},
+    "xiaohongshu.com": {"platform": "小红书", "weight": "★★★★☆", "how": "发种草笔记 + 测评", "difficulty": "中"},
+    "douyin.com": {"platform": "抖音", "weight": "★★★★☆", "how": "发'实测问AI'系列短视频", "difficulty": "中"},
+    "weixin.qq.com": {"platform": "微信公众号", "weight": "★★★★☆", "how": "元宝重度依赖公众号，保持更新", "difficulty": "中"},
+    "mp.weixin.qq.com": {"platform": "微信公众号", "weight": "★★★★☆", "how": "元宝重度依赖公众号，保持更新", "difficulty": "中"},
+    "wikipedia.org": {"platform": "维基百科", "weight": "★★★★★", "how": "出海必做，海外AI高频引用", "difficulty": "难"},
+    "reddit.com": {"platform": "Reddit", "weight": "★★★★★", "how": "出海：在相关subreddit真实互动", "difficulty": "中"},
+    "quora.com": {"platform": "Quora", "weight": "★★★★☆", "how": "出海：回答行业高热问题", "difficulty": "中"},
+    "medium.com": {"platform": "Medium", "weight": "★★★★☆", "how": "出海：发英文专业长文", "difficulty": "中"},
+    "36kr.com": {"platform": "36氪", "weight": "★★★★☆", "how": "投稿行业观察/融资动态", "difficulty": "难"},
+    "zhihu.com/zhuanlan": {"platform": "知乎专栏", "weight": "★★★★★", "how": "系统性发专业内容", "difficulty": "中"},
+}
+
+# 各行业「AI高频引用」的重点媒体源（帮不同行业商家知道该主攻哪些平台）
+INDUSTRY_MEDIA = {
+    "装修": ["知乎", "小红书", "搜狐号", "百家号", "抖音"],
+    "口腔": ["知乎", "百度百科", "搜狐号", "小红书", "百家号"],
+    "医美": ["小红书", "知乎", "百度百科", "搜狐号", "抖音"],
+    "法律": ["知乎", "百家号", "搜狐号", "今日头条号", "百度百科"],
+    "教育": ["知乎", "小红书", "百家号", "搜狐号", "公众号"],
+    "餐饮": ["小红书", "抖音", "搜狐号", "今日头条号", "大众点评"],
+    "美妆": ["小红书", "知乎", "抖音", "搜狐号", "百家号"],
+    "外贸": ["Reddit", "Quora", "Medium", "维基百科", "LinkedIn"],
+    "B2B": ["知乎", "36氪", "CSDN", "搜狐号", "百家号"],
+    "电商": ["小红书", "知乎", "抖音", "搜狐号", "今日头条号"],
+    "出海": ["Reddit", "Quora", "Medium", "维基百科", "YouTube"],
+    "金融": ["知乎", "百家号", "搜狐号", "36氪", "百度百科"],
+    "本地生活": ["小红书", "抖音", "大众点评", "搜狐号", "百家号"],
+}
+
 def get_media_matrix(industry: str = "") -> dict:
-    """高权重媒体直发矩阵：各AI优先引用的媒体源清单。"""
+    """高权重媒体直发矩阵：各AI优先引用的媒体源清单。可按行业给重点推荐。"""
     matrix = [
         {"platform": "搜狐号", "weight": "★★★★★", "ai": "全平台通吃（豆包/DeepSeek/Kimi/元宝都引）",
          "why": "几乎所有主流AI都高频引用搜狐，性价比之王", "action": "必开，每周1-2篇", "difficulty": "易"},
@@ -720,12 +760,59 @@ def get_media_matrix(industry: str = "") -> dict:
          "why": "元宝几乎只认公众号内容", "action": "你已有，保持更新", "difficulty": "中"},
         {"platform": "百度百科", "weight": "★★★★★", "ai": "所有AI知识类问题第一引用源",
          "why": "AI回答定义/背景类问题必引百科", "action": "创建品牌词条+完善行业词条", "difficulty": "难"},
+        {"platform": "小红书", "weight": "★★★★☆", "ai": "消费类AI + 豆包引用",
+         "why": "种草/测评类问题AI高频引用小红书", "action": "发真实测评+种草笔记", "difficulty": "中"},
         {"platform": "CSDN", "weight": "★★★☆☆", "ai": "DeepSeek技术类问题偏好",
          "why": "技术向GEO内容的高权重源", "action": "适合技术/B2B行业", "difficulty": "中"},
         {"platform": "抖音", "weight": "★★★★☆", "ai": "豆包生态，视频内容",
          "why": "视频竞争者远少于图文，蓝海", "action": "发'实测问AI'系列短视频", "difficulty": "中"},
     ]
-    return {"matrix": matrix, "note": "策略：想被某个AI推荐，就重点铺它引用的媒体。搜狐号+知乎+百度百科是三大必做。"}
+    # 按行业给重点推荐
+    industry_focus = None
+    for key, plats in INDUSTRY_MEDIA.items():
+        if key in (industry or ""):
+            industry_focus = {"industry": key, "priority_platforms": plats,
+                              "tip": f"你是「{key}」行业，AI 回答这类问题时最常引用：{'、'.join(plats)}。优先主攻这几个。"}
+            break
+    return {"matrix": matrix, "industry_focus": industry_focus,
+            "note": "策略：想被某个AI推荐，就重点铺它引用的媒体。搜狐号+知乎+百度百科是三大必做。"}
+
+
+def sources_to_action(cited_sources: list, industry: str = "") -> dict:
+    """★核心闭环：把监测抓到的信源域名，反推成'该去哪发文'的行动建议。
+    这是GEO最有价值的一环——AI从哪抓答案，你就去哪发。"""
+    import re as _re
+    recommendations = []
+    seen_platforms = set()
+    for src in (cited_sources or []):
+        s = src.lower().strip()
+        # 匹配信源域名
+        matched = None
+        for domain, info in SOURCE_TO_PLATFORM.items():
+            if domain in s:
+                matched = info
+                break
+        if matched and matched["platform"] not in seen_platforms:
+            seen_platforms.add(matched["platform"])
+            recommendations.append({
+                "source_domain": src,
+                "platform": matched["platform"],
+                "weight": matched["weight"],
+                "how": matched["how"],
+                "difficulty": matched["difficulty"],
+                "reason": f"AI 回答时引用了 {src}，说明它信任这个来源——你在这里发内容，更容易被 AI 抓到并推荐。",
+            })
+    # 补充行业推荐媒体（即使没抓到信源也给方向）
+    industry_media = None
+    for key, plats in INDUSTRY_MEDIA.items():
+        if key in (industry or ""):
+            industry_media = {"industry": key, "platforms": plats}
+            break
+    return {
+        "from_sources": recommendations,
+        "industry_media": industry_media,
+        "note": "上半部分是从 AI 真实引用的信源反推的（最精准）；下半部分是你所在行业 AI 普遍爱引用的媒体（作为补充方向）。",
+    }
 
 
 # 【功能2】Schema结构化数据一键注入（强化版，本地生成，零AI成本）
