@@ -100,6 +100,28 @@ PLATFORMS = {
         "url": "https://qianfan.baidubce.com/v2/chat/completions",
         "model": "ernie-4.0-8k",
     },
+    # ===== 通过 QuickRouter 中转接入的新平台（用户无需单独密钥）=====
+    "grok": {
+        "label": "Grok",
+        "api_key_env": "GROK_API_KEY",
+        "url": "https://api.x.ai/v1/chat/completions",
+        "model": "grok-3",
+        "cost": "mid",
+    },
+    "glm": {
+        "label": "智谱清言",
+        "api_key_env": "GLM_API_KEY",
+        "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+        "model": "glm-4.6",
+        "cost": "cheap",
+    },
+    "yuanbao": {
+        "label": "腾讯元宝",
+        "api_key_env": "YUANBAO_API_KEY",
+        "url": "https://api.hunyuan.cloud.tencent.com/v1/chat/completions",
+        "model": "hunyuan-turbo",
+        "cost": "cheap",
+    },
 }
 
 
@@ -199,7 +221,7 @@ async def _call_perplexity(client, cfg, prompt, key):
 
 async def _call_quickrouter(client, cfg, prompt, key, pid):
     """通过 QuickRouter 中转调用海外平台（OpenAI 兼容格式）。
-    自动试候选模型名，哪个能用记住哪个，下次直接用。"""
+    自动试候选模型名 + 对临时错误(429/503)重试，提高成功率。"""
     candidates = QUICKROUTER_MODELS.get(pid, [cfg.get("model", "gpt-4o")])
     if isinstance(candidates, str):
         candidates = [candidates]
@@ -209,27 +231,34 @@ async def _call_quickrouter(client, cfg, prompt, key, pid):
 
     last_err = None
     for model in candidates:
-        try:
-            r = await client.post(
-                QUICKROUTER_BASE,
-                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
-                json={"model": model, "messages": [{"role": "user", "content": prompt}],
-                      "temperature": 0.7, "max_tokens": 800},
-                timeout=60,
-            )
-            r.raise_for_status()
-            data = r.json()
-            if "choices" not in data or not data["choices"]:
-                raise ValueError(f"QuickRouter 返回缺少 choices: {str(data)[:120]}")
-            _qr_working_model[pid] = model  # 记住能用的模型
-            return data["choices"][0]["message"]["content"]
-        except Exception as e:
-            last_err = e
-            # 模型不存在(404/400)才试下一个；其他错误(如余额不足401)直接抛出
-            code = getattr(getattr(e, "response", None), "status_code", None)
-            if code in (400, 404):
-                continue
-            raise
+        # 每个模型最多试 3 次（应对 429/503 临时错误）
+        for attempt in range(3):
+            try:
+                r = await client.post(
+                    QUICKROUTER_BASE,
+                    headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                    json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                          "temperature": 0.7, "max_tokens": 800},
+                    timeout=60,
+                )
+                r.raise_for_status()
+                data = r.json()
+                if "choices" not in data or not data["choices"]:
+                    raise ValueError(f"QuickRouter 返回缺少 choices: {str(data)[:120]}")
+                _qr_working_model[pid] = model  # 记住能用的模型
+                return data["choices"][0]["message"]["content"]
+            except Exception as e:
+                last_err = e
+                code = getattr(getattr(e, "response", None), "status_code", None)
+                # 429限流 / 503服务不可用 / 500 → 临时错误，等一下重试
+                if code in (429, 500, 502, 503, 504) and attempt < 2:
+                    await asyncio.sleep(2 * (attempt + 1))  # 2秒、4秒递增等待
+                    continue
+                # 模型不存在(400/404) → 换下一个候选模型
+                if code in (400, 404):
+                    break
+                # 其他错误(401余额/密钥问题) → 直接抛出
+                raise
     raise last_err or RuntimeError(f"QuickRouter 所有候选模型均失败 ({pid})")
 
 
@@ -246,8 +275,8 @@ _DISPATCH = {
 }
 
 # 平台分组
-OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
-DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "grok", "deepseek"}
+DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao"}
 
 # ===== QuickRouter 中转配置（接法B：只中转海外平台）=====
 # 海外平台（ChatGPT/Gemini/Claude/Perplexity）难直连，可通过 QuickRouter 统一中转。
@@ -257,15 +286,18 @@ QUICKROUTER_BASE = "https://api.quickrouter.ai/v1/chat/completions"
 # 海外平台在 QuickRouter 上对应的模型名（候选列表，监测时自动试哪个能用）
 # 选型：批量监测优先性价比——GPT用mini，Claude用3.5 sonnet，Gemini用2.5 flash
 QUICKROUTER_MODELS = {
-    "chatgpt": ["gpt-5.4-mini", "gpt-5-mini", "gpt-4o-mini", "gpt-4o"],
-    "gemini": ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
-    "claude": ["claude-3-5-sonnet", "claude-3-5-sonnet-20241022", "claude-sonnet-4", "claude-3-5-haiku"],
-    "perplexity": ["sonar", "sonar-pro"],
+    "chatgpt": ["gpt-5.4-mini", "gpt-5-mini", "gpt-4o-mini", "gpt-4o", "gpt-4"],
+    "gemini": ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"],
+    "claude": ["claude-sonnet-4-6", "claude-3-5-sonnet", "claude-sonnet-4", "claude-3-5-haiku", "claude-opus-4-6"],
+    "perplexity": ["sonar", "sonar-pro", "perplexity/sonar"],
+    "grok": ["grok-3", "grok-3-mini", "grok-4", "grok-beta"],
+    "glm": ["glm-4.6", "glm-4.5", "glm-4-flash", "glm-4"],
+    "yuanbao": ["hunyuan-turbo", "hunyuan-standard", "hunyuan-lite"],
 }
 # 记住每个平台上次成功的模型名，避免每次都从头试
 _qr_working_model = {}
-# 走 QuickRouter 中转的海外平台（deepseek 是国内直连的，不走中转）
-QUICKROUTER_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity"}
+# 走 QuickRouter 中转的平台（这些平台没有自己密钥时，自动走中转）
+QUICKROUTER_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "grok", "glm", "yuanbao"}
 def _quickrouter_key():
     return os.getenv("QUICKROUTER_API_KEY", "")
 
@@ -410,8 +442,8 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
 # ----------------------------------------------------------------------------
 
 # 平台分组：出海模式 vs 国内模式
-OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek", "qwen"}
-DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
+OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "grok", "deepseek", "qwen"}
+DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao"}
 
 async def run_monitoring(
     brand: str,
@@ -457,12 +489,12 @@ async def run_monitoring(
     # - 海外模式：必须包含主流海外平台(ChatGPT/Gemini)，准确性优先
     cost_order = {"cheap": 0, "mid": 1, "expensive": 2}
     if economy and mode == "domestic":
-        # 国内经济模式：按成本排序，国产模型本就便宜又准
-        sorted_pids = sorted(
-            available.keys(),
-            key=lambda p: cost_order.get(available[p].get("cost", "mid"), 1)
-        )
-        available = {p: available[p] for p in sorted_pids[:max_platforms]}
+        # 国内经济模式：优先测最主流平台（免费版只测3个时，要测最有代表性的）
+        # 豆包(月活最大) > DeepSeek(最火) > 文心(百度系) > 通义 > Kimi > 智谱 > 元宝
+        domestic_priority = ["doubao", "deepseek", "wenxin", "qwen", "kimi", "glm", "yuanbao"]
+        ordered = [p for p in domestic_priority if p in available]
+        ordered += [p for p in available if p not in ordered]
+        available = {p: available[p] for p in ordered[:max_platforms]}
     elif mode != "domestic":
         # 海外模式：准确性优先，但要避免全被失败的海外平台占满导致无数据。
         # 策略：海外主流 + 国产兜底混合，保证至少有能成功返回的平台。
