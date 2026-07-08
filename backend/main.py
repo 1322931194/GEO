@@ -297,6 +297,7 @@ class BrandReq(BaseModel):
     product: str = ""
     target_market: str = "海外"
     mode: str = "outbound"   # outbound=出海模式  domestic=国内模式
+    target_lang: str = "en"  # 出海目标语言 en/vi/th/ja/ko/es等
     competitors: str = ""
 
 class GenContentReq(BaseModel):
@@ -464,6 +465,7 @@ async def create_brand(req: BrandReq, user: User = Depends(current_user),
         user_id=user.id, name=req.name, website=req.website,
         industry=req.industry, product=req.product,
         target_market=req.target_market,
+        target_lang=req.target_lang,
         mode=req.mode,
         competitors=req.competitors,
         brand_facts=facts,
@@ -560,6 +562,7 @@ async def gen_questions(brand_id: int, user: User = Depends(current_user),
         brand.target_market, count=min(50, limit),
         brand_facts=brand.brand_facts,
         mode=getattr(brand, "mode", "outbound"),
+        target_lang=getattr(brand, "target_lang", "en"),
     )
     brand.questions_json = json.dumps(qs, ensure_ascii=False)
     session.add(brand)
