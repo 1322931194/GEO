@@ -197,6 +197,23 @@ async def _call_perplexity(client, cfg, prompt, key):
     return r.json()["choices"][0]["message"]["content"]
 
 
+async def _call_quickrouter(client, cfg, prompt, key, pid):
+    """通过 QuickRouter 中转调用海外平台（OpenAI 兼容格式）。"""
+    model = QUICKROUTER_MODELS.get(pid, cfg.get("model", "gpt-4o"))
+    r = await client.post(
+        QUICKROUTER_BASE,
+        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+        json={"model": model, "messages": [{"role": "user", "content": prompt}],
+              "temperature": 0.7, "max_tokens": 800},
+        timeout=60,
+    )
+    r.raise_for_status()
+    data = r.json()
+    if "choices" not in data or not data["choices"]:
+        raise ValueError(f"QuickRouter 返回缺少 choices: {str(data)[:150]}")
+    return data["choices"][0]["message"]["content"]
+
+
 _DISPATCH = {
     "chatgpt": _call_openai,
     "gemini": _call_gemini,
@@ -213,6 +230,22 @@ _DISPATCH = {
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "deepseek"}
 DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin"}
 
+# ===== QuickRouter 中转配置（接法B：只中转海外平台）=====
+# 海外平台（ChatGPT/Gemini/Claude/Perplexity）难直连，可通过 QuickRouter 统一中转。
+# 配了 QUICKROUTER_API_KEY 才启用；国内平台仍走各自直连，不受影响。
+QUICKROUTER_BASE = "https://api.quickrouter.ai/v1/chat/completions"
+# 海外平台在 QuickRouter 上对应的模型名（OpenAI 兼容格式，可按控制台实际模型名调整）
+QUICKROUTER_MODELS = {
+    "chatgpt": "gpt-4o",
+    "gemini": "gemini-2.0-flash",
+    "claude": "claude-sonnet-4-5",
+    "perplexity": "sonar",
+}
+# 走 QuickRouter 中转的海外平台（deepseek 是国内直连的，不走中转）
+QUICKROUTER_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity"}
+def _quickrouter_key():
+    return os.getenv("QUICKROUTER_API_KEY", "")
+
 
 async def check_all_keys() -> list:
     """
@@ -224,13 +257,15 @@ async def check_all_keys() -> list:
     async with httpx.AsyncClient() as client:
         for pid, cfg in PLATFORMS.items():
             key = os.getenv(cfg["api_key_env"])
+            qr_key = _quickrouter_key()
+            use_qr = (pid in QUICKROUTER_PLATFORMS and qr_key and not key)
             item = {
                 "platform": pid,
                 "label": cfg.get("label", pid),
                 "env_name": cfg["api_key_env"],
-                "configured": bool(key),
+                "configured": bool(key) or use_qr,
             }
-            if not key:
+            if not key and not use_qr:
                 item["status"] = "未配置"
                 item["ok"] = False
                 item["detail"] = f"环境变量 {cfg['api_key_env']} 没有设置"
@@ -238,10 +273,13 @@ async def check_all_keys() -> list:
                 continue
             # 真实测试调用（用最短的问题省成本）
             try:
-                ans = await _DISPATCH[pid](client, cfg, "你好", key)
+                if use_qr:
+                    ans = await _call_quickrouter(client, cfg, "你好", qr_key, pid)
+                else:
+                    ans = await _DISPATCH[pid](client, cfg, "你好", key)
                 _track_mon(pid, True, "check_keys")
                 if ans and len(ans.strip()) > 0:
-                    item["status"] = "正常"
+                    item["status"] = "正常（QuickRouter中转）" if use_qr else "正常"
                     item["ok"] = True
                     item["detail"] = "密钥有效，调用成功"
                 else:
@@ -370,15 +408,21 @@ async def run_monitoring(
     """
     # 根据模式筛选平台
     allowed = DOMESTIC_PLATFORMS if mode == "domestic" else OUTBOUND_PLATFORMS
+    qr_key = _quickrouter_key()
+    def _platform_available(pid, cfg):
+        # 海外平台：有自己的密钥 OR 配了QuickRouter中转，都算可用
+        if pid in QUICKROUTER_PLATFORMS and qr_key:
+            return True
+        return bool(os.getenv(cfg["api_key_env"]))
     available = {
         pid: cfg for pid, cfg in PLATFORMS.items()
-        if os.getenv(cfg["api_key_env"]) and pid in allowed
+        if _platform_available(pid, cfg) and pid in allowed
     }
 
     if not available:
-        # 没有对应模式的密钥时，退回到所有有密钥的平台
+        # 没有对应模式的密钥时，退回到所有可用的平台
         available = {pid: cfg for pid, cfg in PLATFORMS.items()
-                     if os.getenv(cfg["api_key_env"])}
+                     if _platform_available(pid, cfg)}
 
     if not available:
         raise RuntimeError(
@@ -521,13 +565,22 @@ async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerRe
     res = AnswerResult(platform=pid, question=question, answer_text="",
                        queried_at=now_cn.strftime("%Y-%m-%d %H:%M:%S"),
                        node=os.getenv("QUERY_NODE", "上海"))
+    # 海外平台：优先走 QuickRouter 中转（配了密钥 且 该平台没有自己的直连密钥时）
+    qr_key = _quickrouter_key()
+    use_qr = (pid in QUICKROUTER_PLATFORMS and qr_key and not key)
     try:
-        # 双保险：除了 httpx 的 timeout=45，再加一层 asyncio 硬超时 50秒，
+        # 双保险：除了 httpx 的 timeout，再加一层 asyncio 硬超时，
         # 防止连接层卡死导致 httpx 超时不生效，让任务永远挂起。
-        answer = await asyncio.wait_for(
-            _DISPATCH[pid](client, cfg, question, key),
-            timeout=50,
-        )
+        if use_qr:
+            answer = await asyncio.wait_for(
+                _call_quickrouter(client, cfg, question, qr_key, pid),
+                timeout=65,
+            )
+        else:
+            answer = await asyncio.wait_for(
+                _DISPATCH[pid](client, cfg, question, key),
+                timeout=50,
+            )
         res.answer_text = answer
         parsed = _analyze_answer(answer, brand, competitors)
         res.brand_mentioned = parsed["brand_mentioned"]
