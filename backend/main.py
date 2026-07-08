@@ -2213,6 +2213,20 @@ async def material_checklist(req: MaterialReq, user: User = Depends(current_user
     except Exception as e:
         raise HTTPException(500, f"资料清单生成失败：{type(e).__name__}: {e}")
 
+class KeywordSuggestReq(BaseModel):
+    keyword: str
+    industry: str = ""
+
+@app.post("/api/keyword/suggestions")
+async def keyword_suggestions(req: KeywordSuggestReq, user: User = Depends(current_user),
+                              session: Session = Depends(get_session)):
+    """关键词联想词（免费：优先真实下拉词，AI兜底）。发现更多值得布局的长尾词。"""
+    try:
+        from services.generator import get_keyword_suggestions
+        return await get_keyword_suggestions(req.keyword, req.industry)
+    except Exception as e:
+        raise HTTPException(500, f"联想词获取失败：{type(e).__name__}: {e}")
+
 @app.post("/api/keyword/analyze")
 async def keyword_analyze(req: KeywordAnalyzeReq, user: User = Depends(current_user),
                           session: Session = Depends(get_session)):
