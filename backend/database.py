@@ -28,7 +28,7 @@ engine = create_engine(DATABASE_URL, echo=False,
 PLANS = {
     "trial": {
         "name": "免费版", "price_cny": 0, "brands": 1,
-        "questions": 20, "samples": 1, "platforms": 8, "freq": "once",
+        "questions": 20, "samples": 1, "platforms": 3, "freq": "once",
         "monitor_limit": 3,   # 免费给3次监测（让他反复查、看到AI不推他）
         "battle_limit": 0,    # 作战包只给预览，完整要付费
         "content_limit": 0,   # 不能生成内容 → 制造付费动力
@@ -36,7 +36,7 @@ PLANS = {
     },
     "single": {
         "name": "单次内容包", "price_cny": 19.9, "brands": 1,
-        "questions": 50, "samples": 1, "platforms": 8, "freq": "once",
+        "questions": 50, "samples": 1, "platforms": 6, "freq": "once",
         "monitor_limit": 3,   # 保留监测
         "battle_limit": 1,    # 1次完整作战报告（可导出）
         "content_limit": 5,   # 1次解锁：关键词+长尾词+内容生成（5次够落地一轮）
@@ -45,7 +45,7 @@ PLANS = {
     },
     "monthly": {
         "name": "增长版", "price_cny": 599, "brands": 3,
-        "questions": 80, "samples": 1, "platforms": 8, "freq": "weekly",
+        "questions": 80, "samples": 1, "platforms": 9, "freq": "weekly",
         "monitor_limit": 50,  # 每月50次监测
         "battle_limit": 50,   # 50次作战报告
         "content_limit": 50,  # 50次内容生成
@@ -53,7 +53,7 @@ PLANS = {
     },
     "pro_monthly": {
         "name": "畅享版", "price_cny": 980, "brands": 10,
-        "questions": 120, "samples": 1, "platforms": 8, "freq": "daily",
+        "questions": 120, "samples": 1, "platforms": 12, "freq": "daily",
         "monitor_limit": 999,  # 不限次监测
         "battle_limit": 999,   # 不限作战报告
         "content_limit": 999,  # 不限内容生成
@@ -62,7 +62,7 @@ PLANS = {
     },
     "custom": {
         "name": "企业定制", "price_cny": 0, "brands": 30,
-        "questions": 200, "samples": 3, "platforms": 8, "freq": "daily",
+        "questions": 200, "samples": 3, "platforms": 12, "freq": "daily",
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
         "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
         "index_board": True,
