@@ -2332,6 +2332,33 @@ async def growth_media_matrix(user: User = Depends(current_user)):
     except Exception as e:
         raise HTTPException(500, f"媒体矩阵生成失败：{type(e).__name__}: {e}")
 
+@app.get("/api/brands/{brand_id}/media-plan")
+async def brand_media_plan(brand_id: int, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★信源反推发文：基于最新监测抓到的AI引用信源，告诉商家该去哪些高权重媒体发文。"""
+    brand = _owned_brand(brand_id, user, session)
+    # 取最新报告的信源
+    recs = session.exec(
+        select(Report).where(Report.brand_id == brand_id)
+        .order_by(Report.generated_at.desc())
+    ).all()
+    cited_sources = []
+    if recs:
+        full = _jload(getattr(recs[0], "full_json", "{}"), {})
+        # 从报告里提取所有信源
+        targets = full.get("citation_targets", []) or []
+        cited_sources = [t.get("source", "") for t in targets if t.get("source")]
+        if not cited_sources:
+            # 兜底：从raw结果里找
+            for r in full.get("raw_results", []) or []:
+                cited_sources.extend(r.get("cited_sources", []) or [])
+    from services.generator import sources_to_action
+    result = sources_to_action(cited_sources, brand.industry)
+    result["has_monitoring"] = bool(recs)
+    if not recs:
+        result["tip"] = "还没做过监测。先监测一次，系统就能从 AI 真实引用的信源，反推你该去哪发文。"
+    return result
+
 class SchemaInjectReq(BaseModel):
     brand_id: int
     address: str = ""
