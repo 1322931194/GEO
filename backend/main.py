@@ -615,11 +615,13 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
         raise HTTPException(403, "UPGRADE_REQUIRED")
 
     competitors = [c.strip() for c in brand.competitors.split(",") if c.strip()]
+    # 监测平台数按套餐分层：免费3个 / 单次6个 / 增长9个 / 畅享12个
+    plan_platforms = plan.get("platforms", 3)
     report = await run_monitoring(
         brand.name, questions, competitors,
         samples_per_question=plan["samples"],
         mode=getattr(brand, "mode", "outbound"),
-        max_platforms=(3 if _is_free else 5),    # 免费版限3平台确保快；付费版5平台
+        max_platforms=plan_platforms,    # 按套餐给的平台数（付费越高，覆盖越全）
         skip_resample=_is_free,                   # 免费版跳过补采样，首次更快
     )
 
