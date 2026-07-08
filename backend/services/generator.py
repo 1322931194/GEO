@@ -1010,6 +1010,106 @@ async def generate_multi_turn_questions(brand: str, industry: str, product: str,
     }
 
 
+# 【本土化雷达】各海外市场：当地主流AI + 本地高权重信源 + 本地化策略
+# 出海不能照搬国内打法——越南用户不看知乎，AI在当地引用的是当地平台
+MARKET_LOCALIZATION = {
+    "vi": {
+        "market": "越南", "lang_name": "越南语",
+        "local_ais": ["ChatGPT", "Gemini", "Google Bard"],
+        "ai_note": "越南用户主要用 ChatGPT 和 Google 系 AI，国内 AI 基本不用",
+        "local_sources": [
+            {"platform": "Facebook", "weight": "★★★★★", "why": "越南第一大社交平台，AI高频引用，几乎人人用"},
+            {"platform": "Zalo", "weight": "★★★★★", "why": "越南本土国民级App，本地生活/商业核心"},
+            {"platform": "TikTok", "weight": "★★★★☆", "why": "越南年轻人主阵地，短视频种草"},
+            {"platform": "Shopee/Lazada评价", "weight": "★★★★☆", "why": "电商评价，AI推荐商品时参考"},
+            {"platform": "本地论坛(voz.vn等)", "weight": "★★★☆☆", "why": "越南本地问答社区，专业话题"},
+        ],
+        "strategy": "重点做 Facebook + Zalo 内容，配 TikTok 短视频；用越南语，贴近本地文化",
+        "tip": "越南市场社交属性极强，口碑靠社交平台传播。别照搬国内知乎/百家号那套。",
+    },
+    "th": {
+        "market": "泰国", "lang_name": "泰语",
+        "local_ais": ["ChatGPT", "Gemini"],
+        "ai_note": "泰国用户主要用国际AI，Google生态渗透率高",
+        "local_sources": [
+            {"platform": "Facebook", "weight": "★★★★★", "why": "泰国社交霸主，AI高频引用"},
+            {"platform": "LINE", "weight": "★★★★★", "why": "泰国国民通讯App，本地商业核心"},
+            {"platform": "Pantip", "weight": "★★★★☆", "why": "泰国最大论坛，问答/评测权重高"},
+            {"platform": "TikTok/IG", "weight": "★★★★☆", "why": "年轻人种草平台"},
+        ],
+        "strategy": "Facebook + LINE 官方账号 + Pantip 问答布局，泰语内容",
+        "tip": "Pantip 在泰国类似知乎，专业问答一定要覆盖。",
+    },
+    "id": {
+        "market": "印尼", "lang_name": "印尼语",
+        "local_ais": ["ChatGPT", "Gemini"],
+        "ai_note": "印尼用户主用国际AI",
+        "local_sources": [
+            {"platform": "Instagram", "weight": "★★★★★", "why": "印尼社交核心，视觉种草"},
+            {"platform": "TikTok", "weight": "★★★★★", "why": "印尼是TikTok最大市场之一"},
+            {"platform": "Tokopedia/Shopee", "weight": "★★★★☆", "why": "电商评价，购买决策参考"},
+            {"platform": "Kaskus", "weight": "★★★☆☆", "why": "印尼本土老牌论坛"},
+        ],
+        "strategy": "IG + TikTok 视觉内容为主，电商平台口碑，印尼语",
+        "tip": "印尼年轻人口多，短视频+电商种草最有效。",
+    },
+    "en": {
+        "market": "英语市场(欧美)", "lang_name": "英语",
+        "local_ais": ["ChatGPT", "Gemini", "Claude", "Perplexity"],
+        "ai_note": "欧美是所有主流AI的核心市场，竞争最激烈也最看重权威性",
+        "local_sources": [
+            {"platform": "维基百科", "weight": "★★★★★", "why": "AI识别品牌'实体'的第一权威源，欧美必做"},
+            {"platform": "Reddit", "weight": "★★★★★", "why": "AI极高频引用，真实用户讨论"},
+            {"platform": "Quora", "weight": "★★★★☆", "why": "英文问答，专业话题权重高"},
+            {"platform": "Medium", "weight": "★★★★☆", "why": "英文专业长文平台"},
+            {"platform": "Trustpilot/G2", "weight": "★★★★☆", "why": "欧美权威评价平台，B2B必做"},
+            {"platform": "YouTube", "weight": "★★★★☆", "why": "视频内容，Gemini高频引用"},
+        ],
+        "strategy": "建维基词条 + Reddit真实互动 + Quora专业回答 + Trustpilot评价，全英文",
+        "tip": "欧美AI最看重权威和多来源共识。维基+Reddit是地基，刷不得假。",
+    },
+    "ja": {
+        "market": "日本", "lang_name": "日语",
+        "local_ais": ["ChatGPT", "Gemini"],
+        "ai_note": "日本用户主用ChatGPT，本土化要求极高",
+        "local_sources": [
+            {"platform": "X(Twitter)", "weight": "★★★★★", "why": "日本社交核心，使用率极高"},
+            {"platform": "note", "weight": "★★★★☆", "why": "日本专业内容平台，类似知乎+Medium"},
+            {"platform": "Yahoo!知恵袋", "weight": "★★★★☆", "why": "日本最大问答，AI引用高"},
+            {"platform": "日本维基", "weight": "★★★★★", "why": "权威实体识别"},
+        ],
+        "strategy": "X + note 内容 + Yahoo知恵袋问答 + 日本维基，地道日语",
+        "tip": "日本市场对本地化和礼貌用语极敏感，机翻内容会被AI和用户识别。",
+    },
+    "ko": {
+        "market": "韩国", "lang_name": "韩语",
+        "local_ais": ["ChatGPT", "Gemini", "Naver CLOVA"],
+        "ai_note": "韩国有本土AI(Naver)，但ChatGPT也普及",
+        "local_sources": [
+            {"platform": "Naver 博客/知识iN", "weight": "★★★★★", "why": "韩国搜索/问答霸主，本土AI核心信源"},
+            {"platform": "KakaoTalk", "weight": "★★★★★", "why": "韩国国民App"},
+            {"platform": "Instagram", "weight": "★★★★☆", "why": "年轻人种草"},
+        ],
+        "strategy": "Naver 生态是韩国核心(博客+知识iN)，配 Kakao + IG，韩语",
+        "tip": "韩国的'百度'是Naver——做韩国市场，Naver生态优先级最高。",
+    },
+}
+
+def get_localization_radar(target_lang: str = "en", industry: str = "") -> dict:
+    """本土化雷达：针对目标海外市场，给'当地AI怎么看你+本地信源怎么铺'的策略。"""
+    loc = MARKET_LOCALIZATION.get(target_lang, MARKET_LOCALIZATION["en"])
+    return {
+        "market": loc["market"],
+        "lang_name": loc["lang_name"],
+        "local_ais": loc["local_ais"],
+        "ai_note": loc["ai_note"],
+        "local_sources": loc["local_sources"],
+        "strategy": loc["strategy"],
+        "tip": loc["tip"],
+        "note": "出海不能照搬国内打法。每个市场的用户用不同的AI、看不同的平台。想被当地AI推荐，就要铺当地AI信任的本地信源。",
+    }
+
+
 def get_rag_strategy(target_ais: list = None, industry: str = "") -> dict:
     """差异化 RAG 策略：针对不同 AI 引擎的引用偏好，给差异化的内容+发布建议。
     同一篇内容，发对地方才能被对应 AI 抓到。"""
