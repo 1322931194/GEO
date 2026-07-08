@@ -3924,6 +3924,75 @@ def admin_operations(key: str, session: Session = Depends(get_session)):
     }
 
 
+@app.get("/api/admin/revenue-dashboard")
+def admin_revenue_dashboard(key: str, session: Session = Depends(get_session)):
+    """收入看板 + 流失预警（营销管理核心）。今日/本月收入、各套餐占比、快到期用户、沉默付费用户。"""
+    _check_admin(key)
+    now = datetime.now(timezone(timedelta(hours=8)))
+    today0 = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    month0 = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    try:
+        paid_orders = session.exec(select(Order).where(Order.status == "paid")).all()
+    except Exception:
+        session.rollback()
+        paid_orders = []
+
+    def _otime(o):
+        t = getattr(o, "paid_at", None) or o.created_at
+        return t.replace(tzinfo=None) if t else None
+
+    today_rev = sum(o.amount for o in paid_orders if _otime(o) and _otime(o) >= today0.replace(tzinfo=None))
+    month_rev = sum(o.amount for o in paid_orders if _otime(o) and _otime(o) >= month0.replace(tzinfo=None))
+    total_rev = sum(o.amount for o in paid_orders)
+
+    by_plan = {}
+    for o in paid_orders:
+        pn = PLANS.get(o.plan, {}).get("name", o.plan)
+        if pn not in by_plan:
+            by_plan[pn] = {"count": 0, "revenue": 0.0}
+        by_plan[pn]["count"] += 1
+        by_plan[pn]["revenue"] += o.amount
+    for pn in by_plan:
+        by_plan[pn]["revenue"] = round(by_plan[pn]["revenue"], 2)
+
+    users = session.exec(select(User)).all()
+    expiring_soon, silent_paid = [], []
+    for u in users:
+        spent = getattr(u, "total_spent", 0) or 0
+        if spent <= 0:
+            continue
+        exp = getattr(u, "plan_expires_at", None)
+        if exp:
+            d2e = (exp.replace(tzinfo=timezone(timedelta(hours=8))) - now).days
+            if -3 <= d2e <= 7:
+                expiring_soon.append({"email": u.email, "days": d2e,
+                                      "plan": PLANS.get(u.plan, {}).get("name", u.plan),
+                                      "spent": round(spent, 2)})
+        last = getattr(u, "last_login_at", None)
+        if last:
+            sd = (now - last.replace(tzinfo=timezone(timedelta(hours=8)))).days
+            if sd >= 14:
+                silent_paid.append({"email": u.email, "silent_days": sd,
+                                    "plan": PLANS.get(u.plan, {}).get("name", u.plan),
+                                    "spent": round(spent, 2)})
+    expiring_soon.sort(key=lambda x: x["days"])
+    silent_paid.sort(key=lambda x: -x["silent_days"])
+
+    return {
+        "revenue": {
+            "today": round(today_rev, 2), "month": round(month_rev, 2),
+            "total": round(total_rev, 2), "paid_order_count": len(paid_orders),
+            "by_plan": by_plan,
+        },
+        "churn_warning": {
+            "expiring_soon": expiring_soon[:20], "silent_paid": silent_paid[:20],
+            "expiring_count": len(expiring_soon), "silent_count": len(silent_paid),
+        },
+        "tips": "快到期用户主动发续费提醒；沉默付费用户主动回访——留住老客比拉新便宜5倍。",
+    }
+
+
 @app.get("/api/admin/user-journey")
 def admin_user_journey(key: str, email: str = "", user_id: int = 0,
                        session: Session = Depends(get_session)):
@@ -3939,12 +4008,26 @@ def admin_user_journey(key: str, email: str = "", user_id: int = 0,
         return {"found": False, "msg": "未找到该用户"}
 
     # 1. 基本信息
+    now = datetime.now(timezone(timedelta(hours=8)))
+    last = getattr(user, "last_login_at", None)
+    days_silent = (now - last.replace(tzinfo=timezone(timedelta(hours=8)))).days if last else None
+    exp = getattr(user, "plan_expires_at", None)
+    days_to_expire = (exp.replace(tzinfo=timezone(timedelta(hours=8))) - now).days if exp else None
     info = {
         "id": user.id, "email": user.email, "plan": user.plan,
+        "plan_name": PLANS.get(user.plan, {}).get("name", user.plan),
         "registered": user.created_at.strftime("%Y-%m-%d %H:%M") if user.created_at else "",
         "monitor_count": user.monitor_count or 0,
         "content_count": user.content_count or 0,
+        "battle_count": getattr(user, "battle_count", 0) or 0,
         "referred_by": user.referred_by or 0,
+        # 消费+活跃画像
+        "total_spent": round(getattr(user, "total_spent", 0) or 0, 2),
+        "order_count": getattr(user, "order_count", 0) or 0,
+        "login_count": getattr(user, "login_count", 0) or 0,
+        "last_login": last.strftime("%Y-%m-%d %H:%M") if last else "从未登录",
+        "days_silent": days_silent,
+        "days_to_expire": days_to_expire,
     }
 
     # 2. 行为事件时间线（TrackEvent）
@@ -4112,6 +4195,20 @@ def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_ses
     # 监测次数（去重日志条目近似）
     monitor_runs = len(set((l.user_id, l.brand_id, str(l.created_at)[:16]) for l in logs))
 
+    # 异常告警：失败率过高的平台（营销/运维核心：及时发现平台挂了）
+    alerts = []
+    PLAT_NAMES = {"deepseek": "DeepSeek", "doubao": "豆包", "qwen": "通义", "kimi": "Kimi",
+                  "wenxin": "文心", "chatgpt": "ChatGPT", "gemini": "Gemini",
+                  "claude": "Claude", "perplexity": "Perplexity"}
+    for p, st in by_platform.items():
+        if st["calls"] >= 5:  # 有足够样本才判断
+            if st["success_rate"] < 50:
+                alerts.append({"level": "high", "platform": PLAT_NAMES.get(p, p),
+                               "msg": f"{PLAT_NAMES.get(p, p)} 成功率仅 {st['success_rate']}%，可能密钥失效或平台故障"})
+            elif st["success_rate"] < 80:
+                alerts.append({"level": "mid", "platform": PLAT_NAMES.get(p, p),
+                               "msg": f"{PLAT_NAMES.get(p, p)} 成功率 {st['success_rate']}%，建议关注"})
+
     return {
         "period_days": days,
         "total_calls": total_calls,
@@ -4119,6 +4216,7 @@ def admin_api_usage(key: str, days: int = 30, session: Session = Depends(get_ses
         "total_failed": total_failed,
         "success_rate": round(100 * total_success / total_calls) if total_calls else 0,
         "estimated_cost_rmb": total_cost,
+        "alerts": alerts,
         "monitor_runs": monitor_runs,
         "by_platform": by_platform,
         "by_scene": by_scene,
@@ -4268,27 +4366,35 @@ def admin_page():
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>GEO雷达 管理后台</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap');
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,"PingFang SC",sans-serif;background:#f4f6fb;color:#16182b;padding:16px}
-.wrap{max-width:600px;margin:0 auto}
-h1{font-size:20px;color:#4f46e5;margin-bottom:6px}
-.sub{color:#5a5f73;font-size:13px;margin-bottom:20px}
-.card{background:#fff;border:1px solid #e7e8ef;border-radius:14px;padding:18px;margin-bottom:16px}
-.card h2{font-size:15px;margin-bottom:14px}
-label{font-size:13px;color:#5a5f73;display:block;margin-bottom:5px}
-input,select{width:100%;padding:11px;border:1.5px solid #e7e8ef;border-radius:8px;font-size:15px;margin-bottom:12px;font-family:inherit}
-button{width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
+body{font-family:'Noto Sans SC',-apple-system,"PingFang SC",sans-serif;background:linear-gradient(175deg,#12100c,#1a1712 60%,#1f1a14);color:#f4f1ea;padding:16px;min-height:100vh}
+.wrap{max-width:640px;margin:0 auto}
+h1{font-family:'Noto Serif SC',serif;font-size:24px;color:#f4f1ea;margin-bottom:6px;font-weight:900}
+.sub{color:#9c958a;font-size:13px;margin-bottom:20px}
+.card{background:rgba(244,241,234,.04);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px;margin-bottom:16px}
+.card h2{font-family:'Noto Serif SC',serif;font-size:16px;margin-bottom:14px;color:#f4f1ea;font-weight:700}
+label{font-size:13px;color:#9c958a;display:block;margin-bottom:5px}
+input,select{width:100%;padding:11px;border:1.5px solid rgba(244,241,234,.15);border-radius:8px;font-size:15px;margin-bottom:12px;font-family:inherit;background:rgba(244,241,234,.06);color:#f4f1ea}
+input::placeholder{color:#6b655b}
+button{width:100%;padding:12px;background:linear-gradient(135deg,#5a7d5a,#6b8a5e);color:#fff;border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer}
 .result{margin-top:12px;padding:12px;border-radius:8px;font-size:13px;display:none}
-.result.ok{background:#d1fae5;color:#065f46}
-.result.err{background:#fee2e2;color:#991b1b}
+.result.ok{background:rgba(90,125,90,.2);color:#a8c48c}
+.result.err{background:rgba(201,106,95,.15);color:#c96a5f}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}
-th{text-align:left;padding:8px;background:#f8faff;color:#5a5f73;font-size:12px}
-td{padding:8px;border-bottom:1px solid #f0f0f0}
-.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:#eef2ff;color:#3730a3}
-.up-btn{width:auto;padding:4px 10px;font-size:12px}
+th{text-align:left;padding:8px;background:rgba(244,241,234,.05);color:#9c958a;font-size:12px}
+td{padding:8px;border-bottom:1px solid rgba(244,241,234,.08);color:#f4f1ea}
+.badge{padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:rgba(168,196,140,.15);color:#a8c48c}
+.up-btn{width:auto;padding:4px 10px;font-size:12px;background:linear-gradient(135deg,#c99a52,#d4a860)}
+/* 后台内部彩色卡片在深色下的可读性适配 */
+.card [style*="background:#f7f5f0"],.card [style*="background:#f7f4ec"],.card [style*="background:#f8f8fa"]{background:rgba(244,241,234,.06)!important;color:#f4f1ea}
+.card [style*="background:#f0f5ee"]{background:rgba(90,125,90,.15)!important}
+.card [style*="background:#fdf6ec"],.card [style*="background:#fff8e1"],.card [style*="background:#fdf9ef"]{background:rgba(201,154,82,.12)!important}
+.card [style*="background:#fdf3f2"]{background:rgba(201,106,95,.12)!important}
+.card [style*="color:#888"],.card [style*="color:#555"],.card [style*="color:#5a5f73"]{color:#9c958a!important}
 </style></head><body><div class="wrap">
-<h1>⚙️ GEO雷达 管理后台</h1>
-<p class="sub">手机电脑都能用 · 给用户开通套餐</p>
+<h1>見微 · 管理后台</h1>
+<p class="sub">手机电脑都能用 · 用户管理 · 数据监控 · 收入分析</p>
 <div class="card" id="loginCard">
 <h2>🔑 输入管理员密钥</h2>
 <input type="password" id="key" placeholder="你在Render设置的ADMIN_KEY">
@@ -4321,6 +4427,8 @@ td{padding:8px;border-bottom:1px solid #f0f0f0}
 <div class="card">
 <h2>📈 运营数据（今日）<button onclick="loadOps()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="opsBox" style="margin-bottom:20px"><p style="color:#888">点刷新加载今日运营数据</p></div>
+<h2>💰 收入看板 + 流失预警<button onclick="loadRevenue()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
+<div id="revBox" style="margin-bottom:20px"><p style="color:#888">点刷新加载收入与流失数据</p></div>
 <h2>🔍 用户行为轨迹</h2>
 <div style="margin-bottom:12px"><input id="journeyEmail" placeholder="输入用户邮箱查询轨迹" style="width:70%"><button onclick="loadJourney()" style="width:auto;padding:8px 16px;margin-left:8px">查询</button></div>
 <div id="journeyBox" style="margin-bottom:20px"></div>
@@ -4455,9 +4563,18 @@ async function loadJourney(){
     h+="<div style='background:#f7f5f0;border-radius:10px;padding:14px;margin-bottom:14px'>";
     h+="<div style='font-weight:700;margin-bottom:8px'>👤 "+i.email+"</div>";
     h+="<div style='font-size:13px;color:#555;display:flex;gap:16px;flex-wrap:wrap'>";
-    h+="<span>套餐 <b>"+i.plan+"</b></span><span>注册 "+i.registered+"</span><span>监测 "+i.monitor_count+"次</span><span>内容 "+i.content_count+"次</span>";
+    h+="<span>套餐 <b>"+(i.plan_name||i.plan)+"</b></span><span>注册 "+i.registered+"</span><span>监测 "+i.monitor_count+"次</span><span>内容 "+i.content_count+"次</span>";
     if(i.referred_by) h+="<span>推荐人ID "+i.referred_by+"</span>";
     h+="</div></div>";
+    // 消费+活跃画像（第②步：行为监测核心）
+    h+="<div style='display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap'>";
+    h+="<div style='flex:1;min-width:120px;background:#fdf6ec;border-radius:10px;padding:12px;text-align:center'><div style='font-size:12px;color:#888'>累计消费</div><div style='font-size:22px;font-weight:800;color:#c99a52'>¥"+i.total_spent+"</div><div style='font-size:11px;color:#888'>"+i.order_count+"笔订单</div></div>";
+    h+="<div style='flex:1;min-width:120px;background:#f0f5ee;border-radius:10px;padding:12px;text-align:center'><div style='font-size:12px;color:#888'>登录活跃</div><div style='font-size:22px;font-weight:800;color:#5a7d5a'>"+i.login_count+"次</div><div style='font-size:11px;color:#888'>"+(i.days_silent!==null?i.days_silent+"天前活跃":"从未登录")+"</div></div>";
+    if(i.days_to_expire!==null&&i.days_to_expire!==undefined){
+      var expC=i.days_to_expire<0?'#c96a5f':(i.days_to_expire<=7?'#c96a5f':'#5a7d5a');
+      h+="<div style='flex:1;min-width:120px;background:#f7f5f0;border-radius:10px;padding:12px;text-align:center'><div style='font-size:12px;color:#888'>套餐到期</div><div style='font-size:22px;font-weight:800;color:"+expC+"'>"+(i.days_to_expire<0?'已过期':i.days_to_expire+'天')+"</div><div style='font-size:11px;color:#888'>"+(i.days_to_expire<=7&&i.days_to_expire>=0?'⚠️该续费了':'')+"</div></div>";
+    }
+    h+="</div>";
     // AI消耗+订单
     h+="<div style='display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap'>";
     h+="<div style='flex:1;min-width:140px;background:#f7f5f0;border-radius:10px;padding:12px'><div style='font-size:12px;color:#888'>AI调用</div><div style='font-size:20px;font-weight:800'>"+d.ai.total_calls+"次</div><div style='font-size:12px;color:#888'>成本 ¥"+d.ai.total_cost+"</div></div>";
@@ -4488,6 +4605,56 @@ async function loadJourney(){
   }catch(e){ box.innerHTML="<p style='color:#e34'>查询失败："+e.message+"</p>"; }
 }
 
+async function loadRevenue(){
+  const box=document.getElementById('revBox');
+  box.innerHTML='<p style="color:#888">加载中…</p>';
+  try{
+    const r=await fetch('/api/admin/revenue-dashboard?key='+encodeURIComponent(KEY));
+    if(!r.ok){ box.innerHTML='<span style="color:#b0524a">加载失败（'+r.status+'）</span>'; return; }
+    const d=await r.json();
+    const rev=d.revenue, cw=d.churn_warning;
+    var h='';
+    // 收入卡
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:16px">';
+    h+='<div style="background:#fdf6ec;border-radius:8px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:#c99a52">¥'+rev.today+'</div><div style="font-size:12px;color:#888">今日收入</div></div>';
+    h+='<div style="background:#fdf6ec;border-radius:8px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:#c99a52">¥'+rev.month+'</div><div style="font-size:12px;color:#888">本月收入</div></div>';
+    h+='<div style="background:#f0f5ee;border-radius:8px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:#5a7d5a">¥'+rev.total+'</div><div style="font-size:12px;color:#888">累计收入</div></div>';
+    h+='<div style="background:#f0f5ee;border-radius:8px;padding:14px;text-align:center"><div style="font-size:24px;font-weight:800;color:#5a7d5a">'+rev.paid_order_count+'</div><div style="font-size:12px;color:#888">付费订单</div></div>';
+    h+='</div>';
+    // 各套餐占比
+    if(rev.by_plan && Object.keys(rev.by_plan).length){
+      h+='<div style="font-weight:700;margin:14px 0 8px">各套餐收入</div><table style="width:100%;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:5px">套餐</th><th>订单数</th><th>收入</th></tr>';
+      for(var pn in rev.by_plan){ h+='<tr><td style="padding:5px">'+pn+'</td><td>'+rev.by_plan[pn].count+'</td><td style="color:#c99a52;font-weight:700">¥'+rev.by_plan[pn].revenue+'</td></tr>'; }
+      h+='</table>';
+    }
+    // 流失预警
+    h+='<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px">';
+    // 快到期
+    h+='<div style="flex:1;min-width:260px;background:#fdf3f2;border-radius:10px;padding:14px">';
+    h+='<div style="font-weight:700;color:#b0524a;margin-bottom:8px">⏰ 快到期用户（'+cw.expiring_count+'）</div>';
+    if(cw.expiring_soon.length){
+      cw.expiring_soon.forEach(function(u){
+        h+='<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid #f0dcd8">'+u.email+' · '+u.plan+' · <b style="color:#b0524a">'+(u.days<0?'已过期':u.days+'天到期')+'</b> · 已花¥'+u.spent+'</div>';
+      });
+      h+='<div style="font-size:11px;color:#888;margin-top:8px">💡 主动发续费提醒，留住老客</div>';
+    } else { h+='<p style="font-size:12px;color:#888">近期无到期用户</p>'; }
+    h+='</div>';
+    // 沉默付费
+    h+='<div style="flex:1;min-width:260px;background:#fdf9ef;border-radius:10px;padding:14px">';
+    h+='<div style="font-weight:700;color:#c99a52;margin-bottom:8px">😴 沉默的付费用户（'+cw.silent_count+'）</div>';
+    if(cw.silent_paid.length){
+      cw.silent_paid.forEach(function(u){
+        h+='<div style="font-size:12.5px;padding:5px 0;border-bottom:1px solid #f0e6d0">'+u.email+' · '+u.plan+' · <b style="color:#c99a52">'+u.silent_days+'天没来</b> · 已花¥'+u.spent+'</div>';
+      });
+      h+='<div style="font-size:11px;color:#888;margin-top:8px">💡 主动回访，问问是不是遇到问题</div>';
+    } else { h+='<p style="font-size:12px;color:#888">付费用户都挺活跃 👍</p>'; }
+    h+='</div>';
+    h+='</div>';
+    if(d.tips) h+='<div style="font-size:12px;color:#888;margin-top:12px;padding:10px;background:#f7f5f0;border-radius:8px">📌 '+d.tips+'</div>';
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML='<span style="color:#b0524a">加载失败：'+e.message+'</span>'; }
+}
+
 async function loadUsage(){
   try{
     const r=await fetch('/api/admin/api-usage?key='+encodeURIComponent(KEY)+'&days=30');
@@ -4502,6 +4669,14 @@ async function loadUsage(){
     html+='</div>';
     if(d.total_failed>0 && d.success_rate<90){
       html+='<div style="background:#fdf3f2;border:1px solid #e8c5c0;border-radius:8px;padding:10px 14px;font-size:13px;color:#b0524a;margin-bottom:14px">⚠️ 失败率偏高，可能是某个平台的 API 密钥失效或余额不足，请检查下方各平台明细</div>';
+    }
+    // 具体平台异常告警（第③步：API监控核心）
+    if(d.alerts && d.alerts.length){
+      d.alerts.forEach(function(a){
+        var c=a.level==='high'?'#b0524a':'#c99a52';
+        var bg=a.level==='high'?'#fdf3f2':'#fdf9ef';
+        html+='<div style="background:'+bg+';border-left:3px solid '+c+';border-radius:6px;padding:9px 14px;font-size:13px;color:'+c+';margin-bottom:8px">'+(a.level==='high'?'🔴':'🟡')+' '+a.msg+'</div>';
+      });
     }
     html+='<table style="width:100%;border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#888"><th style="padding:6px">平台</th><th>调用</th><th>成功率</th><th>失败</th><th>成本</th></tr>';
     for(var p in d.by_platform){
