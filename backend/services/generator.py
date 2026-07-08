@@ -815,6 +815,235 @@ def sources_to_action(cited_sources: list, industry: str = "") -> dict:
     }
 
 
+# 【功能①】差异化 RAG 策略：不同 AI 引擎的引用偏好不同，针对性优化
+# 每个 AI 抓取答案的"信息源生态"不一样，同一篇内容发对地方才有效
+AI_ENGINE_PROFILE = {
+    "chatgpt": {
+        "name": "ChatGPT", "region": "海外",
+        "prefers": ["维基百科", "Reddit", "官方网站", "权威媒体", "英文长文"],
+        "retrieval": "实时联网检索 + 训练记忆，重视权威性和多来源共识",
+        "strategy": "建品牌英文维基/官网 About 页，在 Reddit 相关话题真实互动，争取权威英文媒体报道",
+        "content_tip": "英文、结构化、有数据和事实支撑，避免营销腔",
+    },
+    "gemini": {
+        "name": "Gemini", "region": "海外",
+        "prefers": ["Google 搜索结果", "YouTube", "官网", "Google 商家", "结构化数据"],
+        "retrieval": "深度绑定 Google 生态，重视 SEO 和结构化数据（Schema）",
+        "strategy": "做好官网 SEO + Schema 标记，建 Google 商家资料，配 YouTube 视频内容",
+        "content_tip": "加 Schema 结构化标记，官网信息完整，多媒体形式",
+    },
+    "claude": {
+        "name": "Claude", "region": "海外",
+        "prefers": ["权威文档", "官方来源", "深度分析文章", "专业内容"],
+        "retrieval": "重视内容质量和可信度，偏好深度、专业、有据可查的信息",
+        "strategy": "产出深度专业内容（白皮书/行业分析/技术文档），强调专业性和可信度",
+        "content_tip": "深度、专业、逻辑清晰、有引用来源，忌浮夸",
+    },
+    "deepseek": {
+        "name": "DeepSeek", "region": "国内",
+        "prefers": ["知乎", "CSDN", "技术社区", "搜狐号", "专业问答"],
+        "retrieval": "偏技术和专业内容，知乎/CSDN 引用权重高",
+        "strategy": "在知乎系统回答专业问题，技术类内容发 CSDN，搜狐号补充",
+        "content_tip": "专业、有干货、逻辑严谨，适合深度问答形式",
+    },
+    "doubao": {
+        "name": "豆包", "region": "国内",
+        "prefers": ["今日头条", "抖音", "搜狐号", "字节生态内容"],
+        "retrieval": "背靠字节生态，优先抓取头条+抖音+相关内容",
+        "strategy": "开通头条号稳定更新，配抖音短视频（实测/测评类），搜狐号补充",
+        "content_tip": "口语化、场景化、适合图文+短视频，贴近生活",
+    },
+    "qwen": {
+        "name": "通义千问", "region": "国内",
+        "prefers": ["知乎", "搜狐号", "百家号", "阿里生态"],
+        "retrieval": "阿里生态，综合性引用，知乎和资讯类权重较高",
+        "strategy": "知乎+搜狐号+百家号多平台铺开，保持内容一致性",
+        "content_tip": "专业与通俗兼顾，多平台一致输出",
+    },
+    "wenxin": {
+        "name": "文心一言", "region": "国内",
+        "prefers": ["百家号", "百度百科", "百度知道", "百度系内容"],
+        "retrieval": "百度生态核心，百家号/百科引用权重极高",
+        "strategy": "必做百度百科词条 + 百家号认证号，覆盖百度知道问答",
+        "content_tip": "权威、规范，符合百度收录偏好，百科要客观中立",
+    },
+    "kimi": {
+        "name": "Kimi", "region": "国内",
+        "prefers": ["知乎", "公众号", "长文内容", "专业资料"],
+        "retrieval": "擅长长文本，偏好深度、结构化的专业内容",
+        "strategy": "产出深度长文发知乎专栏和公众号，系统性覆盖专业话题",
+        "content_tip": "长文、深度、结构化，适合系统性论述",
+    },
+    "yuanbao": {
+        "name": "腾讯元宝", "region": "国内",
+        "prefers": ["微信公众号", "微信生态", "视频号"],
+        "retrieval": "腾讯生态，重度依赖公众号内容",
+        "strategy": "公众号稳定更新是核心，配合视频号，做好微信生态内容",
+        "content_tip": "适合公众号的深度图文，配合微信传播",
+    },
+}
+
+# 【功能④】第三方背书矩阵（合规版）：帮品牌建立真实的外部引用网络
+# 重要：只生成"内容框架/模板"给真实的人去发，不凭空捏造假评测批量刷网
+# 造假素人/KOL评测在中国违法（反不正当竞争法/广告法），且长期害品牌
+def generate_endorsement_kit(brand: str, industry: str, product: str,
+                             real_strengths: str = "") -> dict:
+    """第三方背书素材包（合规）：基于真实卖点，生成不同视角的内容框架，
+    供真实客户/合作方参考发布，建立多平台真实引用网络。"""
+    return {
+        "principle": "⚠️ 合规红线：以下是内容框架，必须基于真实产品体验、由真实用户/合作方发布。凭空捏造虚假评测在中国违法（《反不正当竞争法》），且一旦被曝光会摧毁品牌信任。",
+        "perspectives": [
+            {
+                "role": "真实老客户口碑",
+                "how": "邀请真实满意的客户在知乎/小红书分享使用体验（可提供内容框架但不代写虚假内容）",
+                "framework": f"分享我为什么选{industry}产品时选了它 → 实际使用中解决了什么问题 → 客观说优缺点 → 适合什么人",
+                "platform": "小红书、知乎、大众点评",
+                "compliant": "必须是真实客户真实体验，品牌可提供框架但内容需真实",
+            },
+            {
+                "role": "行业专家/KOL 合作",
+                "how": "与真实的行业 KOL 建立合作，提供产品让其真实体验后客观评价",
+                "framework": "专业视角分析这类产品该怎么选 → 实测体验 → 专业结论",
+                "platform": "知乎专栏、B站、行业公众号",
+                "compliant": "需真实合作+真实体验，按《广告法》标注'合作'或'广告'",
+            },
+            {
+                "role": "深度测评内容",
+                "how": "自己或合作方产出客观的横向测评（含竞品对比，实事求是）",
+                "framework": "同类产品横向对比 → 各自优劣 → 不同需求推荐不同 → 客观呈现你的优势",
+                "platform": "知乎、什么值得买、B站",
+                "compliant": "对比要客观真实，不可诋毁竞品或虚构数据",
+            },
+            {
+                "role": "官方专业内容",
+                "how": "以品牌官方身份产出专业干货，建立行业权威形象",
+                "framework": f"{industry}行业知识科普 → 如何挑选 → 你的专业解决方案",
+                "platform": "百家号、搜狐号、官网博客",
+                "compliant": "官方内容，专业客观，不用绝对化用语",
+            },
+        ],
+        "collection_tips": [
+            "把真实好评（聊天截图、评价，经客户同意后）整理成可分享素材",
+            "对满意客户主动邀请评价，正面口碑要主动放大",
+            "多平台布局，让 AI 在不同域名都能读到你的真实评价 = 建立'多来源共识'",
+        ],
+        "note": "GEO 的第三方背书 = 真实口碑的系统化放大，不是造假。AI 越来越能识别虚假内容，真实、多来源、一致的正面评价才是可持续的护城河。",
+    }
+
+
+# 【功能③】实体权重（Entity Authority）：AI 把品牌当"实体"认知的权威度
+# 诚实：没有公开精确数据源，给相对评估+建设清单，不编造"85分"这种假数字
+def assess_entity_authority(brand: str, industry: str, cited_sources: list = None,
+                            mention_rate: float = 0, has_wiki: bool = False) -> dict:
+    """实体权威度评估：AI 是否把你当成一个'可信实体'。
+    诚实定位：给相对评估+可执行的建设清单，不给伪精确分数。"""
+    cited_sources = cited_sources or []
+    # 实体权威度的几个真实维度（可自查）
+    signals = []
+    # 1. 百科类权威源
+    has_baike = any("baike" in s or "wikipedia" in s or "百科" in s for s in cited_sources)
+    signals.append({
+        "dimension": "权威百科收录",
+        "status": "已有" if (has_baike or has_wiki) else "缺失",
+        "level": "high" if (has_baike or has_wiki) else "low",
+        "why": "百度百科/维基是 AI 识别'实体身份'的第一来源。有词条 = AI 认可你是个'正经存在的实体'",
+        "action": "创建品牌百度百科词条（国内）/ 维基百科（出海）——这是实体权威度的地基",
+    })
+    # 2. 多域名共识（同一品牌在多少不同来源被提到）
+    unique_domains = len(set(cited_sources))
+    signals.append({
+        "dimension": "多来源共识",
+        "status": f"{unique_domains} 个来源提及" if unique_domains else "尚无来源提及",
+        "level": "high" if unique_domains >= 3 else ("mid" if unique_domains >= 1 else "low"),
+        "why": "AI 只信'多个独立来源都说好'的品牌。单一来源说好 = 广告；多来源一致 = 共识",
+        "action": "在知乎、搜狐、百家号、行业媒体等多个不同域名建立一致的品牌提及",
+    })
+    # 3. AI 提及率（间接反映实体认知度）
+    signals.append({
+        "dimension": "AI 实际认知度",
+        "status": f"提及率 {mention_rate}%",
+        "level": "high" if mention_rate >= 40 else ("mid" if mention_rate >= 15 else "low"),
+        "why": "提及率反映 AI 是否'记得'并'愿意推荐'你这个实体",
+        "action": "持续在高权重源产出一致内容，把实体认知从'听过'提升到'推荐'",
+    })
+    # 综合相对评级（诚实：给等级不给假分数）
+    high_count = sum(1 for s in signals if s["level"] == "high")
+    if high_count >= 2:
+        overall = ("强", "#a8c48c", "AI 已把你当成可信实体，继续巩固")
+    elif high_count == 1:
+        overall = ("中", "#c99a52", "实体认知初步建立，还需多来源共识加固")
+    else:
+        overall = ("弱", "#c96a5f", "AI 还没把你当成'可信实体'——优先建百科+多来源提及")
+    return {
+        "overall_level": overall[0],
+        "overall_color": overall[1],
+        "overall_desc": overall[2],
+        "signals": signals,
+        "note": "实体权威度没有精确分数（那需要付费数据源且各家算法不同），这里给的是基于真实信号的相对评估。核心逻辑：AI 只推'在多个可信来源被反复正面提及'的品牌。",
+    }
+
+
+# 【功能②】多轮对话意图：模拟真实用户的追问链，测品牌在对话深入后还在不在
+# 真实用户不是问一次就走：哪家好→那A和B比→预算X推荐哪个
+async def generate_multi_turn_questions(brand: str, industry: str, product: str,
+                                        competitors: str = "", target_lang: str = "zh") -> dict:
+    """生成多轮对话意图链：模拟用户从'泛问'到'具体决策'的追问过程。"""
+    comp_hint = f"已知竞品：{competitors}。" if competitors else ""
+    prompt = f"""你是{industry}行业的真实消费者。针对"{product}"这类产品，
+模拟你从初次了解到最终决策，会连续问 AI 的一串问题（多轮对话）。
+{comp_hint}
+要求生成 3 组对话链，每组 3 轮，体现真实决策过程：
+- 第1轮：泛问（如"XX哪个牌子好"）
+- 第2轮：对比追问（如"那A和B哪个更适合XX场景"）
+- 第3轮：决策追问（如"预算XX的话你推荐哪个"）
+不要出现品牌名"{brand}"。只返回JSON：
+{{"chains":[{{"intent":"决策场景描述","turns":["第1轮问题","第2轮追问","第3轮决策问"]}}]}}"""
+    try:
+        raw = await _chat(prompt, "你擅长模拟真实用户的完整决策对话过程。", json_mode=True, scene="questions")
+        data = _safe_parse_json(raw)
+        chains = data.get("chains", [])[:3]
+    except Exception:
+        chains = []
+    return {
+        "chains": chains,
+        "note": "多轮对话监测：真实用户会连续追问。测品牌在对话逐步深入、AI 给出具体推荐时，还在不在名单里——这比单次提问更接近真实成交场景。",
+    }
+
+
+def get_rag_strategy(target_ais: list = None, industry: str = "") -> dict:
+    """差异化 RAG 策略：针对不同 AI 引擎的引用偏好，给差异化的内容+发布建议。
+    同一篇内容，发对地方才能被对应 AI 抓到。"""
+    if not target_ais:
+        target_ais = ["deepseek", "doubao", "wenxin", "chatgpt", "gemini"]
+    strategies = []
+    for ai in target_ais:
+        prof = AI_ENGINE_PROFILE.get(ai)
+        if not prof:
+            continue
+        strategies.append({
+            "ai": ai,
+            "name": prof["name"],
+            "region": prof["region"],
+            "prefers": prof["prefers"],
+            "retrieval": prof["retrieval"],
+            "strategy": prof["strategy"],
+            "content_tip": prof["content_tip"],
+        })
+    # 找出交集平台（多个AI都爱的，优先做）
+    all_prefers = {}
+    for s in strategies:
+        for p in s["prefers"]:
+            all_prefers[p] = all_prefers.get(p, 0) + 1
+    priority = sorted(all_prefers.items(), key=lambda x: -x[1])
+    high_value = [p for p, c in priority if c >= 2]
+    return {
+        "strategies": strategies,
+        "high_value_platforms": high_value,
+        "key_insight": f"不同 AI 从不同地方抓答案。{('多个 AI 都爱引用：' + '、'.join(high_value[:5]) + '，优先主攻这些性价比最高。') if high_value else '按目标 AI 分别布局。'}",
+        "note": "GEO 不是'发得多'，而是'发对地方'。想被哪个 AI 推荐，就重点铺它引用的信息源。",
+    }
+
+
 # 【功能2】Schema结构化数据一键注入（强化版，本地生成，零AI成本）
 def generate_schema_inject(brand: str, product: str, industry: str,
                            address: str = "", phone: str = "", url: str = "",
