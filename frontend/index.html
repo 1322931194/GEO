@@ -1492,6 +1492,15 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                 <div id="kwOppResult" style="margin-top:14px"></div>
               </div>
               <div class="section-card" style="margin-top:16px">
+                <div style="font-weight:700;font-size:15px;margin-bottom:6px">🔍 关键词联想词 <span style="font-size:11px;background:var(--gold);color:#fff;padding:2px 8px;border-radius:10px;margin-left:6px">免费拓词</span></div>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">输入一个词，发现用户真实会搜的相关长尾词，帮你挖出更多值得布局的机会词。</p>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <input id="kwSugInput" placeholder="输入关键词，如「装修」「护肤」" style="flex:1;min-width:180px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+                  <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="loadKwSuggestions()" id="kwSugBtn">拓展长尾词 →</button>
+                </div>
+                <div id="kwSugResult" style="margin-top:14px"></div>
+              </div>
+              <div class="section-card" style="margin-top:16px">
                 <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
                 <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">生成可直接复制到网站的 JSON-LD Schema 代码 + FAQ 问答，让 AI 更容易引用你的页面</p>
                 <button class="btn-primary" style="font-size:13px;padding:11px 20px" onclick="genSchemaFaq()" id="schemaBtn">🔧 生成 Schema + FAQ 代码</button>
@@ -2630,6 +2639,32 @@ function loadGrowthEngineTab(){
     </div>`;
   // 自动加载已有追踪
   loadIndexTracks();
+}
+
+// 关键词联想词（免费拓词）
+async function loadKwSuggestions(){
+  const kw=(document.getElementById("kwSugInput")||{}).value||"";
+  if(!kw.trim()){ toast("请输入一个关键词"); return; }
+  const bid=currentBrandId||lastBrandIdForDash;
+  let industry="";
+  const btn=document.getElementById("kwSugBtn"), box=document.getElementById("kwSugResult");
+  btn.disabled=true; btn.textContent="拓展中…";
+  box.innerHTML='<div class="loading" style="padding:16px"><div class="spinner"></div><p>正在拓展相关长尾词…</p></div>';
+  try{
+    const d=await api("/api/keyword/suggestions",{method:"POST",body:JSON.stringify({keyword:kw.trim(),industry})});
+    const sugs=d.suggestions||[];
+    if(!sugs.length){ box.innerHTML='<p style="padding:14px;color:var(--ink-soft)">没拓到相关词，换个词试试。</p>'; return; }
+    const srcLabel=d.source==="baidu"?"来自百度真实下拉词":"AI 智能拓展";
+    let h=`<div style="font-size:12px;color:var(--ink-soft);margin-bottom:10px">🔍 「${escHtml(d.keyword)}」的相关长尾词（${srcLabel}）：</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">`;
+    sugs.forEach(s=>{
+      h+=`<span class="kw-tag" style="background:var(--panel-2);color:var(--ink);border:1px solid var(--line);padding:5px 12px;border-radius:14px;font-size:12.5px;cursor:pointer" onclick="document.getElementById('kwSugInput').value='${escHtml(s).replace(/'/g,"")}';loadKwSuggestions()">${escHtml(s)}</span>`;
+    });
+    h+=`</div><div style="font-size:11px;color:var(--ink-faint);margin-top:12px;line-height:1.6">${escHtml(d.note||"")}</div>`;
+    box.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ box.innerHTML=`<p style="color:var(--bad);padding:12px">❌ ${escHtml(e.message||"拓展失败")}</p>`; }
+  finally{ btn.disabled=false; btn.textContent="拓展长尾词 →"; }
 }
 
 // 区域性关键词生成（本地商户）
