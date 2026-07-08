@@ -1479,6 +1479,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="repMediaPlan"></div>
+              <div id="repLocalization"></div>
               <div id="repEntityAuth"></div>
               <div id="repRagStrategy"></div>
               <div id="repMultiTurn"></div>
@@ -5041,6 +5042,7 @@ function renderReportBody(rep){
   renderCitations(rep);
   // ★信源反推发文建议（AI从哪抓答案→你去哪发）
   loadMediaPlan(rep);
+  loadLocalization(rep);
   // 4个进阶功能
   loadEntityAuth(rep);
   loadRagStrategy(rep);
@@ -5730,6 +5732,42 @@ async function loadMediaPlan(rep){
       h+=`</div>`;
     }
     if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// 本土化雷达：出海市场的当地AI+本地信源
+async function loadLocalization(rep){
+  const el=document.getElementById("repLocalization");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/localization-radar`);
+    // 只在出海(非英语默认/有明确海外市场)时显示——国内市场不需要
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🌏 本土化雷达 · ${escHtml(d.market)}市场</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">出海不能照搬国内打法。这是${escHtml(d.market)}市场的当地 AI 和本地信源，铺对地方才能被当地 AI 推荐。</div>
+      <div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+        <div style="font-size:13px;font-weight:600;color:var(--matcha);margin-bottom:6px">🤖 当地用户主要用这些 AI</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${(d.local_ais||[]).map(a=>`<span style="background:var(--panel);color:var(--ink);padding:4px 12px;border-radius:12px;font-size:12px;border:1px solid var(--line)">${escHtml(a)}</span>`).join('')}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft)">${escHtml(d.ai_note||"")}</div>
+      </div>
+      <div style="font-size:13px;font-weight:600;color:var(--gold);margin-bottom:10px">📍 本地高权重信源（当地 AI 爱引用的平台）</div>`;
+    (d.local_sources||[]).forEach(s=>{
+      h+=`<div style="background:var(--panel-2);border-radius:8px;padding:11px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span style="font-size:13.5px;font-weight:600;color:var(--ink)">${escHtml(s.platform)} <span style="color:var(--gold);font-size:12px">${escHtml(s.weight)}</span></span></div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5">${escHtml(s.why)}</div>
+      </div>`;
+    });
+    h+=`<div style="background:rgba(168,196,140,.1);border:1px solid rgba(168,196,140,.3);border-radius:10px;padding:12px 14px;margin-top:12px">
+        <div style="font-size:12.5px;color:var(--matcha);font-weight:600;margin-bottom:4px">🎯 本地化策略</div>
+        <div style="font-size:12.5px;color:var(--ink);line-height:1.6">${escHtml(d.strategy||"")}</div>
+      </div>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-top:10px;line-height:1.6">💡 ${escHtml(d.tip||"")}</div>`;
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.note)}</div>`;
     h+=`</div>`;
     el.innerHTML=h;
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
