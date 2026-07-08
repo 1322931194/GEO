@@ -1479,6 +1479,10 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repTopics"></div>
               <div id="repCitations"></div>
               <div id="repMediaPlan"></div>
+              <div id="repEntityAuth"></div>
+              <div id="repRagStrategy"></div>
+              <div id="repMultiTurn"></div>
+              <div id="repEndorsement"></div>
               <div id="repPerception"></div>
               <div id="repReadiness"></div>
 
@@ -5037,6 +5041,11 @@ function renderReportBody(rep){
   renderCitations(rep);
   // ★信源反推发文建议（AI从哪抓答案→你去哪发）
   loadMediaPlan(rep);
+  // 4个进阶功能
+  loadEntityAuth(rep);
+  loadRagStrategy(rep);
+  loadMultiTurn(rep);
+  loadEndorsement(rep);
   // 主题维度细分（对标 Goodie Segment by topic）
   renderTopics(rep);
   // 竞品横向抢位矩阵
@@ -5721,6 +5730,122 @@ async function loadMediaPlan(rep){
       h+=`</div>`;
     }
     if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ③ 实体权威度
+async function loadEntityAuth(rep){
+  const el=document.getElementById("repEntityAuth");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/entity-authority`);
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏛️ AI 眼中的品牌权威度</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">AI 只推荐它认可的"可信实体"。看看 AI 是否已经把你当成一个值得推荐的品牌。</div>
+      <div style="display:flex;align-items:center;gap:12px;background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:14px">
+        <div style="font-size:36px;font-weight:900;color:${d.overall_color}">${escHtml(d.overall_level)}</div>
+        <div style="flex:1"><div style="font-size:14px;font-weight:600;color:var(--ink)">实体权威度：${escHtml(d.overall_level)}</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px">${escHtml(d.overall_desc)}</div></div>
+      </div>`;
+    (d.signals||[]).forEach(s=>{
+      const c=s.level==='high'?'var(--matcha)':(s.level==='mid'?'var(--gold)':'var(--bad)');
+      h+=`<div style="border-left:3px solid ${c};background:var(--panel-2);border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px"><span style="font-size:13.5px;font-weight:600;color:var(--ink)">${escHtml(s.dimension)}</span><span style="font-size:12px;color:${c};font-weight:600">${escHtml(s.status)}</span></div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:4px;line-height:1.55">${escHtml(s.why)}</div>
+        <div style="font-size:12px;color:var(--matcha);margin-top:5px">👉 ${escHtml(s.action)}</div>
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ① 差异化 RAG 策略
+async function loadRagStrategy(rep){
+  const el=document.getElementById("repRagStrategy");
+  if(!el) return;
+  try{
+    const ind=(rep&&rep.industry)||"";
+    const d=await api(`/api/rag-strategy?industry=${encodeURIComponent(ind)}`);
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🎛️ 不同 AI，不同打法</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">${escHtml(d.key_insight||"")}</div>`;
+    if(d.high_value_platforms&&d.high_value_platforms.length){
+      h+=`<div style="background:rgba(168,196,140,.1);border:1px solid rgba(168,196,140,.3);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12.5px;color:var(--matcha);font-weight:600;margin-bottom:6px">⭐ 多个 AI 都爱引用，优先主攻：</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">${d.high_value_platforms.map(p=>`<span style="background:var(--panel);color:var(--matcha);padding:4px 12px;border-radius:12px;font-size:12px;border:1px solid rgba(168,196,140,.3)">${escHtml(p)}</span>`).join('')}</div>
+      </div>`;
+    }
+    (d.strategies||[]).forEach(s=>{
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px"><span style="font-size:14px;font-weight:700;color:var(--ink)">${escHtml(s.name)}</span><span style="font-size:11px;color:var(--ink-soft);background:var(--panel);padding:2px 8px;border-radius:8px">${escHtml(s.region)}</span></div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px">爱引用：${(s.prefers||[]).map(escHtml).join(' · ')}</div>
+        <div style="font-size:12.5px;color:var(--ink);line-height:1.6">👉 <b>策略：</b>${escHtml(s.strategy)}</div>
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ② 多轮对话意图
+async function loadMultiTurn(rep){
+  const el=document.getElementById("repMultiTurn");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  el.innerHTML=`<div class="section-card" style="margin-top:20px"><div style="font-weight:700;font-size:16px;margin-bottom:4px">💬 客户会怎么一步步追问 AI</div><div class="loading" style="padding:14px"><div class="spinner"></div><p style="font-size:12px;color:var(--ink-soft)">正在模拟真实用户的追问过程…</p></div></div>`;
+  try{
+    const d=await api(`/api/brands/${bid}/multi-turn`);
+    const chains=d.chains||[];
+    if(!chains.length){ el.innerHTML=""; return; }
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">💬 客户会怎么一步步追问 AI</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">真实客户不是问一次就走，而是层层追问。你要在对话深入、AI 给具体推荐时，仍然在名单里。</div>`;
+    chains.forEach((c,i)=>{
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:12.5px;font-weight:600;color:var(--gold);margin-bottom:10px">场景：${escHtml(c.intent||('决策链'+(i+1)))}</div>`;
+      (c.turns||[]).forEach((t,ti)=>{
+        h+=`<div style="display:flex;gap:10px;margin-bottom:8px"><span style="flex-shrink:0;width:22px;height:22px;border-radius:50%;background:var(--matcha);color:#1a1712;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">${ti+1}</span><span style="font-size:13px;color:var(--ink);line-height:1.5">${escHtml(t)}</span></div>`;
+      });
+      h+=`</div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ④ 第三方背书（合规版）
+async function loadEndorsement(rep){
+  const el=document.getElementById("repEndorsement");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/endorsement-kit`);
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">📣 让全网都"读"到你的好口碑</div>
+      <div style="font-size:12px;color:var(--bad);line-height:1.6;margin-bottom:6px;background:rgba(201,106,95,.1);border-radius:8px;padding:10px 12px">${escHtml(d.principle||"")}</div>`;
+    (d.perspectives||[]).forEach(p=>{
+      h+=`<div style="background:var(--panel-2);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+        <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px">${escHtml(p.role)}</div>
+        <div style="font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:4px">👉 <b>怎么做：</b>${escHtml(p.how)}</div>
+        <div style="font-size:12px;color:var(--ink-soft);line-height:1.55;margin-bottom:4px">📝 框架：${escHtml(p.framework)}</div>
+        <div style="font-size:11.5px;color:var(--matcha)">📍 发布平台：${escHtml(p.platform)}</div>
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
     h+=`</div>`;
     el.innerHTML=h;
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
