@@ -2384,6 +2384,17 @@ async def brand_multi_turn(brand_id: int, user: User = Depends(current_user),
     except Exception as e:
         raise HTTPException(500, f"多轮意图生成失败：{type(e).__name__}: {e}")
 
+@app.get("/api/brands/{brand_id}/localization-radar")
+async def brand_localization_radar(brand_id: int, user: User = Depends(current_user),
+                                   session: Session = Depends(get_session)):
+    """本土化雷达：目标海外市场的当地AI+本地信源+本地化策略。"""
+    brand = _owned_brand(brand_id, user, session)
+    try:
+        from services.generator import get_localization_radar
+        return get_localization_radar(getattr(brand, "target_lang", "en"), brand.industry)
+    except Exception as e:
+        raise HTTPException(500, f"本土化雷达失败：{type(e).__name__}: {e}")
+
 @app.get("/api/rag-strategy")
 async def rag_strategy(target_ais: str = "", industry: str = "",
                        user: User = Depends(current_user)):
