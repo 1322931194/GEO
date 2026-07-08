@@ -2338,6 +2338,63 @@ async def growth_media_matrix(user: User = Depends(current_user)):
     except Exception as e:
         raise HTTPException(500, f"媒体矩阵生成失败：{type(e).__name__}: {e}")
 
+@app.get("/api/brands/{brand_id}/endorsement-kit")
+async def brand_endorsement_kit(brand_id: int, user: User = Depends(current_user),
+                                session: Session = Depends(get_session)):
+    """第三方背书素材包（合规版）：真实口碑系统化放大，不造假。"""
+    brand = _owned_brand(brand_id, user, session)
+    try:
+        from services.generator import generate_endorsement_kit
+        return generate_endorsement_kit(brand.name, brand.industry, brand.product,
+                                        getattr(brand, "brand_facts", ""))
+    except Exception as e:
+        raise HTTPException(500, f"背书素材生成失败：{type(e).__name__}: {e}")
+
+@app.get("/api/brands/{brand_id}/entity-authority")
+async def brand_entity_authority(brand_id: int, user: User = Depends(current_user),
+                                 session: Session = Depends(get_session)):
+    """实体权威度评估：AI是否把品牌当可信实体。"""
+    brand = _owned_brand(brand_id, user, session)
+    # 取最新报告数据
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.desc())).all()
+    cited_sources, mention_rate = [], 0
+    if recs:
+        mention_rate = round(recs[0].mention_rate, 1)
+        full = _jload(getattr(recs[0], "full_json", "{}"), {})
+        for t in full.get("citation_targets", []) or []:
+            if t.get("source"):
+                cited_sources.append(t["source"])
+    try:
+        from services.generator import assess_entity_authority
+        return assess_entity_authority(brand.name, brand.industry, cited_sources, mention_rate)
+    except Exception as e:
+        raise HTTPException(500, f"实体权威度评估失败：{type(e).__name__}: {e}")
+
+@app.get("/api/brands/{brand_id}/multi-turn")
+async def brand_multi_turn(brand_id: int, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """多轮对话意图链：模拟真实用户追问过程。"""
+    brand = _owned_brand(brand_id, user, session)
+    try:
+        from services.generator import generate_multi_turn_questions
+        return await generate_multi_turn_questions(
+            brand.name, brand.industry, brand.product,
+            getattr(brand, "competitors", ""), getattr(brand, "target_lang", "zh"))
+    except Exception as e:
+        raise HTTPException(500, f"多轮意图生成失败：{type(e).__name__}: {e}")
+
+@app.get("/api/rag-strategy")
+async def rag_strategy(target_ais: str = "", industry: str = "",
+                       user: User = Depends(current_user)):
+    """差异化RAG策略：不同AI引擎的引用偏好+针对性优化建议。"""
+    try:
+        from services.generator import get_rag_strategy
+        ais = [a.strip() for a in target_ais.split(",") if a.strip()] if target_ais else None
+        return get_rag_strategy(ais, industry)
+    except Exception as e:
+        raise HTTPException(500, f"RAG策略生成失败：{type(e).__name__}: {e}")
+
 @app.get("/api/brands/{brand_id}/media-plan")
 async def brand_media_plan(brand_id: int, user: User = Depends(current_user),
                            session: Session = Depends(get_session)):
