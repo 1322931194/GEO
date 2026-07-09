@@ -129,6 +129,10 @@ class Brand(SQLModel, table=True):
     mode: str = "outbound"           # outbound=出海模式  domestic=国内模式
     competitors: str = ""            # 逗号分隔
     brand_facts: str = ""            # 知识库抓取的事实
+    # ===== 品牌语料库与人设引擎（资产沉淀）=====
+    brand_persona: str = ""          # 品牌人设：语气/风格（如"专业但亲切，像懂行的老朋友"）
+    brand_slogans: str = ""          # 核心卖点/口号（每行一条，生成内容必带）
+    brand_taboos: str = ""           # 内容禁忌（不能说的话，如"不承诺疗效"）
     region: str = ""                 # 地区（本地商户用：城市/区，生成区域词）
     address: str = ""                # 门店地址（本地GEO用）
     phone: str = ""                  # 联系电话（本地GEO用）
@@ -401,6 +405,9 @@ def _auto_migrate():
         ("brand", "keywords_cache", "VARCHAR DEFAULT ''"),
         ("brand", "region", "VARCHAR DEFAULT ''"),
         ("brand", "target_lang", "VARCHAR DEFAULT 'en'"),
+        ("brand", "brand_persona", "VARCHAR DEFAULT ''"),
+        ("brand", "brand_slogans", "VARCHAR DEFAULT ''"),
+        ("brand", "brand_taboos", "VARCHAR DEFAULT ''"),
         ("brand", "address", "VARCHAR DEFAULT ''"),
         ("brand", "phone", "VARCHAR DEFAULT ''"),
         ("brand", "business_hours", "VARCHAR DEFAULT ''"),
