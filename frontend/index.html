@@ -1642,6 +1642,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                   <li>✅ 作战报告 50 次 / 月</li>
                   <li>✅ 含 3 个 AI 获客落地页</li>
                   <li>✅ 增长看板 + 战报</li>
+                  <li>🔬 <b>高级实验室（各 1 次/月）</b><br><span style="font-size:11px;color:var(--ink-soft)">多轮沙盒 · 批量监测 · 语义差距</span></li>
                 </ul>
                 <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">开始增长</button>
                 <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">每天不到 20 元，够单店用一个月</div>
@@ -1660,6 +1661,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                   <li>✅ 管理 10 个品牌</li>
                   <li>✅ 含 15 个 AI 获客落地页</li>
                   <li><b>✅ 独家：收录数据大盘</b></li>
+                  <li>🔬 <b>高级实验室（各 2 次/月）</b><br><span style="font-size:11px;color:var(--ink-soft)">多轮沙盒 · 批量监测 · 语义差距</span></li>
                   <li>✅ 批量操作 + 优先算力</li>
                 </ul>
                 <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('pro_monthly')">畅享不限次</button>
@@ -2682,6 +2684,137 @@ function loadGrowthEngineTab(){
     </div>`;
   // 自动加载已有追踪
   loadIndexTracks();
+}
+
+// ★高级实验室：多轮沙盒 / 批量监测 / 语义差距（每月限次）
+async function loadAdvancedLab(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const content=document.getElementById("dashContent");
+  if(!content) return;
+  let q={};
+  try{ q=await api("/api/advanced/quota"); }catch(e){ return; }
+  const _badge=(f)=>{
+    const d=q[f]||{};
+    if(!d.limit) return `<span style="font-size:11px;background:var(--panel);color:var(--ink-faint);padding:2px 8px;border-radius:8px">增长版起</span>`;
+    const left=d.remaining||0;
+    const c=left>0?'var(--matcha)':'var(--bad)';
+    return `<span style="font-size:11px;background:rgba(168,196,140,.12);color:${c};padding:2px 8px;border-radius:8px">本月剩 ${left}/${d.limit} 次</span>`;
+  };
+  const h=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">🔬 高级实验室 <span style="font-size:11px;color:var(--gold)">高算力功能 · 每月限次</span></div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">${escHtml(q.note||"")}</div>
+
+    <div style="background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--ink)">💬 多轮追问沙盒</span>${_badge('sandbox')}
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px">模拟客户连续追问（哪家好 → A和B比 → 预算X推荐谁），查清你在<b style="color:var(--ink)">第几轮被竞品截胡</b>。</div>
+      <textarea id="sandboxTurns" rows="3" placeholder="每行一个追问问题，2-5轮，例如：&#10;推荐几个好的XX品牌&#10;那A和B哪个更适合小户型&#10;预算1万的话你推荐哪个" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink);resize:vertical;margin-bottom:8px"></textarea>
+      <button class="btn-cyan" style="padding:9px 18px;font-size:13px" onclick="runSandbox()">运行沙盒</button>
+      <div id="sandboxResult" style="margin-top:12px"></div>
+    </div>
+
+    <div style="background:var(--panel-2);border-radius:12px;padding:16px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--ink)">📋 批量关键词监测</span>${_badge('bulk')}
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px">一次测多个长尾词，生成<b style="color:var(--ink)">竞争格局矩阵</b>——哪些词你赢了，哪些词缺席。<span style="color:var(--ink-faint)">（单次上限 30 个词）</span></div>
+      <textarea id="bulkKeywords" rows="3" placeholder="每行一个关键词，最多30个，例如：&#10;北京装修公司哪家好&#10;小户型装修推荐&#10;装修预算10万够吗" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink);resize:vertical;margin-bottom:8px"></textarea>
+      <button class="btn-cyan" style="padding:9px 18px;font-size:13px" onclick="runBulkMonitor()">批量监测</button>
+      <div id="bulkResult" style="margin-top:12px"></div>
+    </div>
+
+    <div style="background:var(--panel-2);border-radius:12px;padding:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <span style="font-size:14px;font-weight:700;color:var(--ink)">🔍 语义差距分析</span>${_badge('semgap')}
+      </div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:10px">对比 AI 高频引用的竞品语料，找出你的内容<b style="color:var(--ink)">少写了哪些关键实体词</b>——把优化从务虚变成填空题。</div>
+      <button class="btn-cyan" style="padding:9px 18px;font-size:13px" onclick="runSemGap()">分析语义差距</button>
+      <div id="semgapResult" style="margin-top:12px"></div>
+    </div>
+  </div>`;
+  content.insertAdjacentHTML("beforeend", h);
+  if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+}
+
+async function runSandbox(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const box=document.getElementById("sandboxResult");
+  const turns=((document.getElementById("sandboxTurns")||{}).value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(turns.length<2){ toast("至少需要 2 轮追问问题"); return; }
+  box.innerHTML='<div class="loading" style="padding:14px"><div class="spinner"></div><p style="font-size:12px;color:var(--ink-soft)">正在模拟多轮追问（每轮都要等 AI 回答，约 30 秒）…</p></div>';
+  try{
+    const d=await api("/api/advanced/sandbox",{method:"POST",body:JSON.stringify({brand_id:bid,turns:turns,platform:"deepseek"})});
+    let h=`<div style="background:var(--panel);border-radius:10px;padding:14px">
+      <div style="font-size:13px;font-weight:600;color:${d.drop_turn?'var(--bad)':'var(--matcha)'};margin-bottom:10px">${escHtml(d.insight||"")}</div>`;
+    (d.turns||[]).forEach(t=>{
+      const ok=t.mentioned;
+      h+=`<div style="border-left:3px solid ${ok?'var(--matcha)':'var(--bad)'};padding:8px 12px;margin-bottom:8px;background:var(--panel-2);border-radius:6px">
+        <div style="font-size:12.5px;font-weight:600;color:var(--ink)">第 ${t.turn} 轮：${escHtml(t.question)}</div>
+        <div style="font-size:11.5px;color:${ok?'var(--matcha)':'var(--bad)'};margin-top:3px">${ok?'✅ 提到你了':'❌ 没提到你'}${t.competitors_found&&t.competitors_found.length?' · 推了：'+t.competitors_found.map(escHtml).join('、'):''}</div>
+        ${t.error?`<div style="font-size:11px;color:var(--bad)">${escHtml(t.error)}</div>`:''}
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML=`<div style="font-size:12.5px;color:var(--bad);padding:10px;background:rgba(201,106,95,.08);border-radius:8px">${escHtml(e.message||"运行失败")}</div>`; }
+}
+
+async function runBulkMonitor(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const box=document.getElementById("bulkResult");
+  const kws=((document.getElementById("bulkKeywords")||{}).value||"").split("\n").map(s=>s.trim()).filter(Boolean);
+  if(!kws.length){ toast("请至少输入 1 个关键词"); return; }
+  box.innerHTML='<div class="loading" style="padding:14px"><div class="spinner"></div><p style="font-size:12px;color:var(--ink-soft)">批量监测中，词多会比较慢…</p></div>';
+  try{
+    const d=await api("/api/advanced/bulk-monitor",{method:"POST",body:JSON.stringify({brand_id:bid,keywords:kws,platform:"deepseek"})});
+    let h=`<div style="background:var(--panel);border-radius:10px;padding:14px">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <div style="flex:1;min-width:80px;text-align:center;background:var(--panel-2);border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--matcha)">${d.won_keywords}</div><div style="font-size:11px;color:var(--ink-soft)">赢的词</div></div>
+        <div style="flex:1;min-width:80px;text-align:center;background:var(--panel-2);border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--bad)">${d.lost_keywords}</div><div style="font-size:11px;color:var(--ink-soft)">缺席的词</div></div>
+        <div style="flex:1;min-width:80px;text-align:center;background:var(--panel-2);border-radius:8px;padding:10px"><div style="font-size:20px;font-weight:800;color:var(--gold)">${d.mention_rate}%</div><div style="font-size:11px;color:var(--ink-soft)">整体提及率</div></div>
+      </div>
+      <div style="font-size:12.5px;color:var(--ink);line-height:1.6;margin-bottom:10px">${escHtml(d.insight||"")}</div>`;
+    (d.matrix||[]).slice(0,30).forEach(m=>{
+      h+=`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 10px;background:var(--panel-2);border-radius:6px;margin-bottom:5px">
+        <span style="font-size:12px;color:var(--ink);flex:1">${escHtml(m.keyword)}</span>
+        <span style="font-size:11.5px;color:${m.mentioned?'var(--matcha)':'var(--bad)'};white-space:nowrap">${m.mentioned?'✅ 有你':'❌ 缺席'}</span>
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML=`<div style="font-size:12.5px;color:var(--bad);padding:10px;background:rgba(201,106,95,.08);border-radius:8px">${escHtml(e.message||"监测失败")}</div>`; }
+}
+
+async function runSemGap(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  const box=document.getElementById("semgapResult");
+  box.innerHTML='<div class="loading" style="padding:14px"><div class="spinner"></div><p style="font-size:12px;color:var(--ink-soft)">正在对比竞品语料…</p></div>';
+  try{
+    const d=await api("/api/advanced/semantic-gap",{method:"POST",body:JSON.stringify({brand_id:bid})});
+    if(!d.has_data){ box.innerHTML=`<div style="font-size:12.5px;color:var(--ink-soft);padding:10px">${escHtml(d.tip||d.error||"暂无足够语料")}</div>`; return; }
+    let h=`<div style="background:var(--panel);border-radius:10px;padding:14px">`;
+    if(d.summary) h+=`<div style="font-size:13px;color:var(--ink);line-height:1.6;margin-bottom:12px">📌 ${escHtml(d.summary)}</div>`;
+    if(d.missing_entities&&d.missing_entities.length){
+      h+=`<div style="font-size:12.5px;font-weight:600;color:var(--bad);margin-bottom:8px">🎯 你缺失的关键实体词（补上它们）</div>`;
+      d.missing_entities.forEach(m=>{
+        h+=`<div style="background:var(--panel-2);border-left:3px solid var(--gold);border-radius:6px;padding:10px 12px;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--gold)">${escHtml(m.entity)}</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-top:3px;line-height:1.5">${escHtml(m.why||"")}</div>
+          <div style="font-size:12px;color:var(--matcha);margin-top:3px;line-height:1.5">👉 ${escHtml(m.how||"")}</div>
+        </div>`;
+      });
+    }
+    if(d.present_entities&&d.present_entities.length){
+      h+=`<div style="font-size:12px;color:var(--ink-soft);margin-top:10px">✅ 你已有：${d.present_entities.map(escHtml).join(' · ')}</div>`;
+    }
+    if(d.honesty) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">⚠️ ${escHtml(d.honesty)}</div>`;
+    h+=`</div>`;
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML=`<div style="font-size:12.5px;color:var(--bad);padding:10px;background:rgba(201,106,95,.08);border-radius:8px">${escHtml(e.message||"分析失败")}</div>`; }
 }
 
 // ★历史趋势曲线（数据资产）
@@ -4125,6 +4258,8 @@ function renderDashboard(d){
   loadTrend();
   loadRoiReport();
   loadWeeklyReport();
+  // ★高级实验室（限次功能）
+  loadAdvancedLab();
 }
 
 // ===== ROI 转化归因 =====
