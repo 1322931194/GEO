@@ -135,6 +135,8 @@ class AnswerResult:
     brand_position: Optional[int] = None        # 品牌在回答中第一次出现的字符位置(越靠前越好)
     competitors_mentioned: list = field(default_factory=list)
     cited_sources: list = field(default_factory=list)
+    cited_urls: list = field(default_factory=list)    # 完整URL（URL级穿透）
+    deep_urls: list = field(default_factory=list)     # 能穿透到具体文章的URL
     error: Optional[str] = None
     queried_at: str = ""                          # 提问时间戳(用于对话快照活体证据)
     node: str = ""                                # 查询节点(地域，用于活体证据)
@@ -425,15 +427,33 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
         if c_low in low or c_norm in low_norm:
             comps_found.append(c)
 
-    # 抽取回答里出现的 URL / 来源域名
-    urls = re.findall(r"https?://([\w\.-]+)", answer)
-    sources = sorted(set(d.lower().lstrip("www.") for d in urls))
+    # 抽取回答里出现的 URL：同时保留【完整URL】和【域名】
+    # 完整URL可点击跳转，直接看竞品被引用的那篇文章（URL级穿透）
+    full_urls = re.findall(r"https?://[^\s\)\]\}，。；、\"'<>]+", answer)
+    # 清理末尾标点
+    cleaned_urls = []
+    for u in full_urls:
+        u = u.rstrip(".,;:!?)]}\u3002\uff0c\uff1b\uff1a")
+        if len(u) > 12:  # 过滤太短的残缺链接
+            cleaned_urls.append(u)
+    cleaned_urls = sorted(set(cleaned_urls))
+
+    # 域名（用于聚合统计和信源反推）
+    domains = re.findall(r"https?://([\w\.-]+)", answer)
+    sources = sorted(set(d.lower().lstrip("www.") for d in domains))
+
+    # 判断URL深度：有路径的才是"具体页面"，只有域名的是"根域名"
+    deep_urls = [u for u in cleaned_urls
+                 if len(u.split("://", 1)[-1].split("/", 1)) > 1
+                 and u.split("://", 1)[-1].split("/", 1)[1].strip("/")]
 
     return {
         "brand_mentioned": mentioned,
         "brand_position": position,
         "competitors_mentioned": comps_found,
         "cited_sources": sources,
+        "cited_urls": cleaned_urls[:20],      # 完整URL（含路径）
+        "deep_urls": deep_urls[:20],          # 能穿透到具体文章的URL
     }
 
 
@@ -712,6 +732,8 @@ async def _one_query(client, pid, cfg, question, brand, competitors) -> AnswerRe
         res.brand_position = parsed["brand_position"]
         res.competitors_mentioned = parsed["competitors_mentioned"]
         res.cited_sources = parsed["cited_sources"]
+        res.cited_urls = parsed.get("cited_urls", [])
+        res.deep_urls = parsed.get("deep_urls", [])
         _track_mon(pid, True, "monitor")
     except Exception as e:
         res.error = str(e)
