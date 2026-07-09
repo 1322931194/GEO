@@ -33,6 +33,10 @@ PLANS = {
         "battle_limit": 0,    # 作战包只给预览，完整要付费
         "content_limit": 0,   # 不能生成内容 → 制造付费动力
         "pseo_limit": 0,
+        # 高成本高级功能配额（每月）
+        "sandbox_limit": 0,   # 多轮追问沙盒
+        "bulk_limit": 0,      # 批量关键词监测
+        "semgap_limit": 0,    # 语义差距分析
     },
     "single": {
         "name": "单次内容包", "price_cny": 19.9, "brands": 1,
@@ -41,6 +45,7 @@ PLANS = {
         "battle_limit": 1,    # 1次完整作战报告（可导出）
         "content_limit": 5,   # 1次解锁：关键词+长尾词+内容生成（5次够落地一轮）
         "pseo_limit": 0,
+        "sandbox_limit": 0, "bulk_limit": 0, "semgap_limit": 0,
         "is_onetime": True,   # 单次买断，非订阅
     },
     "monthly": {
@@ -50,6 +55,10 @@ PLANS = {
         "battle_limit": 50,   # 50次作战报告
         "content_limit": 50,  # 50次内容生成
         "pseo_limit": 3,      # 含3个pSEO获客落地页
+        # 高成本功能：每月1次（控制成本，同时是高感知卖点）
+        "sandbox_limit": 1,   # 多轮追问沙盒 1次/月
+        "bulk_limit": 1,      # 批量关键词监测 1次/月
+        "semgap_limit": 1,    # 语义差距分析 1次/月
     },
     "pro_monthly": {
         "name": "畅享版", "price_cny": 980, "brands": 10,
@@ -59,6 +68,10 @@ PLANS = {
         "content_limit": 999,  # 不限内容生成
         "pseo_limit": 15,       # 含15个pSEO落地页
         "index_board": True,    # 独家：收录数据大盘
+        # 高成本功能：每月2次
+        "sandbox_limit": 2,   # 多轮追问沙盒 2次/月
+        "bulk_limit": 2,      # 批量关键词监测 2次/月
+        "semgap_limit": 2,    # 语义差距分析 2次/月
     },
     "custom": {
         "name": "企业定制", "price_cny": 0, "brands": 30,
@@ -66,6 +79,7 @@ PLANS = {
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
         "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
         "index_board": True,
+        "sandbox_limit": 10, "bulk_limit": 10, "semgap_limit": 10,
     },
     # ===== 以下为旧套餐（仅兼容历史付费用户，价格页不再展示）=====
     "starter": {
@@ -115,6 +129,10 @@ class User(SQLModel, table=True):
     login_count: int = Field(default=0)              # 累计登录次数
     plan_expires_at: Optional[datetime] = None       # 付费套餐到期日（流失预警用）
     order_count: int = Field(default=0)              # 累计付费订单数
+    # ===== 高成本高级功能使用计数（每月重置）=====
+    sandbox_count: int = Field(default=0)   # 多轮追问沙盒已用次数
+    bulk_count: int = Field(default=0)      # 批量监测已用次数
+    semgap_count: int = Field(default=0)    # 语义差距分析已用次数
 
 
 class Brand(SQLModel, table=True):
@@ -403,6 +421,9 @@ def _auto_migrate():
         ("user", "login_count", "INTEGER DEFAULT 0"),
         ("user", "plan_expires_at", "TIMESTAMP"),
         ("user", "order_count", "INTEGER DEFAULT 0"),
+        ("user", "sandbox_count", "INTEGER DEFAULT 0"),
+        ("user", "bulk_count", "INTEGER DEFAULT 0"),
+        ("user", "semgap_count", "INTEGER DEFAULT 0"),
         ("user", "monitor_count", "INTEGER DEFAULT 0"),
         ("user", "battle_count", "INTEGER DEFAULT 0"),
         ("user", "content_count", "INTEGER DEFAULT 0"),
