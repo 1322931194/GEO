@@ -304,6 +304,8 @@ class GenContentReq(BaseModel):
     brand_id: int
     gap_question: str
     content_type: str = "website"
+    # ★结构化硬事实（去营销味，提升 AI 采信率）
+    hard_facts: dict = {}
 
 
 # ----------------------------- 账号接口 -----------------------------
@@ -750,6 +752,17 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
                 continue
             comps = r.get("competitors_found") or r.get("competitors") or []
             srcs = r.get("cited_sources") or r.get("sources") or []
+            # ★P0：分析情绪倾向 + 推荐位置权重（纯本地计算，零AI成本）
+            _sent, _pos = {}, {}
+            try:
+                from services.generator import analyze_evidence
+                _an = analyze_evidence(ans, brand.name)
+                _sent = {"sentiment": _an.get("sentiment", ""),
+                         "sentiment_reason": (_an.get("reason") or "")[:300]}
+                _pos = {"position_ratio": _an.get("position_ratio", -1.0),
+                        "position_level": _an.get("position_level", "")}
+            except Exception:
+                pass
             ev = AIEvidence(
                 user_id=user.id, brand_id=brand.id, report_id=rec.id,
                 question=(r.get("question") or "")[:500],
@@ -758,6 +771,7 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
                 mentioned=bool(r.get("mentioned", False)),
                 competitors_found=",".join(comps) if isinstance(comps, list) else str(comps),
                 cited_sources=",".join(srcs) if isinstance(srcs, list) else str(srcs),
+                **_sent, **_pos,
             )
             session.add(ev)
     except Exception:
@@ -1848,6 +1862,7 @@ async def gen_content(req: GenContentReq, request: Request, user: User = Depends
     result = await generate_content(
         brand.name, req.gap_question, brand.product,
         content_type=req.content_type, brand_facts=kb_text + persona_text,
+        hard_facts=(req.hard_facts or {}),
     )
     gc = GeneratedContent(
         brand_id=brand.id, gap_question=req.gap_question,
@@ -2428,6 +2443,325 @@ async def brand_private_funnel(brand_id: int, user: User = Depends(current_user)
         ],
         "compliance": "⚠️ 合规红线：不做'分享朋友圈领福利'式诱导裂变（微信封号风险）。可持续的私域=真实价值吸引，客户主动来。",
         "note": "GEO 的完整闭环：公域（AI推荐）获客 → 私域（微信）沉淀 → 归因（看板）优化。AI 带来的客户信任度天然高（是 AI 推荐的），转化率比广告客户高。",
+    }
+
+@app.get("/api/brands/{brand_id}/weekly-report")
+async def brand_weekly_report(brand_id: int, user: User = Depends(current_user),
+                              session: Session = Depends(get_session)):
+    """★本周战报：让商家每周都知道'战争还在继续、这周该干嘛'。
+    诚实说明：这是登录时主动展示的战报，自动邮件推送需要定时任务服务（后续可接）。"""
+    brand = _owned_brand(brand_id, user, session)
+    now = datetime.now(timezone(timedelta(hours=8)))
+    week_ago = now - timedelta(days=7)
+
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.desc())).all()
+    if not recs:
+        return {"has_data": False,
+                "tip": "还没做过监测。做第一次监测，下周就能收到你的第一份战报。"}
+
+    cur = recs[0]
+    # 找一周前最接近的一次监测做对比
+    prev = None
+    for r in recs[1:]:
+        if r.generated_at.replace(tzinfo=None) <= week_ago.replace(tzinfo=None):
+            prev = r
+            break
+    if not prev and len(recs) > 1:
+        prev = recs[1]
+
+    cur_comp = _jload(getattr(cur, "competitor_share_json", "{}"), {})
+    lines = []
+    actions = []
+
+    # 1. 你的战况
+    if prev:
+        delta = round(cur.mention_rate - prev.mention_rate, 1)
+        if delta > 0:
+            lines.append(f"📈 本周你的 AI 提及率 {cur.mention_rate}%，比上次涨了 {delta}%。优化在起效。")
+        elif delta < 0:
+            lines.append(f"📉 本周提及率 {cur.mention_rate}%，比上次降了 {abs(delta)}%。推荐位在流失，要注意了。")
+            actions.append("查看防御雷达，找出被谁抢走了哪些问题的推荐位")
+        else:
+            lines.append(f"➡️ 本周提及率 {cur.mention_rate}%，与上次持平。")
+    else:
+        lines.append(f"📊 当前 AI 提及率 {cur.mention_rate}%。")
+
+    # 2. 竞品动向
+    if cur_comp:
+        top = max(cur_comp.items(), key=lambda x: x[1])
+        lines.append(f"⚔️ 竞品「{top[0]}」当前提及率 {top[1]}%，是你最主要的对手。")
+        if top[1] > cur.mention_rate:
+            actions.append(f"针对「{top[0]}」被推荐的问题，产出对比型内容抢回推荐位")
+
+    # 3. 本周内容产出
+    try:
+        week_contents = session.exec(select(GeneratedContent).where(
+            GeneratedContent.brand_id == brand_id,
+            GeneratedContent.created_at >= week_ago.replace(tzinfo=None)
+        )).all()
+    except Exception:
+        session.rollback()
+        week_contents = []
+    if week_contents:
+        lines.append(f"✍️ 本周你产出了 {len(week_contents)} 篇内容。持续输出是 GEO 的关键。")
+    else:
+        lines.append("⚠️ 本周还没产出新内容。AI 偏好持续更新的品牌——别停。")
+        actions.append("本周至少发 2 篇内容到高权重平台（知乎/搜狐号）")
+
+    # 4. 缺口提醒
+    gaps = _jload(getattr(cur, "gaps_json", "[]"), [])
+    if gaps:
+        actions.append(f"优先补齐这个缺口问题：「{gaps[0].get('question', '')[:30]}…」")
+
+    if not actions:
+        actions.append("保持当前节奏，继续监测+产出内容")
+
+    # 可复制的周报文本
+    text = f"【见微 · {brand.name} 本周 GEO 战报】\n" + "\n".join(lines) + "\n\n本周该做：\n" + "\n".join(f"{i+1}. {a}" for i, a in enumerate(actions))
+
+    return {
+        "has_data": True,
+        "brand": brand.name,
+        "week": f"{week_ago.strftime('%m-%d')} ~ {now.strftime('%m-%d')}",
+        "current_rate": cur.mention_rate,
+        "lines": lines,
+        "actions": actions,
+        "copy_text": text,
+        "note": "GEO 是持续战——竞品也在优化。每周看一眼战报，知道要不要反击。",
+    }
+
+@app.get("/api/brands/{brand_id}/sentiment-position")
+async def brand_sentiment_position(brand_id: int, user: User = Depends(current_user),
+                                   session: Session = Depends(get_session)):
+    """★AI情绪倾向 + 推荐位置权重分析：不只看'提没提到'，更要看'怎么提的、提在哪'。"""
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.desc())).all()
+    if not recs:
+        return {"has_data": False, "tip": "还没有监测数据。"}
+    try:
+        evs = session.exec(select(AIEvidence).where(
+            AIEvidence.brand_id == brand_id,
+            AIEvidence.report_id == recs[0].id).limit(200)).all()
+    except Exception:
+        session.rollback()
+        return {"has_data": False, "tip": "证据数据加载中，请重新监测一次以生成情绪与位置分析。"}
+    if not evs:
+        return {"has_data": False, "tip": "本次监测没有证据数据。"}
+
+    # 情绪分布
+    sent_count = {"positive": 0, "neutral": 0, "negative": 0, "absent": 0}
+    pos_count = {"core": 0, "middle": 0, "tail": 0, "absent": 0}
+    negatives, cores = [], []
+    for e in evs:
+        s = getattr(e, "sentiment", "") or ("absent" if not e.mentioned else "neutral")
+        p = getattr(e, "position_level", "") or ("absent" if not e.mentioned else "middle")
+        if s in sent_count:
+            sent_count[s] += 1
+        if p in pos_count:
+            pos_count[p] += 1
+        if s == "negative":
+            negatives.append({"platform": e.platform, "question": e.question[:60],
+                              "reason": getattr(e, "sentiment_reason", "")})
+        if p == "core":
+            cores.append({"platform": e.platform, "question": e.question[:60]})
+
+    total = len(evs)
+    mentioned = total - sent_count["absent"]
+    # 有效提及 = 正面 + 核心位（真正有价值的提及）
+    quality_score = None
+    if mentioned:
+        quality_score = round(100 * (sent_count["positive"] + pos_count["core"]) / (mentioned * 2), 1)
+
+    alerts = []
+    if sent_count["negative"] > 0:
+        alerts.append({"level": "high",
+                       "msg": f"🚨 {sent_count['negative']} 次提及是负面的！被提到但评价差，比没被提到更伤——客户看到会直接排除你。",
+                       "action": "立即查看负面提及的原文，找到 AI 引用的负面信源，针对性做口碑修复。"})
+    if pos_count["tail"] > pos_count["core"] and mentioned:
+        alerts.append({"level": "mid",
+                       "msg": f"⚠️ 你被提及 {mentioned} 次，但 {pos_count['tail']} 次是'末尾带过'，只有 {pos_count['core']} 次在核心推荐位。",
+                       "action": "目标是进入回答前 20%（首推位）。加强高权重信源的正面内容布局。"})
+    if sent_count["neutral"] > sent_count["positive"] and mentioned:
+        alerts.append({"level": "mid",
+                       "msg": f"📌 大部分是'中立提及'（{sent_count['neutral']} 次），AI 只是列举你，不是推荐你。",
+                       "action": "中立≠推荐。需要在信源中建立明确的正面评价和差异化优势。"})
+    if not alerts and mentioned:
+        alerts.append({"level": "good",
+                       "msg": "✅ 提及质量健康：无负面，位置和评价都不错。",
+                       "action": "保持节奏，继续巩固核心推荐位。"})
+
+    return {
+        "has_data": True,
+        "total_answers": total,
+        "mentioned_count": mentioned,
+        "sentiment": sent_count,
+        "position": pos_count,
+        "quality_score": quality_score,
+        "negatives": negatives[:5],
+        "cores": cores[:5],
+        "alerts": alerts,
+        "note": "「被提到」不等于「被推荐」。负面提及比不提及更危险；末尾带过的价值远低于首推位。这才是提及的真实含金量。",
+    }
+
+class RoiReportReq(BaseModel):
+    avg_order_value: float = 0    # 客单价（商家填）
+    close_rate: float = 20        # 咨询成交率%（商家填，默认20%）
+
+@app.post("/api/brands/{brand_id}/roi-report")
+async def brand_roi_report(brand_id: int, req: RoiReportReq,
+                           user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★ROI 成果报告（续费杀手锏）：用数字证明这钱花得值。
+    诚实：潜在营收是基于商家自填参数的估算，明确标注非实际成交。"""
+    brand = _owned_brand(brand_id, user, session)
+    now = datetime.now(timezone(timedelta(hours=8)))
+    month_ago = now - timedelta(days=30)
+
+    # 提及率提升
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.asc())).all()
+    rate_start = round(recs[0].mention_rate, 1) if recs else 0
+    rate_now = round(recs[-1].mention_rate, 1) if recs else 0
+    rate_gain = round(rate_now - rate_start, 1)
+
+    # 本月真实转化数据（来自归因追踪）
+    try:
+        from database import Conversion
+        convs = session.exec(select(Conversion).where(
+            Conversion.brand_id == brand_id,
+            Conversion.created_at >= month_ago.replace(tzinfo=None)
+        )).all()
+    except Exception:
+        session.rollback()
+        convs = []
+    real_conversions = len(convs)
+
+    # AI 来源访客
+    try:
+        visits = session.exec(select(AIVisit).where(
+            AIVisit.brand_id == brand_id,
+            AIVisit.created_at >= month_ago.replace(tzinfo=None)
+        )).all()
+    except Exception:
+        session.rollback()
+        visits = []
+    ai_visits = len(visits)
+
+    # 内容产出
+    try:
+        contents = session.exec(select(GeneratedContent).where(
+            GeneratedContent.brand_id == brand_id)).all()
+        content_count = len(contents)
+    except Exception:
+        session.rollback()
+        content_count = 0
+
+    # 潜在营收估算（诚实：基于商家自填参数）
+    aov = req.avg_order_value or 0
+    cr = max(0, min(100, req.close_rate or 20)) / 100
+    est_revenue = round(real_conversions * cr * aov, 0) if (aov and real_conversions) else 0
+
+    # 成本（当前套餐月费）
+    plan_conf = PLANS.get(user.plan, {})
+    monthly_cost = plan_conf.get("price_cny", 0) or 0
+    roi_multiple = round(est_revenue / monthly_cost, 1) if (monthly_cost and est_revenue) else None
+
+    highlights = []
+    if rate_gain > 0:
+        highlights.append(f"AI 提及率从 {rate_start}% 提升到 {rate_now}%（+{rate_gain}%）")
+    if ai_visits:
+        highlights.append(f"本月 {ai_visits} 位访客从 AI 推荐来到你的页面")
+    if real_conversions:
+        highlights.append(f"本月获得 {real_conversions} 条真实线索（表单/微信/电话）")
+    if content_count:
+        highlights.append(f"累计沉淀 {content_count} 篇 GEO 内容资产")
+    if not highlights:
+        highlights.append("数据还在积累中——多做几次监测和内容，成果会显现")
+
+    return {
+        "period": f"{month_ago.strftime('%Y-%m-%d')} ~ {now.strftime('%Y-%m-%d')}",
+        "brand": brand.name,
+        "rate_start": rate_start, "rate_now": rate_now, "rate_gain": rate_gain,
+        "ai_visits": ai_visits,
+        "real_conversions": real_conversions,
+        "content_count": content_count,
+        "monitor_count": len(recs),
+        "est_revenue": est_revenue,
+        "monthly_cost": monthly_cost,
+        "roi_multiple": roi_multiple,
+        "highlights": highlights,
+        "honesty_note": ("潜在营收 = 真实线索数 × 你填的成交率 × 你填的客单价，是基于你提供参数的估算，"
+                         "不代表实际成交。真实成交请以你的业务数据为准。") if est_revenue else
+                        "填写客单价和成交率，可估算这些线索的潜在价值。",
+        "summary": (f"这个月，见微帮你把 AI 提及率提升了 {rate_gain}%，带来 {real_conversions} 条真实线索。"
+                    + (f"按你填的参数估算，潜在营收约 ¥{int(est_revenue)}，投入 ¥{monthly_cost}，ROI 约 {roi_multiple} 倍。" if roi_multiple else "")),
+    }
+
+@app.get("/api/brands/{brand_id}/trend")
+async def brand_trend(brand_id: int, user: User = Depends(current_user),
+                      session: Session = Depends(get_session)):
+    """★历史趋势曲线：提及率随时间变化 + 竞品对比走势。数据积累越久，越有价值。"""
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.asc())).all()
+    if not recs:
+        return {"has_data": False, "tip": "还没有监测数据。做第一次监测，开始积累你的 GEO 成长曲线。"}
+
+    points = []
+    all_comps = {}
+    for r in recs:
+        comp = _jload(getattr(r, "competitor_share_json", "{}"), {})
+        points.append({
+            "date": str(r.generated_at)[:10],
+            "datetime": str(r.generated_at)[:16],
+            "rate": round(r.mention_rate, 1),
+            "competitors": comp,
+        })
+        for c, v in comp.items():
+            all_comps.setdefault(c, []).append(v)
+
+    first, last = points[0], points[-1]
+    growth = round(last["rate"] - first["rate"], 1)
+    days = 0
+    try:
+        from datetime import datetime as _dt
+        d1 = _dt.strptime(first["date"], "%Y-%m-%d")
+        d2 = _dt.strptime(last["date"], "%Y-%m-%d")
+        days = (d2 - d1).days
+    except Exception:
+        pass
+
+    # 最高点（成就感）
+    best = max(points, key=lambda p: p["rate"])
+    # 竞品平均走势（用于对比）
+    top_comp = None
+    if all_comps:
+        top_comp_name = max(all_comps, key=lambda c: sum(all_comps[c]) / len(all_comps[c]))
+        top_comp = {"name": top_comp_name,
+                    "current": points[-1]["competitors"].get(top_comp_name, 0)}
+
+    # 成长叙事（让商家有成就感 = 舍不得走）
+    if growth > 10:
+        story = f"📈 太棒了！{days} 天里，你的 AI 提及率从 {first['rate']}% 涨到 {last['rate']}%（+{growth}%）。这是实打实的增长——每一次内容投入都在复利。"
+    elif growth > 0:
+        story = f"📊 {days} 天里提及率提升 {growth}%，稳步向好。GEO 是长期战，继续保持节奏。"
+    elif growth == 0 and len(points) > 1:
+        story = f"⚠️ 提及率持平（{last['rate']}%）。可能是内容投入不够，或竞品也在发力。查看防御雷达，看看发生了什么。"
+    else:
+        story = f"⚠️ 提及率下降了 {abs(growth)}%。竞品可能在加大投入。别停——GEO 停下来就会被抢回去。"
+
+    return {
+        "has_data": True,
+        "points": points,
+        "monitor_count": len(points),
+        "first": first, "last": last,
+        "growth": growth, "days": days,
+        "best": {"rate": best["rate"], "date": best["date"]},
+        "top_competitor": top_comp,
+        "story": story,
+        "note": "这条曲线是你的 GEO 资产。监测越久，越能看清趋势、越能证明投入的价值。",
     }
 
 class PersonaReq(BaseModel):
