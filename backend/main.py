@@ -1833,9 +1833,21 @@ async def gen_content(req: GenContentReq, request: Request, user: User = Depends
                          "fact": "事实", "story": "故事"}.get(it.category, "")
             kb_text += f"[{cat_label}] {it.title}：{it.content}\n"
 
+    # ★人设引擎：把品牌人设/卖点/禁忌注入生成，保证全平台口径一致
+    persona_text = ""
+    _p = getattr(brand, "brand_persona", "") or ""
+    _s = getattr(brand, "brand_slogans", "") or ""
+    _t = getattr(brand, "brand_taboos", "") or ""
+    if _p:
+        persona_text += f"\n【品牌人设/语气】{_p}"
+    if _s:
+        persona_text += f"\n【核心卖点（内容中自然带出）】{_s}"
+    if _t:
+        persona_text += f"\n【内容禁忌（绝对不能出现）】{_t}"
+
     result = await generate_content(
         brand.name, req.gap_question, brand.product,
-        content_type=req.content_type, brand_facts=kb_text,
+        content_type=req.content_type, brand_facts=kb_text + persona_text,
     )
     gc = GeneratedContent(
         brand_id=brand.id, gap_question=req.gap_question,
@@ -2385,6 +2397,125 @@ async def brand_multi_turn(brand_id: int, user: User = Depends(current_user),
             getattr(brand, "competitors", ""), getattr(brand, "target_lang", "zh"))
     except Exception as e:
         raise HTTPException(500, f"多轮意图生成失败：{type(e).__name__}: {e}")
+
+@app.get("/api/brands/{brand_id}/private-funnel")
+async def brand_private_funnel(brand_id: int, user: User = Depends(current_user),
+                               session: Session = Depends(get_session)):
+    """★私域沉淀闭环（合规版）：AI带来的客户→引导加微→承接转化的完整SOP。
+    不做诱导分享（微信红线），做的是合规的价值引导。"""
+    brand = _owned_brand(brand_id, user, session)
+    ind = brand.industry or "你的行业"
+    return {
+        "funnel_steps": [
+            {"step": 1, "title": "AI 推荐 → 客户找上门",
+             "what": "客户问 AI，AI 推荐了你（这是前面 GEO 优化的成果）",
+             "key": "确保 AI 能读到你的联系方式：官网/落地页要有清晰的微信/电话"},
+            {"step": 2, "title": "落地页承接",
+             "what": "客户点进你的落地页/官网",
+             "key": "页面要回答客户问 AI 的那个问题（口径一致），并给一个加微的理由",
+             "example": f"如：加微信免费领《{ind}避坑指南》/ 免费获取报价方案 / 一对一咨询"},
+            {"step": 3, "title": "合规引导加微",
+             "what": "用'价值交换'引导，不硬拉",
+             "key": "给真实价值（资料/方案/优惠），客户主动加。禁止诱导分享朋友圈换福利（微信严打）",
+             "example": "话术：'这个问题展开讲比较长，我整理了一份详细的对比资料，加微信发你？'"},
+            {"step": 4, "title": "私域承接 SOP",
+             "what": "加上后 24 小时内的动作",
+             "key": "先给承诺的价值（发资料），再了解需求，不要一上来就推销",
+             "example": "第1步发资料 → 第2步问'你目前主要想解决什么' → 第3步给针对性建议 → 自然过渡到方案"},
+            {"step": 5, "title": "转化追踪",
+             "what": "在见微的归因看板标记成交",
+             "key": "记录这个客户从哪个 AI 来、哪篇内容带来的——知道哪条路最赚钱，加倍投入"},
+        ],
+        "compliance": "⚠️ 合规红线：不做'分享朋友圈领福利'式诱导裂变（微信封号风险）。可持续的私域=真实价值吸引，客户主动来。",
+        "note": "GEO 的完整闭环：公域（AI推荐）获客 → 私域（微信）沉淀 → 归因（看板）优化。AI 带来的客户信任度天然高（是 AI 推荐的），转化率比广告客户高。",
+    }
+
+class PersonaReq(BaseModel):
+    brand_persona: str = ""
+    brand_slogans: str = ""
+    brand_taboos: str = ""
+
+@app.post("/api/brands/{brand_id}/persona")
+async def save_brand_persona(brand_id: int, req: PersonaReq,
+                             user: User = Depends(current_user),
+                             session: Session = Depends(get_session)):
+    """★品牌语料库与人设引擎：保存品牌人设/卖点/禁忌，生成内容时自动注入，全平台口径一致。"""
+    brand = _owned_brand(brand_id, user, session)
+    brand.brand_persona = req.brand_persona[:500]
+    brand.brand_slogans = req.brand_slogans[:1000]
+    brand.brand_taboos = req.brand_taboos[:500]
+    session.add(brand)
+    session.commit()
+    return {"ok": True, "msg": "品牌人设已保存，之后生成的所有内容都会遵循这套口径。"}
+
+@app.get("/api/brands/{brand_id}/persona")
+async def get_brand_persona(brand_id: int, user: User = Depends(current_user),
+                            session: Session = Depends(get_session)):
+    brand = _owned_brand(brand_id, user, session)
+    return {
+        "brand_persona": getattr(brand, "brand_persona", "") or "",
+        "brand_slogans": getattr(brand, "brand_slogans", "") or "",
+        "brand_taboos": getattr(brand, "brand_taboos", "") or "",
+        "tip": "人设=品牌的'性格'。设置后，所有生成的内容都会保持一致的语气、卖点、边界——AI 对'口径一致'的品牌认知更稳定。",
+    }
+
+@app.get("/api/brands/{brand_id}/defense-radar")
+async def brand_defense_radar(brand_id: int, user: User = Depends(current_user),
+                              session: Session = Depends(get_session)):
+    """★防御机制（动态护城河）：对比最近两次监测，发现竞品抢位/推荐位流失/新对手，自动预警。"""
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.desc())).all()
+    if len(recs) < 2:
+        return {"has_data": False,
+                "tip": "防御雷达需要至少 2 次监测数据做对比。再做一次监测，就能看到竞品动向和你的推荐位变化。"}
+    cur, prev = recs[0], recs[1]
+    cur_full = _jload(getattr(cur, "full_json", "{}"), {})
+    prev_full = _jload(getattr(prev, "full_json", "{}"), {})
+    cur_comp = cur_full.get("competitor_share", {}) or {}
+    prev_comp = prev_full.get("competitor_share", {}) or {}
+
+    alerts = []
+    # 1. 你的提及率变化
+    delta = round(cur.mention_rate - prev.mention_rate, 1)
+    if delta < -5:
+        alerts.append({"level": "high", "type": "推荐位流失",
+                       "msg": f"⚠️ 你的 AI 提及率从 {prev.mention_rate}% 降到 {cur.mention_rate}%（-{abs(delta)}%）。推荐位在流失，竞品可能在加大内容投入。",
+                       "action": "立即查看证据库，看哪些问题上被挤掉了，优先补那些内容。"})
+    elif delta > 5:
+        alerts.append({"level": "good", "type": "阵地扩大",
+                       "msg": f"✅ 你的提及率从 {prev.mention_rate}% 涨到 {cur.mention_rate}%（+{delta}%）。优化在起效，保持节奏。",
+                       "action": "继续按作战计划发内容，巩固已占领的问题。"})
+    # 2. 竞品提及率飙升（抢位预警）
+    for comp, share in cur_comp.items():
+        prev_share = prev_comp.get(comp, 0)
+        if share - prev_share > 8:
+            alerts.append({"level": "high", "type": "竞品抢位",
+                           "msg": f"🚨 竞品「{comp}」提及率从 {prev_share}% 涨到 {share}%（+{round(share-prev_share,1)}%），正在猛抢 AI 推荐位。",
+                           "action": f"查看证据库中「{comp}」被推荐的问题，针对性布局同类内容抢回来。"})
+    # 3. 新竞品出现
+    new_comps = [c for c in cur_comp if c not in prev_comp and cur_comp[c] >= 5]
+    for nc in new_comps:
+        alerts.append({"level": "mid", "type": "新对手出现",
+                       "msg": f"👀 AI 推荐名单里出现了新面孔「{nc}」（提及率 {cur_comp[nc]}%），上次监测还没有它。",
+                       "action": "关注这个新对手的动作，别让它站稳脚跟。"})
+    # 4. 竞品消失（好消息）
+    gone = [c for c in prev_comp if c not in cur_comp and prev_comp[c] >= 10]
+    for gc in gone:
+        alerts.append({"level": "good", "type": "对手退位",
+                       "msg": f"📉 竞品「{gc}」从推荐名单消失了（上次 {prev_comp[gc]}%）。它留下的位置，正好去占。",
+                       "action": "趁机在它曾被推荐的问题上布局内容。"})
+    if not alerts:
+        alerts.append({"level": "good", "type": "阵地稳定",
+                       "msg": "✅ 两次监测对比，你的推荐位和竞品格局基本稳定，无异常波动。",
+                       "action": "保持每周监测频率，动态变化第一时间发现。"})
+    return {
+        "has_data": True,
+        "current": {"rate": cur.mention_rate, "date": str(cur.generated_at)[:10]},
+        "previous": {"rate": prev.mention_rate, "date": str(prev.generated_at)[:10]},
+        "alerts": alerts,
+        "note": "防御雷达：GEO 不是做一次就完——竞品也在优化。定期监测对比，发现抢位第一时间反击。",
+    }
 
 @app.get("/api/brands/{brand_id}/localization-radar")
 async def brand_localization_radar(brand_id: int, user: User = Depends(current_user),
