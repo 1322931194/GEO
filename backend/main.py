@@ -788,6 +788,8 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
                 continue
             comps = r.get("competitors_found") or r.get("competitors") or []
             srcs = r.get("cited_sources") or r.get("sources") or []
+            # ★URL级穿透：保存完整URL（可点击跳转到具体文章）
+            _curls = r.get("deep_urls") or r.get("cited_urls") or []
             # ★P0：分析情绪倾向 + 推荐位置权重（纯本地计算，零AI成本）
             _sent, _pos = {}, {}
             try:
@@ -807,6 +809,7 @@ async def monitor(brand_id: int, request: Request, user: User = Depends(current_
                 mentioned=bool(r.get("mentioned", False)),
                 competitors_found=",".join(comps) if isinstance(comps, list) else str(comps),
                 cited_sources=",".join(srcs) if isinstance(srcs, list) else str(srcs),
+                cited_urls=",".join(_curls[:10]) if isinstance(_curls, list) else str(_curls),
                 **_sent, **_pos,
             )
             session.add(ev)
@@ -2567,6 +2570,116 @@ async def brand_weekly_report(brand_id: int, user: User = Depends(current_user),
         "note": "GEO 是持续战——竞品也在优化。每周看一眼战报，知道要不要反击。",
     }
 
+class ActionReq(BaseModel):
+    action_date: str = ""       # YYYY-MM-DD，空=今天
+    action_type: str = "publish"  # publish/schema/baike/other
+    platform: str = ""
+    description: str = ""
+    content_count: int = 0
+
+@app.post("/api/brands/{brand_id}/actions")
+async def add_action(brand_id: int, req: ActionReq, user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    """★操作归因打点：商家标记优化动作（如"7月9日在知乎发3篇"），
+    趋势曲线上会打标记——可视化证明哪次操作带来了提及率上升。"""
+    brand = _owned_brand(brand_id, user, session)
+    from database import ActionLog
+    try:
+        ad = datetime.strptime(req.action_date, "%Y-%m-%d") if req.action_date else datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    except Exception:
+        ad = datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    log = ActionLog(user_id=user.id, brand_id=brand.id, action_date=ad,
+                    action_type=(req.action_type or "other")[:20],
+                    platform=(req.platform or "")[:50],
+                    description=(req.description or "")[:200],
+                    content_count=max(0, req.content_count or 0))
+    session.add(log)
+    session.commit()
+    return {"ok": True, "msg": "行动已打点。之后监测时，趋势曲线上会标出这次操作，看它带来的变化。"}
+
+@app.get("/api/brands/{brand_id}/actions")
+async def list_actions(brand_id: int, user: User = Depends(current_user),
+                       session: Session = Depends(get_session)):
+    brand = _owned_brand(brand_id, user, session)
+    from database import ActionLog
+    try:
+        logs = session.exec(select(ActionLog).where(ActionLog.brand_id == brand_id)
+                            .order_by(ActionLog.action_date.desc()).limit(50)).all()
+    except Exception:
+        session.rollback()
+        logs = []
+    _types = {"publish": "发布内容", "schema": "部署Schema", "baike": "建百科", "other": "其他"}
+    return {"actions": [{
+        "id": l.id, "date": str(l.action_date)[:10],
+        "type": l.action_type, "type_label": _types.get(l.action_type, l.action_type),
+        "platform": l.platform, "description": l.description,
+        "content_count": l.content_count} for l in logs]}
+
+@app.delete("/api/brands/{brand_id}/actions/{action_id}")
+async def del_action(brand_id: int, action_id: int, user: User = Depends(current_user),
+                     session: Session = Depends(get_session)):
+    brand = _owned_brand(brand_id, user, session)
+    from database import ActionLog
+    log = session.get(ActionLog, action_id)
+    if log and log.brand_id == brand_id and log.user_id == user.id:
+        session.delete(log)
+        session.commit()
+    return {"ok": True}
+
+
+@app.get("/api/brands/{brand_id}/cited-urls")
+async def brand_cited_urls(brand_id: int, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★URL级穿透：列出 AI 引用的具体页面链接（不只是域名）。
+    诚实：只有 AI 回答里带完整链接时才能穿透；只给域名的会如实标注。"""
+    brand = _owned_brand(brand_id, user, session)
+    recs = session.exec(select(Report).where(Report.brand_id == brand_id)
+                        .order_by(Report.generated_at.desc())).all()
+    if not recs:
+        return {"has_data": False, "tip": "还没有监测数据。"}
+    try:
+        evs = session.exec(select(AIEvidence).where(
+            AIEvidence.brand_id == brand_id,
+            AIEvidence.report_id == recs[0].id).limit(200)).all()
+    except Exception:
+        session.rollback()
+        return {"has_data": False, "tip": "请重新监测一次以生成URL级数据（旧监测数据没有存完整链接）。"}
+
+    url_items, domain_only = [], set()
+    seen = set()
+    for e in evs:
+        urls = [u for u in (getattr(e, "cited_urls", "") or "").split(",") if u.strip()]
+        for u in urls:
+            u = u.strip()
+            if u in seen:
+                continue
+            seen.add(u)
+            url_items.append({"url": u, "platform": e.platform,
+                              "question": (e.question or "")[:60]})
+        for d in (e.cited_sources or "").split(","):
+            if d.strip():
+                domain_only.add(d.strip())
+    # 有完整URL的域名从"只有域名"里去掉
+    penetrated_domains = set()
+    for it in url_items:
+        try:
+            penetrated_domains.add(it["url"].split("://", 1)[-1].split("/", 1)[0].lstrip("www."))
+        except Exception:
+            pass
+    domain_only = sorted(domain_only - penetrated_domains)
+
+    return {
+        "has_data": True,
+        "url_items": url_items[:50],
+        "url_count": len(url_items),
+        "domain_only": domain_only[:30],
+        "note": ("✅ 下面的链接可直接点击，跳到 AI 引用的那篇具体文章——看看竞品被引用的内容长什么样，像素级拆解。"
+                 if url_items else
+                 "本次监测中 AI 只提到了域名、没给出具体页面链接（部分 AI 平台的回答不带完整URL，这是平台特性，不是系统问题）。"),
+        "honesty": "只有 AI 回答里带完整链接时才能穿透到具体页面。只报域名的平台，系统如实展示域名。",
+    }
+
+
 @app.get("/api/brands/{brand_id}/sentiment-position")
 async def brand_sentiment_position(brand_id: int, user: User = Depends(current_user),
                                    session: Session = Depends(get_session)):
@@ -2930,9 +3043,27 @@ async def brand_trend(brand_id: int, user: User = Depends(current_user),
     else:
         story = f"⚠️ 提及率下降了 {abs(growth)}%。竞品可能在加大投入。别停——GEO 停下来就会被抢回去。"
 
+    # ★操作归因：把行动打点附在趋势数据里，前端画在曲线上
+    action_points = []
+    try:
+        from database import ActionLog
+        logs = session.exec(select(ActionLog).where(ActionLog.brand_id == brand_id)
+                            .order_by(ActionLog.action_date.asc()).limit(50)).all()
+        _types = {"publish": "发布内容", "schema": "部署Schema", "baike": "建百科", "other": "其他"}
+        for l in logs:
+            action_points.append({
+                "date": str(l.action_date)[:10],
+                "label": f"{_types.get(l.action_type, l.action_type)}" + (f"·{l.platform}" if l.platform else ""),
+                "description": l.description,
+                "content_count": l.content_count,
+            })
+    except Exception:
+        session.rollback()
+
     return {
         "has_data": True,
         "points": points,
+        "actions": action_points,
         "monitor_count": len(points),
         "first": first, "last": last,
         "growth": growth, "days": days,
@@ -4183,7 +4314,7 @@ def health():
                               "DEEPSEEK_API_KEY")
                   if os.getenv(p)]
     return {"status": "ok", "ai_platforms_configured": len(configured),
-            "version": "2026-07-timezone-fixed",
+            "version": "2026-07-url-action-about",
             "quickrouter": bool(os.getenv("QUICKROUTER_API_KEY"))}
 
 
@@ -5018,6 +5149,12 @@ def showcase():
 
 @app.get("/about")
 def about_page():
+    try:
+        return _about_page_impl()
+    except Exception as e:
+        return HTMLResponse(content=f"<h3>about页面渲染异常: {type(e).__name__}: {str(e)[:200]}</h3>", status_code=200)
+
+def _about_page_impl():
     """品牌介绍 + FAQ 页面。
     这个页面本身就是 GEO 实践：结构化 FAQ + JSON-LD Schema + 硬事实，
     让 AI 在回答「GEO 工具哪个好」「AI 优化怎么做」时能引用到见微。"""
