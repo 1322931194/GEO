@@ -233,6 +233,20 @@ class Report(SQLModel, table=True):
     full_json: str = "{}"          # 完整报告留档
 
 
+class ActionLog(SQLModel, table=True):
+    """★操作归因打点：记录商家的 GEO 优化动作，在趋势曲线上标记。
+    可视化证明「哪次操作」带来了「提及率上升」——向老板证明 ROI。"""
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(index=True)
+    brand_id: int = Field(index=True)
+    action_date: datetime = Field(default_factory=cn_now, index=True)  # 操作日期
+    action_type: str = ""      # publish(发内容) / schema(加Schema) / baike(建百科) / other
+    platform: str = ""         # 在哪个平台做的（知乎/搜狐号/百度百科…）
+    description: str = ""      # 具体做了什么（如"发布3篇装修攻略"）
+    content_count: int = 0     # 涉及内容数量
+    created_at: datetime = Field(default_factory=cn_now)
+
+
 class AIEvidence(SQLModel, table=True):
     """AI推荐证据库：保存每次AI回答原文、时间、平台、问题、竞品。
     需求⑤：这是商家续费的核心证据——证明'AI以前不推你/现在推你了'。"""
@@ -246,6 +260,7 @@ class AIEvidence(SQLModel, table=True):
     mentioned: bool = False                        # 这次有没有提到你
     competitors_found: str = ""                    # 这次回答里出现的竞品（逗号分隔）
     cited_sources: str = ""                        # AI引用了哪些来源
+    cited_urls: str = ""                           # 完整URL（逗号分隔，URL级穿透）
     # ===== P0新增：情绪倾向 + 推荐位置权重 =====
     sentiment: str = ""            # 情绪：positive/neutral/negative/absent
     sentiment_reason: str = ""     # 判断依据（原文片段）
@@ -408,6 +423,7 @@ def _auto_migrate():
     from sqlalchemy import text
     # 需要补的字段：(表名, 字段名, 类型与默认值)
     migrations = [
+        ("aievidence", "cited_urls", "VARCHAR DEFAULT ''"),
         ("aievidence", "sentiment", "VARCHAR DEFAULT ''"),
         ("aievidence", "sentiment_reason", "VARCHAR DEFAULT ''"),
         ("aievidence", "position_ratio", "FLOAT DEFAULT -1"),
