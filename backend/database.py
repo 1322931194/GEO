@@ -228,6 +228,11 @@ class AIEvidence(SQLModel, table=True):
     mentioned: bool = False                        # 这次有没有提到你
     competitors_found: str = ""                    # 这次回答里出现的竞品（逗号分隔）
     cited_sources: str = ""                        # AI引用了哪些来源
+    # ===== P0新增：情绪倾向 + 推荐位置权重 =====
+    sentiment: str = ""            # 情绪：positive/neutral/negative/absent
+    sentiment_reason: str = ""     # 判断依据（原文片段）
+    position_ratio: float = -1.0   # 品牌词在回答中的位置比例(0~1)，-1=未提及
+    position_level: str = ""       # core(前20%) / middle / tail(后20%) / absent
     captured_at: datetime = Field(default_factory=cn_now, index=True)
 
 
@@ -385,6 +390,10 @@ def _auto_migrate():
     from sqlalchemy import text
     # 需要补的字段：(表名, 字段名, 类型与默认值)
     migrations = [
+        ("aievidence", "sentiment", "VARCHAR DEFAULT ''"),
+        ("aievidence", "sentiment_reason", "VARCHAR DEFAULT ''"),
+        ("aievidence", "position_ratio", "FLOAT DEFAULT -1"),
+        ("aievidence", "position_level", "VARCHAR DEFAULT ''"),
         ("customerpseopage", "address", "VARCHAR DEFAULT ''"),
         ("customerpseopage", "buy_link", "VARCHAR DEFAULT ''"),
         ("user", "invite_code", "VARCHAR DEFAULT ''"),
