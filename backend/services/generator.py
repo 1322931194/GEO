@@ -438,6 +438,7 @@ async def generate_content(
     product: str,
     content_type: str = "website",
     brand_facts: str = "",
+    hard_facts: dict = None,
 ) -> dict:
     """
     针对一个缺口生成可发布内容。
@@ -446,6 +447,7 @@ async def generate_content(
       review   - 第三方测评向文章
       social   - 海外社媒原生帖(Reddit/Quora 风格,真实不像广告)
       compare  - 对比文(回应竞品压制)
+    hard_facts: 结构化硬事实（价格区间/参数/客户数/资质等）→ 强制注入，去营销味
     返回 {title, body, content_type, publish_tip}
     """
     type_guides = {
@@ -478,6 +480,29 @@ async def generate_content(
         "④不夸大功效(尤其食品、保健、医疗类不得宣称疗效);"
         "⑤只基于品牌提供的真实事实创作,事实不足时写通用、可验证的内容。"
     )
+    # ★结构化硬事实注入：去营销味，用硬核数字迎合 AI 的 RAG 抓取偏好
+    hf_block = ""
+    if hard_facts:
+        rows = []
+        _labels = {"price_range": "价格区间", "specs": "核心参数/规格",
+                   "client_count": "服务客户数", "years": "成立年限",
+                   "certs": "资质认证", "service_area": "服务范围",
+                   "response_time": "响应时效", "other": "其他硬事实"}
+        for k, v in hard_facts.items():
+            if v and str(v).strip():
+                rows.append(f"- {_labels.get(k, k)}：{str(v).strip()}")
+        if rows:
+            hf_block = (
+                "\n\n【硬事实变量（必须原样嵌入正文，这是本文可信度的核心）】\n"
+                + "\n".join(rows)
+                + "\n\n【去营销味强制要求】\n"
+                  "1. 正文必须包含一个 Markdown 表格，把上述硬事实以「项目 | 具体数值」形式列出\n"
+                  "2. 禁止使用『行业领先』『卓越』『优质服务』这类无信息量的自夸词——用具体数字代替\n"
+                  "3. 每个论断后面必须跟一个可验证的数字或事实，没有数字支撑的形容词一律删除\n"
+                  "4. 文末附一段 JSON-LD Schema 代码（用 ```json 包裹），采用 Organization 或 Product 类型，"
+                  "把上述硬事实结构化——AI 爬虫最爱抓这种结构化数据\n"
+            )
+
     prompt = f"""
 品牌:{brand}
 主营产品:{product}
@@ -485,7 +510,7 @@ async def generate_content(
 "{gap_question}"
 
 品牌已知事实(用于保证内容真实,请只基于这些事实,不要编造):
-{brand_facts or "(品牌方未提供额外事实,请只写通用、可验证的内容,不要编造具体数据)"}
+{brand_facts or "(品牌方未提供额外事实,请只写通用、可验证的内容,不要编造具体数据)"}{hf_block}
 
 内容类型要求:{guide}
 
@@ -1008,6 +1033,83 @@ async def generate_multi_turn_questions(brand: str, industry: str, product: str,
         "chains": chains,
         "note": "多轮对话监测：真实用户会连续追问。测品牌在对话逐步深入、AI 给出具体推荐时，还在不在名单里——这比单次提问更接近真实成交场景。",
     }
+
+
+# 【P0-1】推荐位置与排位权重识别（纯字符串计算，零AI成本）
+def analyze_position(answer_text: str, brand: str) -> dict:
+    """算品牌词在 AI 回答中的位置比例。前20%=核心推荐，后20%=末尾带过。
+    同一个'被提及'，出现在开头 vs 结尾，含金量天差地别。"""
+    if not answer_text or not brand:
+        return {"position_ratio": -1.0, "position_level": "absent",
+                "label": "未提及", "desc": "AI 这次回答没提到你"}
+    text = answer_text.strip()
+    # 找品牌词第一次出现的位置（核心词匹配，去括号/公司后缀）
+    core = brand.split("（")[0].split("(")[0]
+    for suf in ["有限公司", "股份有限公司", "公司", "集团", "科技", "品牌"]:
+        core = core.replace(suf, "")
+    core = core.strip()
+    idx = text.find(core) if core else -1
+    if idx < 0:
+        idx = text.find(brand)
+    if idx < 0:
+        return {"position_ratio": -1.0, "position_level": "absent",
+                "label": "未提及", "desc": "AI 这次回答没提到你"}
+    ratio = round(idx / max(len(text), 1), 3)
+    if ratio <= 0.2:
+        return {"position_ratio": ratio, "position_level": "core",
+                "label": "核心推荐位", "color": "#a8c48c",
+                "desc": f"出现在回答前 {int(ratio*100)}%——AI 把你放在最前面推荐，含金量最高"}
+    if ratio >= 0.8:
+        return {"position_ratio": ratio, "position_level": "tail",
+                "label": "末尾带过", "color": "#c96a5f",
+                "desc": f"出现在回答后 {int((1-ratio)*100)}%——只是顺带提一句，客户很可能看不到"}
+    return {"position_ratio": ratio, "position_level": "middle",
+            "label": "中段提及", "color": "#c99a52",
+            "desc": f"出现在回答中段（{int(ratio*100)}% 位置）——被提到了，但不是首推"}
+
+
+# 【P0-2】AI 情绪与倾向监测（先规则判断，零成本；模糊的才调 AI）
+_POSITIVE_CUES = ["推荐", "首选", "优秀", "口碑好", "值得", "靠谱", "领先", "专业",
+                  "性价比高", "评价好", "知名", "实力", "不错", "较好", "优质"]
+_NEGATIVE_CUES = ["不推荐", "差评", "投诉", "问题", "避雷", "谨慎", "较差", "不建议",
+                  "负面", "争议", "纠纷", "维权", "退款", "坑", "翻车", "不靠谱"]
+
+def analyze_sentiment_rule(answer_text: str, brand: str) -> dict:
+    """规则版情绪判断：看品牌词附近的用词。零成本，覆盖大部分情况。"""
+    if not answer_text or not brand:
+        return {"sentiment": "absent", "label": "未提及", "reason": ""}
+    text = answer_text
+    core = brand.split("（")[0].split("(")[0].strip()
+    idx = text.find(core)
+    if idx < 0:
+        idx = text.find(brand)
+    if idx < 0:
+        return {"sentiment": "absent", "label": "未提及", "reason": ""}
+    # 取品牌词前后各80字作为语境
+    start, end = max(0, idx - 80), min(len(text), idx + len(core) + 80)
+    ctx = text[start:end]
+    pos_hits = [c for c in _POSITIVE_CUES if c in ctx]
+    neg_hits = [c for c in _NEGATIVE_CUES if c in ctx]
+    if neg_hits:
+        return {"sentiment": "negative", "label": "负面提及", "color": "#c96a5f",
+                "reason": f"AI 提到你时用了「{'、'.join(neg_hits[:3])}」等负面表述",
+                "context": ctx[:150],
+                "warning": "⚠️ 被提到但评价负面，比没被提到更危险——客户看到会直接排除你。建议排查口碑源头。"}
+    if pos_hits:
+        return {"sentiment": "positive", "label": "正面推荐", "color": "#a8c48c",
+                "reason": f"AI 用了「{'、'.join(pos_hits[:3])}」等正面表述",
+                "context": ctx[:150]}
+    return {"sentiment": "neutral", "label": "中立提及", "color": "#c99a52",
+            "reason": "AI 提到了你，但没有明显褒贬——只是列举，不是推荐",
+            "context": ctx[:150],
+            "tip": "中立提及价值有限。目标是让 AI 主动'推荐'你，而不只是'提到'你。"}
+
+
+def analyze_evidence(answer_text: str, brand: str) -> dict:
+    """综合分析一条 AI 回答：情绪 + 位置权重。"""
+    pos = analyze_position(answer_text, brand)
+    sent = analyze_sentiment_rule(answer_text, brand)
+    return {**pos, **sent}
 
 
 # 【本土化雷达】各海外市场：当地主流AI + 本地高权重信源 + 本地化策略
