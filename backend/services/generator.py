@@ -1035,6 +1035,49 @@ async def generate_multi_turn_questions(brand: str, industry: str, product: str,
     }
 
 
+async def analyze_semantic_gap(brand: str, industry: str, your_content: str,
+                               competitor_answers: list) -> dict:
+    """★语义差距分析：对比你的内容 vs AI 高频引用的竞品语料，找出你缺的关键实体词。
+    诚实：用 AI 提取实体做对比（比 Embedding 便宜且更可解释），不承诺伪精确。"""
+    comp_text = "\n---\n".join((a or "")[:800] for a in (competitor_answers or [])[:3])
+    if not comp_text.strip():
+        return {"has_data": False,
+                "tip": "还没有足够的竞品语料。先做一次监测，系统会收集 AI 推荐竞品时的原文。"}
+
+    prompt = f"""你是 {industry} 行业的 GEO 内容专家。
+
+【AI 推荐竞品时说的话（高分语料）】
+{comp_text}
+
+【品牌方自己的内容】
+{(your_content or "(暂无内容)")[:1500]}
+
+任务：对比两者，找出「AI 高频引用的竞品语料里有、但品牌方内容里缺失」的关键实体词/概念。
+这些缺失的词，就是品牌方内容优化的「填空题」。
+
+只返回 JSON：
+{{"missing_entities":[{{"entity":"缺失的关键词","why":"为什么这个词重要（AI在什么语境下用它）","how":"品牌方该怎么自然地加进内容里"}}],
+"present_entities":["你内容里已经有的关键实体词"],
+"summary":"一句话总结最大的语义差距"}}
+
+最多列 6 个 missing_entities，按重要性排序。必须基于真实语料，不要编造。"""
+    try:
+        raw = await _chat(prompt, "你擅长文本实体提取和内容差距分析，输出必须基于给定语料。",
+                          json_mode=True, scene="opportunity")
+        data = _safe_parse_json(raw)
+    except Exception as e:
+        return {"has_data": False, "error": f"分析失败：{type(e).__name__}"}
+
+    return {
+        "has_data": True,
+        "missing_entities": (data.get("missing_entities") or [])[:6],
+        "present_entities": (data.get("present_entities") or [])[:10],
+        "summary": data.get("summary", ""),
+        "note": "这是把「优化建议」从务虚变成填空题：AI 信任的竞品内容里有这些词，你的内容里没有——补上它们。",
+        "honesty": "基于 AI 对语料的实体提取，不是精确的向量计算。词频不完全等于 AI 偏好，建议结合人工判断。",
+    }
+
+
 # 【P0-1】推荐位置与排位权重识别（纯字符串计算，零AI成本）
 def analyze_position(answer_text: str, brand: str) -> dict:
     """算品牌词在 AI 回答中的位置比例。前20%=核心推荐，后20%=末尾带过。
