@@ -1480,6 +1480,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repSOP"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
+              <div id="repCitedUrls"></div>
               <div id="repSentimentPos"></div>
               <div id="repDefense"></div>
               <div id="repMediaPlan"></div>
@@ -2818,6 +2819,26 @@ async function runSemGap(){
   }catch(e){ box.innerHTML=`<div style="font-size:12.5px;color:var(--bad);padding:10px;background:rgba(201,106,95,.08);border-radius:8px">${escHtml(e.message||"分析失败")}</div>`; }
 }
 
+// ★记录优化动作（操作归因打点）
+async function addAction(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先选择品牌"); return; }
+  const desc=(document.getElementById("actDesc")||{}).value||"";
+  const plat=(document.getElementById("actPlatform")||{}).value||"";
+  try{
+    await api(`/api/brands/${bid}/actions`,{method:"POST",body:JSON.stringify({
+      action_date:(document.getElementById("actDate")||{}).value||"",
+      action_type:(document.getElementById("actType")||{}).value||"publish",
+      platform:plat,
+      description:desc,
+      content_count:parseInt((document.getElementById("actCount")||{}).value)||0,
+    })});
+    toast("📍 已打点！下次监测后，曲线上会标出这次动作");
+    // 清空表单
+    ["actPlatform","actCount","actDesc"].forEach(id=>{const e=document.getElementById(id);if(e)e.value="";});
+  }catch(e){ toast("打点失败："+(e.message||"")); }
+}
+
 // ★历史趋势曲线（数据资产）
 async function loadTrend(){
   const bid=currentBrandId||lastBrandIdForDash;
@@ -2844,17 +2865,54 @@ async function loadTrend(){
         <div style="flex:1;min-width:88px;background:var(--panel-2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--ink)">${d.monitor_count}</div><div style="font-size:11px;color:var(--ink-soft)">监测次数</div></div>
       </div>`;
     if(pts.length>1){
-      h+=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--panel-2);border-radius:10px">
+      // ★操作归因打点：把行动标在曲线对应日期位置
+      const acts=d.actions||[];
+      let actMarks='';
+      acts.forEach(a=>{
+        // 找到行动日期在时间轴上的位置（线性映射到最近的点区间）
+        let xi=-1;
+        for(let i=0;i<pts.length;i++){ if(pts[i].date>=a.date){ xi=i; break; } }
+        if(xi<0) xi=pts.length-1;
+        const x=coords[xi][0];
+        actMarks+=`<line x1="${x.toFixed(1)}" y1="${pad}" x2="${x.toFixed(1)}" y2="${H-pad}" stroke="#c99a52" stroke-width="1" stroke-dasharray="3,3" opacity="0.6"/>
+          <path d="M${(x-5).toFixed(1)},${H-pad+2} L${x.toFixed(1)},${(H-pad+9).toFixed(1)} L${(x+5).toFixed(1)},${H-pad+2} Z" fill="#c99a52"/>`;
+      });
+      h+=`<svg viewBox="0 0 ${W} ${H+14}" style="width:100%;height:auto;background:var(--panel-2);border-radius:10px">
         <path d="${area}" fill="rgba(168,196,140,.15)"/>
+        ${actMarks}
         <path d="${path}" fill="none" stroke="#a8c48c" stroke-width="2.5" stroke-linecap="round"/>
         ${coords.map(c=>`<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3.5" fill="#a8c48c"/>`).join('')}
         <text x="${pad}" y="${H-8}" font-size="10" fill="#9c958a">${escHtml(pts[0].date)}</text>
         <text x="${W-pad}" y="${H-8}" font-size="10" fill="#9c958a" text-anchor="end">${escHtml(pts[pts.length-1].date)}</text>
       </svg>`;
+      if(acts.length){
+        h+=`<div style="font-size:11.5px;color:var(--gold);margin-top:8px">▲ 金色标记 = 你的优化动作。对比动作前后的曲线，看哪次操作真正带来了增长：</div>`;
+        acts.slice(-6).forEach(a=>{
+          h+=`<div style="font-size:12px;color:var(--ink-soft);margin-top:5px;padding-left:8px;border-left:2px solid var(--gold)">
+            <b style="color:var(--ink)">${escHtml(a.date)}</b> ${escHtml(a.label)}${a.content_count?` ${a.content_count}篇`:''}${a.description?` — ${escHtml(a.description)}`:''}
+          </div>`;
+        });
+      }
     } else {
       h+=`<div style="font-size:12px;color:var(--ink-soft);padding:16px;text-align:center;background:var(--panel-2);border-radius:10px">再监测几次，就能看到成长曲线</div>`;
     }
     if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    // ★记录行动表单（操作归因打点）
+    h+=`<div style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)">
+      <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:8px">📍 记录一次优化动作（打点归因）</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="actDate" type="date" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)">
+        <select id="actType" style="padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)">
+          <option value="publish">发布内容</option><option value="schema">部署Schema</option>
+          <option value="baike">建百科</option><option value="other">其他</option>
+        </select>
+        <input id="actPlatform" placeholder="平台(如:知乎)" style="width:110px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)">
+        <input id="actCount" type="number" placeholder="篇数" style="width:70px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)">
+        <input id="actDesc" placeholder="备注(可选)" style="flex:1;min-width:120px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;font-size:12.5px;background:var(--panel);color:var(--ink)">
+        <button class="btn-ghost" style="padding:8px 16px;font-size:12.5px;white-space:nowrap" onclick="addAction()">打点</button>
+      </div>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:7px">例：今天在知乎发了3篇 → 两周后监测，曲线上对比这个点前后的变化，就知道这次投入值不值。</div>
+    </div>`;
     h+=`</div>`;
     content.insertAdjacentHTML("afterbegin", h);
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
@@ -5378,6 +5436,7 @@ function renderReportBody(rep){
   loadMediaPlan(rep);
   loadDefense(rep);
   loadSentimentPos(rep);
+  loadCitedUrls(rep);
   loadLocalization(rep);
   // 4个进阶功能
   loadEntityAuth(rep);
@@ -6068,6 +6127,37 @@ async function loadMediaPlan(rep){
       h+=`</div>`;
     }
     if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ★URL级穿透：AI引用的具体页面链接（可点击）
+async function loadCitedUrls(rep){
+  const el=document.getElementById("repCitedUrls");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/cited-urls`);
+    if(!d.has_data){ el.innerHTML=""; return; }
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🔗 AI 引用的具体页面（URL 级穿透）</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">${escHtml(d.note||"")}</div>`;
+    if(d.url_items&&d.url_items.length){
+      d.url_items.slice(0,20).forEach(it=>{
+        h+=`<div style="background:var(--panel-2);border-radius:8px;padding:11px 14px;margin-bottom:7px">
+          <a href="${escHtml(it.url)}" target="_blank" rel="noopener" style="font-size:13px;color:var(--matcha);word-break:break-all;text-decoration:none;font-weight:600">↗ ${escHtml(it.url)}</a>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:4px">${escHtml(it.platform)} · 问题：${escHtml(it.question)}</div>
+        </div>`;
+      });
+    }
+    if(d.domain_only&&d.domain_only.length){
+      h+=`<div style="margin-top:12px;font-size:12px;color:var(--ink-soft)">📌 以下信源 AI 只提到域名、未给出具体链接（无法穿透）：</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">${d.domain_only.map(dm=>`<span style="background:var(--panel-2);color:var(--ink-soft);padding:4px 10px;border-radius:10px;font-size:11.5px">${escHtml(dm)}</span>`).join('')}</div>`;
+    }
+    if(d.honesty) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">⚠️ ${escHtml(d.honesty)}</div>`;
     h+=`</div>`;
     el.innerHTML=h;
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
