@@ -1478,6 +1478,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="repSOP"></div>
               <div id="repTopics"></div>
               <div id="repCitations"></div>
+              <div id="repDefense"></div>
               <div id="repMediaPlan"></div>
               <div id="repLocalization"></div>
               <div id="repEntityAuth"></div>
@@ -1523,6 +1524,18 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
                   <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="loadKwSuggestions()" id="kwSugBtn">拓展长尾词 →</button>
                 </div>
                 <div id="kwSugResult" style="margin-top:14px"></div>
+              </div>
+              <div class="section-card" style="margin-top:16px">
+                <div style="font-weight:700;font-size:15px;margin-bottom:6px">🎭 品牌人设引擎 <span style="font-size:11px;background:var(--matcha);color:#1a1712;padding:2px 8px;border-radius:10px;margin-left:6px">资产沉淀</span></div>
+                <p style="font-size:13px;color:var(--ink-soft);margin-bottom:12px">设置品牌的"性格"——语气、核心卖点、内容禁忌。设置后，<b style="color:var(--ink)">所有生成的内容自动遵循这套口径</b>，全平台一致。AI 对口径一致的品牌，认知更稳定。</p>
+                <div class="field"><label>品牌人设 / 语气</label>
+                  <input id="personaTone" placeholder="如：专业但亲切，像懂行的老朋友，不说官话"></div>
+                <div class="field"><label>核心卖点（每行一条，生成内容自然带出）</label>
+                  <textarea id="personaSlogans" rows="3" placeholder="如：10年行业经验，服务过500+客户" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink);resize:vertical"></textarea></div>
+                <div class="field"><label>内容禁忌（绝不能出现的话）</label>
+                  <input id="personaTaboos" placeholder="如：不承诺疗效、不贬低具体竞品名"></div>
+                <button class="btn-cyan" style="padding:10px 20px;font-size:13px" onclick="savePersona()">保存人设</button>
+                <span id="personaStatus" style="font-size:12px;color:var(--matcha);margin-left:10px"></span>
               </div>
               <div class="section-card" style="margin-top:16px">
                 <div style="font-weight:700;font-size:15px;margin-bottom:6px">🏗️ 一键生成 Schema + FAQ</div>
@@ -2479,7 +2492,7 @@ function switchWsTab(n){
   }
   if(n===1) loadKnowledgeTab();
   else if(n===2) loadTopicsTab();
-  else if(n===3) loadContentsTab();
+  else if(n===3){ loadContentsTab(); loadPersona(); }
   else if(n===4) loadContentPackTab();
   else if(n===5) loadSchemaTab();
   else if(n===6) loadGrowthEngineTab();
@@ -2667,6 +2680,33 @@ function loadGrowthEngineTab(){
     </div>`;
   // 自动加载已有追踪
   loadIndexTracks();
+}
+
+// ★品牌人设引擎
+async function savePersona(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先选择品牌"); return; }
+  const st=document.getElementById("personaStatus");
+  try{
+    await api(`/api/brands/${bid}/persona`,{method:"POST",body:JSON.stringify({
+      brand_persona:(document.getElementById("personaTone")||{}).value||"",
+      brand_slogans:(document.getElementById("personaSlogans")||{}).value||"",
+      brand_taboos:(document.getElementById("personaTaboos")||{}).value||"",
+    })});
+    if(st) st.textContent="✅ 已保存，之后生成的内容都会遵循这套口径";
+    toast("🎭 品牌人设已保存");
+  }catch(e){ toast("保存失败："+(e.message||"")); }
+}
+async function loadPersona(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  try{
+    const d=await api(`/api/brands/${bid}/persona`);
+    const t=document.getElementById("personaTone"), s=document.getElementById("personaSlogans"), b=document.getElementById("personaTaboos");
+    if(t) t.value=d.brand_persona||"";
+    if(s) s.value=d.brand_slogans||"";
+    if(b) b.value=d.brand_taboos||"";
+  }catch(e){}
 }
 
 // 关键词联想词（免费拓词）
@@ -3961,6 +4001,8 @@ function renderDashboard(d){
   loadAITraffic();
   // 加载ROI归因
   loadROI();
+  // 私域沉淀闭环SOP
+  loadPrivateFunnel();
 }
 
 // ===== ROI 转化归因 =====
@@ -3979,6 +4021,36 @@ function _byTypeBlock(byType){
   });
   h+=`</div></div>`;
   return h;
+}
+
+// ★私域沉淀闭环
+async function loadPrivateFunnel(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const content=document.getElementById("dashContent");
+  if(!content) return;
+  try{
+    const d=await api(`/api/brands/${bid}/private-funnel`);
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🔄 私域沉淀闭环（AI客户→微信→成交）</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">AI 推荐带来的客户信任度天然高。用这套 SOP 把他们沉淀到微信，转化率远超广告客户。</div>`;
+    (d.funnel_steps||[]).forEach(s=>{
+      h+=`<div style="display:flex;gap:12px;margin-bottom:12px">
+        <span style="flex-shrink:0;width:26px;height:26px;border-radius:50%;background:var(--matcha);color:#1a1712;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center">${s.step}</span>
+        <div style="flex:1">
+          <div style="font-size:13.5px;font-weight:700;color:var(--ink)">${escHtml(s.title)}</div>
+          <div style="font-size:12.5px;color:var(--ink-soft);margin-top:2px;line-height:1.55">${escHtml(s.what)}</div>
+          <div style="font-size:12px;color:var(--matcha);margin-top:3px;line-height:1.5">💡 ${escHtml(s.key)}</div>
+          ${s.example?`<div style="font-size:12px;color:var(--gold);margin-top:3px;line-height:1.5">📝 ${escHtml(s.example)}</div>`:""}
+        </div>
+      </div>`;
+    });
+    if(d.compliance) h+=`<div style="font-size:12px;color:var(--bad);background:rgba(201,106,95,.08);border-radius:8px;padding:10px 12px;margin-top:8px;line-height:1.6">${escHtml(d.compliance)}</div>`;
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    content.insertAdjacentHTML("beforeend", h);
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){}
 }
 
 async function loadROI(){
@@ -5046,6 +5118,7 @@ function renderReportBody(rep){
   renderCitations(rep);
   // ★信源反推发文建议（AI从哪抓答案→你去哪发）
   loadMediaPlan(rep);
+  loadDefense(rep);
   loadLocalization(rep);
   // 4个进阶功能
   loadEntityAuth(rep);
@@ -5736,6 +5809,37 @@ async function loadMediaPlan(rep){
       h+=`</div>`;
     }
     if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:14px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+// ★防御雷达：竞品抢位预警
+async function loadDefense(rep){
+  const el=document.getElementById("repDefense");
+  if(!el) return;
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ el.innerHTML=""; return; }
+  try{
+    const d=await api(`/api/brands/${bid}/defense-radar`);
+    if(!d.has_data){
+      el.innerHTML=`<div class="section-card" style="margin-top:20px"><div style="font-weight:700;font-size:16px;margin-bottom:6px">🛡️ 防御雷达</div><div style="font-size:13px;color:var(--ink-soft);line-height:1.6">${escHtml(d.tip||"")}</div></div>`;
+      return;
+    }
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🛡️ 防御雷达（竞品动向预警）</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">对比上次监测（${escHtml(d.previous.date)} → ${escHtml(d.current.date)}），你的推荐位和竞品格局变化：</div>`;
+    (d.alerts||[]).forEach(a=>{
+      const c=a.level==='high'?'var(--bad)':(a.level==='good'?'var(--matcha)':'var(--gold)');
+      const bg=a.level==='high'?'rgba(201,106,95,.1)':(a.level==='good'?'rgba(168,196,140,.08)':'rgba(201,154,82,.08)');
+      h+=`<div style="background:${bg};border-left:3px solid ${c};border-radius:8px;padding:13px 15px;margin-bottom:10px">
+        <div style="font-size:12px;font-weight:700;color:${c};margin-bottom:4px">${escHtml(a.type)}</div>
+        <div style="font-size:13px;color:var(--ink);line-height:1.6">${escHtml(a.msg)}</div>
+        <div style="font-size:12px;color:var(--ink-soft);margin-top:5px">👉 ${escHtml(a.action)}</div>
+      </div>`;
+    });
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.note)}</div>`;
     h+=`</div>`;
     el.innerHTML=h;
     if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
