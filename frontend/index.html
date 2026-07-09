@@ -1329,6 +1329,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div id="dashboardView" class="hidden">
           <div class="shell">
             <p style="font-size:14px;color:var(--ink-soft);margin-bottom:20px" id="dashSubtitle">追踪你的品牌 AI 能见度变化</p>
+            <div id="weeklyReportBox"></div>
             <div id="dashContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div></div>
           </div>
         </div>
@@ -2682,6 +2683,122 @@ function loadGrowthEngineTab(){
   loadIndexTracks();
 }
 
+// ★历史趋势曲线（数据资产）
+async function loadTrend(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const content=document.getElementById("dashContent");
+  if(!content) return;
+  try{
+    const d=await api(`/api/brands/${bid}/trend`);
+    if(!d.has_data){ return; }
+    const pts=d.points||[];
+    const W=560,H=160,pad=30;
+    const maxR=Math.max(...pts.map(p=>p.rate),10);
+    const step=pts.length>1?(W-pad*2)/(pts.length-1):0;
+    const coords=pts.map((p,i)=>[pad+i*step, H-pad-(p.rate/maxR)*(H-pad*2)]);
+    const path=coords.map((c,i)=>(i?'L':'M')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+    const area=path+` L${coords[coords.length-1][0].toFixed(1)},${H-pad} L${pad},${H-pad} Z`;
+    let h=`<div class="section-card" style="margin-top:20px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">📈 你的 GEO 成长曲线</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">${escHtml(d.story||"")}</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="flex:1;min-width:88px;background:var(--panel-2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--matcha)">${d.last.rate}%</div><div style="font-size:11px;color:var(--ink-soft)">当前提及率</div></div>
+        <div style="flex:1;min-width:88px;background:var(--panel-2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:800;color:${d.growth>=0?'var(--matcha)':'var(--bad)'}">${d.growth>=0?'+':''}${d.growth}%</div><div style="font-size:11px;color:var(--ink-soft)">累计增长</div></div>
+        <div style="flex:1;min-width:88px;background:var(--panel-2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--gold)">${d.best.rate}%</div><div style="font-size:11px;color:var(--ink-soft)">历史最高</div></div>
+        <div style="flex:1;min-width:88px;background:var(--panel-2);border-radius:10px;padding:12px;text-align:center"><div style="font-size:20px;font-weight:800;color:var(--ink)">${d.monitor_count}</div><div style="font-size:11px;color:var(--ink-soft)">监测次数</div></div>
+      </div>`;
+    if(pts.length>1){
+      h+=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;background:var(--panel-2);border-radius:10px">
+        <path d="${area}" fill="rgba(168,196,140,.15)"/>
+        <path d="${path}" fill="none" stroke="#a8c48c" stroke-width="2.5" stroke-linecap="round"/>
+        ${coords.map(c=>`<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="3.5" fill="#a8c48c"/>`).join('')}
+        <text x="${pad}" y="${H-8}" font-size="10" fill="#9c958a">${escHtml(pts[0].date)}</text>
+        <text x="${W-pad}" y="${H-8}" font-size="10" fill="#9c958a" text-anchor="end">${escHtml(pts[pts.length-1].date)}</text>
+      </svg>`;
+    } else {
+      h+=`<div style="font-size:12px;color:var(--ink-soft);padding:16px;text-align:center;background:var(--panel-2);border-radius:10px">再监测几次，就能看到成长曲线</div>`;
+    }
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    content.insertAdjacentHTML("afterbegin", h);
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){}
+}
+
+// ★ROI成果报告
+async function loadRoiReport(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const content=document.getElementById("dashContent");
+  if(!content) return;
+  const h=`<div class="section-card" style="margin-top:20px">
+    <div style="font-weight:700;font-size:16px;margin-bottom:4px">💰 本月 GEO 成果报告</div>
+    <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">填入你的客单价，看清这笔投入值不值。</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <input id="roiAov" type="number" placeholder="客单价（元）" style="flex:1;min-width:130px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+      <input id="roiCr" type="number" value="20" placeholder="成交率%" style="flex:1;min-width:110px;padding:9px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+      <button class="btn-cyan" style="padding:9px 18px;font-size:13px;white-space:nowrap" onclick="genRoiReport()">生成成果报告</button>
+    </div>
+    <div id="roiReportResult"></div>
+  </div>`;
+  content.insertAdjacentHTML("beforeend", h);
+  genRoiReport();
+}
+async function genRoiReport(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const box=document.getElementById("roiReportResult");
+  if(!box) return;
+  try{
+    const d=await api(`/api/brands/${bid}/roi-report`,{method:"POST",body:JSON.stringify({
+      avg_order_value: parseFloat((document.getElementById("roiAov")||{}).value)||0,
+      close_rate: parseFloat((document.getElementById("roiCr")||{}).value)||20,
+    })});
+    let h=`<div style="background:var(--panel-2);border-radius:12px;padding:16px">
+      <div style="font-size:13.5px;font-weight:700;color:var(--ink);margin-bottom:10px">📋 ${escHtml(d.brand)} · ${escHtml(d.period)}</div>`;
+    (d.highlights||[]).forEach(x=>{ h+=`<div style="font-size:13px;color:var(--ink);line-height:1.7">✅ ${escHtml(x)}</div>`; });
+    if(d.roi_multiple){
+      h+=`<div style="background:linear-gradient(135deg,rgba(168,196,140,.15),rgba(201,154,82,.08));border-radius:10px;padding:14px;margin-top:12px;text-align:center">
+        <div style="font-size:12px;color:var(--ink-soft)">潜在营收估算</div>
+        <div style="font-size:28px;font-weight:900;color:var(--gold);margin:4px 0">¥${Math.round(d.est_revenue)}</div>
+        <div style="font-size:12.5px;color:var(--matcha)">投入 ¥${d.monthly_cost} · ROI 约 <b>${d.roi_multiple} 倍</b></div>
+      </div>`;
+    }
+    if(d.honesty_note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">⚠️ ${escHtml(d.honesty_note)}</div>`;
+    h+=`</div>`;
+    box.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ box.innerHTML=`<p style="color:var(--ink-soft);font-size:12px">成果数据加载中…</p>`; }
+}
+
+// ★本周战报
+async function loadWeeklyReport(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const el=document.getElementById("weeklyReportBox");
+  if(!el) return;
+  try{
+    const d=await api(`/api/brands/${bid}/weekly-report`);
+    if(!d.has_data){ el.innerHTML=""; return; }
+    let h=`<div class="section-card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(168,196,140,.08),transparent);border:1px solid rgba(168,196,140,.25)">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+        <div style="font-weight:700;font-size:15px">📰 本周战报 <span style="font-size:11.5px;color:var(--ink-soft);font-weight:400">${escHtml(d.week)}</span></div>
+        <button class="btn-ghost" style="font-size:11.5px;padding:5px 12px" onclick='safeCopy(${JSON.stringify(d.copy_text)},"✅ 战报已复制")'>📋 复制战报</button>
+      </div>`;
+    (d.lines||[]).forEach(l=>{ h+=`<div style="font-size:13px;color:var(--ink);line-height:1.75">${escHtml(l)}</div>`; });
+    if(d.actions&&d.actions.length){
+      h+=`<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)"><div style="font-size:12.5px;font-weight:600;color:var(--matcha);margin-bottom:6px">🎯 本周该做：</div>`;
+      d.actions.forEach((a,i)=>{ h+=`<div style="font-size:12.5px;color:var(--ink);line-height:1.7">${i+1}. ${escHtml(a)}</div>`; });
+      h+=`</div>`;
+    }
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
 // ★品牌人设引擎
 async function savePersona(){
   const bid=currentBrandId||lastBrandIdForDash;
@@ -4003,6 +4120,10 @@ function renderDashboard(d){
   loadROI();
   // 私域沉淀闭环SOP
   loadPrivateFunnel();
+  // ★续费三件套
+  loadTrend();
+  loadRoiReport();
+  loadWeeklyReport();
 }
 
 // ===== ROI 转化归因 =====
