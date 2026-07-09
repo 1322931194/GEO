@@ -591,6 +591,76 @@ async def run_monitoring(
                       samples_per_question)
 
 
+async def run_sandbox_multiturn(brand: str, competitors: list, turns: list,
+                                platform: str = "deepseek") -> dict:
+    """★多轮追问沙盒：维持对话上下文，模拟客户连续追问的真实成交链路。
+    打破 Zero-shot 限制——查清在哪一轮被竞品截胡。"""
+    cfg = PLATFORMS.get(platform)
+    if not cfg:
+        return {"error": f"不支持的平台：{platform}"}
+    key = os.getenv(cfg["api_key_env"], "")
+    qr_key = _quickrouter_key()
+    use_qr = (platform in QUICKROUTER_PLATFORMS and qr_key and not key)
+    if not key and not use_qr:
+        return {"error": f"{cfg['label']} 未配置密钥，无法运行沙盒"}
+
+    messages = []
+    results = []
+    async with httpx.AsyncClient(timeout=90) as client:
+        for i, q in enumerate(turns[:5]):  # 最多5轮
+            messages.append({"role": "user", "content": q})
+            try:
+                if use_qr:
+                    models = QUICKROUTER_MODELS.get(platform, [cfg.get("model")])
+                    model = _qr_working_model.get(platform) or models[0]
+                    r = await client.post(
+                        QUICKROUTER_BASE,
+                        headers={"Authorization": f"Bearer {qr_key}", "Content-Type": "application/json"},
+                        json={"model": model, "messages": messages, "temperature": 0.7, "max_tokens": 800},
+                    )
+                    r.raise_for_status()
+                    answer = r.json()["choices"][0]["message"]["content"]
+                else:
+                    r = await client.post(
+                        cfg["url"],
+                        headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
+                        json={"model": cfg["model"], "messages": messages,
+                              "temperature": 0.7, "max_tokens": 800},
+                    )
+                    r.raise_for_status()
+                    answer = r.json()["choices"][0]["message"]["content"]
+                messages.append({"role": "assistant", "content": answer})
+                analysis = _analyze_answer(answer, brand, competitors)
+                results.append({
+                    "turn": i + 1, "question": q, "answer": answer[:1200],
+                    "mentioned": analysis["mentioned"],
+                    "competitors_found": analysis.get("competitors_found", []),
+                })
+                _track_mon(platform, True, "sandbox")
+            except Exception as e:
+                results.append({"turn": i + 1, "question": q, "error": str(e)[:150]})
+                _track_mon(platform, False, "sandbox")
+                break
+
+    drop_turn = None
+    for r in results:
+        if "mentioned" in r and not r["mentioned"]:
+            drop_turn = r["turn"]
+            break
+    mentioned_turns = [r["turn"] for r in results if r.get("mentioned")]
+    return {
+        "platform": cfg["label"],
+        "turns": results,
+        "mentioned_turns": mentioned_turns,
+        "drop_turn": drop_turn,
+        "insight": (f"⚠️ 你在第 {drop_turn} 轮追问时从推荐名单里消失了——客户越问越细时，AI 转向了竞品。"
+                    if drop_turn else
+                    (f"✅ 全部 {len(results)} 轮追问中你都被提及，对话链路稳固。" if mentioned_turns else
+                     "❌ 全程都没被提及——从第一轮就不在 AI 的视野里。")),
+        "note": "真实客户会连续追问对比、逼单、问缺点。这个沙盒模拟完整成交链路，查清你在哪个深度环节被截胡。",
+    }
+
+
 def estimate_cost(question_count: int, platform_count: int,
                   cost_level: str = "cheap") -> dict:
     """
