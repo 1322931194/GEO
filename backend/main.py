@@ -270,6 +270,35 @@ def plan_of(user: User) -> dict:
     return PLANS.get(user.plan, PLANS["trial"])
 
 
+def _check_advanced_quota(user: User, feature: str, session: Session) -> dict:
+    """检查高成本功能配额（沙盒/批量/语义差距）。
+    599增长版每月1次，980畅享版每月2次——控制成本，同时是高感知卖点。"""
+    plan = plan_of(user)
+    limit_key = f"{feature}_limit"
+    count_key = f"{feature}_count"
+    limit = plan.get(limit_key, 0)
+    used = getattr(user, count_key, 0) or 0
+    names = {"sandbox": "多轮追问沙盒", "bulk": "批量关键词监测", "semgap": "语义差距分析"}
+    fname = names.get(feature, feature)
+    if limit <= 0:
+        raise HTTPException(403, f"「{fname}」是增长版及以上专属功能。升级后每月可用 1-2 次。")
+    if used >= limit:
+        raise HTTPException(403, f"本月「{fname}」配额已用完（{used}/{limit} 次）。"
+                                 f"{'升级畅享版每月可用 2 次。' if limit == 1 else '下月自动重置。'}")
+    return {"limit": limit, "used": used, "remaining": limit - used}
+
+
+def _consume_advanced_quota(user: User, feature: str, session: Session):
+    """消耗一次高级功能配额"""
+    count_key = f"{feature}_count"
+    try:
+        setattr(user, count_key, (getattr(user, count_key, 0) or 0) + 1)
+        session.add(user)
+        session.commit()
+    except Exception:
+        session.rollback()
+
+
 # 一次性/临时邮箱域名黑名单（垃圾注册最常用，拦掉它们零摩擦防滥用）
 DISPOSABLE_EMAIL_DOMAINS = {
     "mailinator.com", "guerrillamail.com", "10minutemail.com", "tempmail.com",
@@ -416,7 +445,14 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
         user.password_hash = _make_pw_hash(req.password)
     # 记录登录活跃数据（后台分析用）
     try:
-        user.last_login_at = datetime.now(timezone(timedelta(hours=8)))
+        _now = datetime.now(timezone(timedelta(hours=8)))
+        # 高级功能配额每月1号重置
+        _last = getattr(user, "last_login_at", None)
+        if _last and _last.month != _now.month:
+            user.sandbox_count = 0
+            user.bulk_count = 0
+            user.semgap_count = 0
+        user.last_login_at = _now
         user.login_count = (getattr(user, "login_count", 0) or 0) + 1
         session.add(user)
         session.commit()
@@ -2604,6 +2640,148 @@ async def brand_sentiment_position(brand_id: int, user: User = Depends(current_u
         "alerts": alerts,
         "note": "「被提到」不等于「被推荐」。负面提及比不提及更危险；末尾带过的价值远低于首推位。这才是提及的真实含金量。",
     }
+
+@app.get("/api/advanced/quota")
+async def advanced_quota(user: User = Depends(current_user)):
+    """查询高级功能剩余配额"""
+    plan = plan_of(user)
+    def _q(f):
+        limit = plan.get(f"{f}_limit", 0)
+        used = getattr(user, f"{f}_count", 0) or 0
+        return {"limit": limit, "used": used, "remaining": max(0, limit - used)}
+    return {
+        "plan_name": plan.get("name", user.plan),
+        "sandbox": _q("sandbox"), "bulk": _q("bulk"), "semgap": _q("semgap"),
+        "note": "多轮沙盒 / 批量监测 / 语义差距分析都是高算力功能，增长版每月 1 次、畅享版每月 2 次。",
+    }
+
+
+class SandboxReq(BaseModel):
+    brand_id: int
+    turns: list = []          # 3-5轮追问
+    platform: str = "deepseek"
+
+@app.post("/api/advanced/sandbox")
+async def advanced_sandbox(req: SandboxReq, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★多轮追问沙盒（每月限次）：维持上下文，模拟客户连续追问，查清在哪轮被截胡。"""
+    brand = _owned_brand(req.brand_id, user, session)
+    _check_advanced_quota(user, "sandbox", session)
+    turns = [t.strip() for t in (req.turns or []) if t and t.strip()][:5]
+    if len(turns) < 2:
+        raise HTTPException(400, "至少需要 2 轮追问问题")
+    comps = [c.strip() for c in (brand.competitors or "").split(",") if c.strip()]
+    try:
+        from services.monitor import run_sandbox_multiturn
+        result = await run_sandbox_multiturn(brand.name, comps, turns, req.platform)
+    except Exception as e:
+        raise HTTPException(500, f"沙盒运行失败：{type(e).__name__}: {e}")
+    if result.get("error"):
+        raise HTTPException(400, result["error"])
+    _consume_advanced_quota(user, "sandbox", session)
+    plan = plan_of(user)
+    result["quota"] = {"limit": plan.get("sandbox_limit", 0),
+                       "used": getattr(user, "sandbox_count", 0)}
+    return result
+
+
+class BulkReq(BaseModel):
+    brand_id: int
+    keywords: list = []       # 批量关键词
+    platform: str = "deepseek"
+
+@app.post("/api/advanced/bulk-monitor")
+async def advanced_bulk_monitor(req: BulkReq, user: User = Depends(current_user),
+                                session: Session = Depends(get_session)):
+    """★批量关键词监测（每月限次）：一次监测多个长尾词，生成竞争格局矩阵。
+    诚实：为控制成本和时长，单次上限 30 个词、单平台。"""
+    brand = _owned_brand(req.brand_id, user, session)
+    _check_advanced_quota(user, "bulk", session)
+    kws = [k.strip() for k in (req.keywords or []) if k and k.strip()][:30]
+    if not kws:
+        raise HTTPException(400, "请至少提供 1 个关键词")
+    comps = [c.strip() for c in (brand.competitors or "").split(",") if c.strip()]
+    try:
+        from services.monitor import run_monitoring
+        report = await run_monitoring(brand.name, kws, comps,
+                                      samples_per_question=1,
+                                      mode=getattr(brand, "mode", "domestic"),
+                                      max_platforms=1, skip_resample=True)
+    except Exception as e:
+        raise HTTPException(500, f"批量监测失败：{type(e).__name__}: {e}")
+    _consume_advanced_quota(user, "bulk", session)
+
+    # 生成竞争格局矩阵
+    matrix = []
+    for r in (report.raw_results or []):
+        matrix.append({
+            "keyword": r.get("question", "")[:50],
+            "mentioned": bool(r.get("mentioned", False)),
+            "competitors": r.get("competitors_found", []) or r.get("competitors", []),
+        })
+    won = sum(1 for m in matrix if m["mentioned"])
+    plan = plan_of(user)
+    return {
+        "keywords_tested": len(kws),
+        "mention_rate": round(report.mention_rate, 1),
+        "won_keywords": won,
+        "lost_keywords": len(matrix) - won,
+        "matrix": matrix,
+        "quota": {"limit": plan.get("bulk_limit", 0), "used": getattr(user, "bulk_count", 0)},
+        "insight": f"测了 {len(kws)} 个词，你在 {won} 个词上被 AI 提及，{len(matrix)-won} 个词上缺席。缺席的词就是你的机会缺口。",
+        "note": "为控制成本，单次批量监测上限 30 个词、单平台。需要更大规模请联系企业定制。",
+    }
+
+
+class SemGapReq(BaseModel):
+    brand_id: int
+    your_content: str = ""    # 你的内容（可选，不填则用已生成内容）
+
+@app.post("/api/advanced/semantic-gap")
+async def advanced_semantic_gap(req: SemGapReq, user: User = Depends(current_user),
+                                session: Session = Depends(get_session)):
+    """★语义差距分析（每月限次）：找出你的内容比 AI 高分竞品语料少了哪些关键实体词。"""
+    brand = _owned_brand(req.brand_id, user, session)
+    _check_advanced_quota(user, "semgap", session)
+
+    # 取 AI 推荐竞品时的原文作为高分语料
+    try:
+        evs = session.exec(select(AIEvidence).where(
+            AIEvidence.brand_id == req.brand_id).order_by(
+            AIEvidence.captured_at.desc()).limit(20)).all()
+    except Exception:
+        session.rollback()
+        evs = []
+    comp_answers = [e.answer_text for e in evs
+                    if e.answer_text and getattr(e, "competitors_found", "")][:3]
+    if not comp_answers:
+        comp_answers = [e.answer_text for e in evs if e.answer_text][:3]
+
+    # 你的内容
+    your_content = req.your_content or ""
+    if not your_content:
+        try:
+            gcs = session.exec(select(GeneratedContent).where(
+                GeneratedContent.brand_id == req.brand_id).order_by(
+                GeneratedContent.created_at.desc()).limit(2)).all()
+            your_content = "\n".join(g.body or "" for g in gcs)
+        except Exception:
+            session.rollback()
+
+    try:
+        from services.generator import analyze_semantic_gap
+        result = await analyze_semantic_gap(brand.name, brand.industry,
+                                            your_content, comp_answers)
+    except Exception as e:
+        raise HTTPException(500, f"语义分析失败：{type(e).__name__}: {e}")
+    if not result.get("has_data"):
+        return result
+    _consume_advanced_quota(user, "semgap", session)
+    plan = plan_of(user)
+    result["quota"] = {"limit": plan.get("semgap_limit", 0),
+                       "used": getattr(user, "semgap_count", 0)}
+    return result
+
 
 class RoiReportReq(BaseModel):
     avg_order_value: float = 0    # 客单价（商家填）
