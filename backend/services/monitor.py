@@ -122,6 +122,13 @@ PLATFORMS = {
         "model": "hunyuan-turbo",
         "cost": "cheap",
     },
+    "spark": {
+        "label": "讯飞星火",
+        "api_key_env": "SPARK_API_KEY",
+        "url": "https://spark-api-open.xf-yun.com/v1/chat/completions",
+        "model": "generalv3.5",
+        "cost": "cheap",
+    },
 }
 
 
@@ -278,7 +285,7 @@ _DISPATCH = {
 
 # 平台分组
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "grok", "deepseek"}
-DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao"}
+DOMESTIC_PLATFORMS  = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao", "spark"}
 
 # ===== QuickRouter 中转配置（接法B：只中转海外平台）=====
 # 海外平台（ChatGPT/Gemini/Claude/Perplexity）难直连，可通过 QuickRouter 统一中转。
@@ -463,7 +470,7 @@ def _analyze_answer(answer: str, brand: str, competitors: list) -> dict:
 
 # 平台分组：出海模式 vs 国内模式
 OUTBOUND_PLATFORMS = {"chatgpt", "gemini", "claude", "perplexity", "grok", "deepseek", "qwen"}
-DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao"}
+DOMESTIC_PLATFORMS = {"deepseek", "qwen", "kimi", "doubao", "wenxin", "glm", "yuanbao", "spark"}
 
 async def run_monitoring(
     brand: str,
@@ -511,7 +518,7 @@ async def run_monitoring(
     if economy and mode == "domestic":
         # 国内经济模式：优先测最主流平台（免费版只测3个时，要测最有代表性的）
         # 豆包(月活最大) > DeepSeek(最火) > 文心(百度系) > 通义 > Kimi > 智谱 > 元宝
-        domestic_priority = ["doubao", "deepseek", "wenxin", "qwen", "kimi", "glm", "yuanbao"]
+        domestic_priority = ["doubao", "deepseek", "wenxin", "qwen", "kimi", "glm", "yuanbao", "spark"]
         ordered = [p for p in domestic_priority if p in available]
         ordered += [p for p in available if p not in ordered]
         available = {p: available[p] for p in ordered[:max_platforms]}
