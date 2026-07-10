@@ -3073,6 +3073,115 @@ async def brand_trend(brand_id: int, user: User = Depends(current_user),
         "note": "这条曲线是你的 GEO 资产。监测越久，越能看清趋势、越能证明投入的价值。",
     }
 
+class SiteAuditReq(BaseModel):
+    url: str = ""
+
+@app.post("/api/brands/{brand_id}/site-audit")
+async def brand_site_audit(brand_id: int, req: SiteAuditReq,
+                           user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★见微五维·网站AI友好度体检：分析你的网站本身对 AI 友不友好。
+    五维：语义可读 / 事实密度 / 结构化证据 / 生态信号 / 承接转化。
+    规则版本地分析，零AI成本。诚实：评分高≠必被推荐，这是体检不是算命。"""
+    brand = _owned_brand(brand_id, user, session)
+    url = (req.url or "").strip()
+    if not url:
+        raise HTTPException(400, "请填写要体检的网址")
+    if not url.startswith("http"):
+        url = "https://" + url
+
+    import httpx as _hx
+    try:
+        async with _hx.AsyncClient(timeout=20, follow_redirects=True) as c:
+            r = await c.get(url, headers={"User-Agent": "Mozilla/5.0 (compatible; JianweiGEOBot/1.0)"})
+            html = r.text[:400000]
+            status = r.status_code
+    except Exception as e:
+        raise HTTPException(400, f"无法访问该网址：{type(e).__name__}。请确认网址正确且可公开访问。")
+
+    import re as _re
+    low = html.lower()
+    # 提取可见文本（粗略去标签）
+    text = _re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=_re.S | _re.I)
+    text = _re.sub(r"<[^>]+>", " ", text)
+    text = _re.sub(r"\s+", " ", text).strip()
+
+    def _meta(name):
+        m = _re.search(r'<meta[^>]+name=["\']' + name + r'["\'][^>]*content=["\']([^"\']*)', html, _re.I)
+        if not m:
+            m = _re.search(r'<meta[^>]+content=["\']([^"\']*)["\'][^>]*name=["\']' + name + r'["\']', html, _re.I)
+        return m.group(1).strip() if m else ""
+
+    title_m = _re.search(r"<title[^>]*>(.*?)</title>", html, _re.I | _re.S)
+    title = title_m.group(1).strip()[:120] if title_m else ""
+    desc = _meta("description")
+    h1s = len(_re.findall(r"<h1[\s>]", low))
+    h2s = len(_re.findall(r"<h2[\s>]", low))
+    jsonld = _re.findall(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', html, _re.S | _re.I)
+    schema_types = []
+    for b in jsonld:
+        schema_types += _re.findall(r'"@type"\s*:\s*"([^"]+)"', b)
+    schema_types = sorted(set(schema_types))[:8]
+    has_faq_schema = any("FAQ" in t for t in schema_types)
+    faq_text = len(_re.findall(r"问[：:]) |Q[：:]|常见问题|FAQ", html, _re.I)) > 0 or "常见问题" in text
+    has_table = "<table" in low
+    brand_in_page = (brand.name in text) or (brand.name.split("（")[0] in text)
+    # 事实密度：数字、价格、量词
+    nums = len(_re.findall(r"\d+", text))
+    fact_words = len(_re.findall(r"[¥￥$]|\d+\s*(年|家|个客户|万|次|人|款|种|小时|天)|价格|资质|认证", text))
+    text_len = max(len(text), 1)
+    # 生态信号
+    has_og = 'property="og:' in low or "property='og:" in low
+    has_canonical = 'rel="canonical"' in low or "rel='canonical'" in low
+    # 承接转化
+    has_contact = bool(_re.search(r"微信|电话|联系我们|tel:|咨询|预约|contact", low))
+    has_cta = bool(_re.search(r"免费|立即|获取|领取|试用|报价", text))
+
+    def clamp(x): return max(0, min(100, round(x)))
+    # ① 语义可读
+    s1 = clamp((40 if title else 0) + (25 if desc else 0) + (15 if h1s >= 1 else 0)
+               + (10 if h2s >= 2 else 0) + (10 if brand_in_page else 0))
+    # ② 事实密度
+    density = (nums + fact_words * 3) / (text_len / 1000 + 1)
+    s2 = clamp(min(density * 6, 70) + (30 if fact_words >= 5 else fact_words * 6))
+    # ③ 结构化证据
+    s3 = clamp((45 if jsonld else 0) + (20 if has_faq_schema else 0)
+               + (20 if faq_text else 0) + (15 if has_table else 0))
+    # ④ 生态信号
+    s4 = clamp((35 if has_og else 0) + (30 if has_canonical else 0) + (35 if desc else 0))
+    # ⑤ 承接转化
+    s5 = clamp((55 if has_contact else 0) + (45 if has_cta else 0))
+    total = round(s1 * 0.25 + s2 * 0.25 + s3 * 0.25 + s4 * 0.10 + s5 * 0.15)
+    grade = "A 优秀" if total >= 80 else ("B 良好" if total >= 60 else ("C 待优化" if total >= 40 else "D 急需优化"))
+
+    tips = []
+    if not title: tips.append("页面缺少 <title> 标题——AI 认识页面的第一入口，必须补上（含品牌名+核心业务）")
+    if not desc: tips.append("缺少 meta description——用一句话说清你是谁、做什么、服务谁，AI 直接引用这句")
+    if h1s == 0: tips.append("页面没有 H1 主标题——AI 靠标题层级理解内容结构")
+    if not jsonld: tips.append("没有 JSON-LD Schema 结构化数据——用见微的「Schema一键生成」补上，这是 AI 爬虫最爱")
+    elif not has_faq_schema: tips.append("已有 Schema 但缺 FAQPage 类型——问答结构最容易被 AI 引用")
+    if not faq_text: tips.append("页面没有问答（FAQ）板块——把客户常问的问题写成'问...答...'，AI 回答时会直接搬")
+    if fact_words < 5: tips.append("硬事实太少——加上具体数字：价格区间、服务年限、客户数、资质，AI 讨厌空话")
+    if not has_table: tips.append("没有数据表格——把价格/参数做成表格，AI 提取效率最高")
+    if not has_contact: tips.append("联系方式不明显——AI 推荐你之后客户找不到入口，等于白推")
+    if not has_og: tips.append("缺少 og 标签——影响页面在 AI 检索生态里的识别")
+    if not tips: tips.append("基础项都不错！下一步做站外：高权重信源发内容 + 建百科词条（用信源反推功能定位该发哪）")
+
+    return {
+        "url": url, "status": status, "title": title, "grade": grade, "total": total,
+        "dims": [
+            {"key": "语义可读", "score": s1, "desc": "AI 能不能看懂你的页面在讲什么"},
+            {"key": "事实密度", "score": s2, "desc": "有没有 AI 爱引用的具体数字和硬事实"},
+            {"key": "结构化证据", "score": s3, "desc": "Schema/FAQ/表格——AI 抓取效率"},
+            {"key": "生态信号", "score": s4, "desc": "页面元数据是否规范完整"},
+            {"key": "承接转化", "score": s5, "desc": "AI 推荐来的客户能不能找到你"},
+        ],
+        "schema_types": schema_types,
+        "tips": tips[:8],
+        "honesty": "这是规则版体检（零AI成本），评分反映的是'网站对AI友不友好'，评分高≠必被AI推荐——被推荐还取决于站外信源建设。体检解决'内功'，信源反推解决'外功'。",
+    }
+
+
 class PersonaReq(BaseModel):
     brand_persona: str = ""
     brand_slogans: str = ""
