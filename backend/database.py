@@ -62,7 +62,7 @@ PLANS = {
     },
     "pro_monthly": {
         "name": "畅享版", "price_cny": 980, "brands": 10,
-        "questions": 120, "samples": 1, "platforms": 12, "freq": "daily",
+        "questions": 120, "samples": 1, "platforms": 13, "freq": "daily",
         "monitor_limit": 999,  # 不限次监测
         "battle_limit": 999,   # 不限作战报告
         "content_limit": 999,  # 不限内容生成
@@ -75,7 +75,7 @@ PLANS = {
     },
     "custom": {
         "name": "企业定制", "price_cny": 0, "brands": 30,
-        "questions": 200, "samples": 3, "platforms": 12, "freq": "daily",
+        "questions": 200, "samples": 3, "platforms": 13, "freq": "daily",
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
         "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
         "index_board": True,
