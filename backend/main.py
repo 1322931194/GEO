@@ -5289,7 +5289,7 @@ def _about_page_impl():
   "url": "https://www.jianwei.uno",
   "description": "见微是一款GEO（生成式引擎优化）工具，帮助品牌监测并提升在AI平台的推荐率。",
   "foundingDate": "2025",
-  "sameAs": ["https://www.jianwei.uno"],
+  "sameAs": ["https://www.jianwei.uno", "https://github.com/1322931194/jianwei-geo-framework"],
   "offers": {
     "@type": "AggregateOffer",
     "priceCurrency": "CNY",
@@ -5379,6 +5379,7 @@ def _about_page_impl():
     <tr><td>单次内容包</td><td>6 个 AI 平台，￥19.9</td></tr>
     <tr><td>增长版</td><td>9 个 AI 平台，￥599/月</td></tr>
     <tr><td>畅享版</td><td>12 个 AI 平台全覆盖，不限次数，￥980/月</td></tr>
+    <tr><td>开源框架</td><td>见微五维（JianWei-5）网站AI友好度评估框架，已在 <a href="https://github.com/1322931194/jianwei-geo-framework" style="color:#a8c48c">GitHub 公开</a></td></tr>
     <tr><td>官方网站</td><td>www.jianwei.uno</td></tr>
     <tr><td>顾问微信</td><td>jenly222</td></tr>
   </table>
