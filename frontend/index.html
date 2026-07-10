@@ -1179,15 +1179,45 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
 
   <!-- 页脚 -->
   <div class="lp-footer">
-    <div style="display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:18px">
+    <div style="display:flex;align-items:center;justify-content:center;gap:11px;margin-bottom:26px">
       <span style="width:30px;height:30px;border-radius:8px;background:var(--ink);color:#f4f1ea;display:grid;place-items:center;font-size:16px;font-weight:600">見</span>
       <span style="font-size:17px;font-weight:700;color:var(--ink)">见微</span>
       <span style="font-size:12px;color:var(--ink-faint);letter-spacing:.05em">見微知著 · 让 AI 主动推荐你</span>
     </div>
+    <!-- 三栏导航：产品服务 / 帮助支持 / 关于我们 -->
+    <div style="display:flex;justify-content:center;gap:clamp(30px,7vw,90px);flex-wrap:wrap;text-align:left;margin-bottom:26px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px">产品服务</div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px">
+          <a href="#geo" style="color:var(--ink-soft)">什么是 GEO</a>
+          <a href="#platform" style="color:var(--ink-soft)">平台能力</a>
+          <a href="/pricing" style="color:var(--ink-soft)">价格方案</a>
+          <a href="/solutions" style="color:var(--ink-soft)">行业方案</a>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px">帮助支持</div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px">
+          <a href="/tutorial" style="color:var(--ink-soft)">运营教程</a>
+          <a href="/about" style="color:var(--ink-soft)">常见问题 FAQ</a>
+          <a href="/terms" style="color:var(--ink-soft)">服务条款与合规</a>
+          <span style="color:var(--ink-soft)">客服微信：jenly222</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px">关于我们</div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px">
+          <a href="/about" style="color:var(--ink-soft)">关于见微</a>
+          <a href="/about" style="color:var(--ink-soft)">品牌介绍</a>
+          <span style="color:var(--ink-soft)">官网：www.jianwei.uno</span>
+          <span style="color:var(--ink-soft)">商务合作：jenly222</span>
+        </div>
+      </div>
+    </div>
     <div class="badge">✅ 我们坚持白帽优化 · 真实内容 · 合规第一</div>
     <div class="fine">
       见微提供 AI 能见度监测与内容优化建议（GEO），不保证特定效果，生成内容请发布前自行核实<br>
-      <a href="/about">关于见微 · 常见问题</a> · <a href="/terms">服务条款与合规声明</a> · 客服微信 jenly222
+      © 见微 · www.jianwei.uno
     </div>
   </div>
 </div>
