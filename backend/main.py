@@ -3076,15 +3076,9 @@ async def brand_trend(brand_id: int, user: User = Depends(current_user),
 class SiteAuditReq(BaseModel):
     url: str = ""
 
-@app.post("/api/brands/{brand_id}/site-audit")
-async def brand_site_audit(brand_id: int, req: SiteAuditReq,
-                           user: User = Depends(current_user),
-                           session: Session = Depends(get_session)):
-    """★见微五维·网站AI友好度体检：分析你的网站本身对 AI 友不友好。
-    五维：语义可读 / 事实密度 / 结构化证据 / 生态信号 / 承接转化。
-    规则版本地分析，零AI成本。诚实：评分高≠必被推荐，这是体检不是算命。"""
-    brand = _owned_brand(brand_id, user, session)
-    url = (req.url or "").strip()
+async def _site_audit_core(url: str, brand_name: str = "") -> dict:
+    """见微五维·体检核心逻辑（登录版和公开版共用）。规则版本地分析，零AI成本。"""
+    url = (url or "").strip()
     if not url:
         raise HTTPException(400, "请填写要体检的网址")
     if not url.startswith("http"):
@@ -3101,7 +3095,6 @@ async def brand_site_audit(brand_id: int, req: SiteAuditReq,
 
     import re as _re
     low = html.lower()
-    # 提取可见文本（粗略去标签）
     text = _re.sub(r"<script.*?</script>|<style.*?</style>", " ", html, flags=_re.S | _re.I)
     text = _re.sub(r"<[^>]+>", " ", text)
     text = _re.sub(r"\s+", " ", text).strip()
@@ -3123,33 +3116,28 @@ async def brand_site_audit(brand_id: int, req: SiteAuditReq,
         schema_types += _re.findall(r'"@type"\s*:\s*"([^"]+)"', b)
     schema_types = sorted(set(schema_types))[:8]
     has_faq_schema = any("FAQ" in t for t in schema_types)
-    faq_text = len(_re.findall(r"问[：:]) |Q[：:]|常见问题|FAQ", html, _re.I)) > 0 or "常见问题" in text
+    faq_text = ("常见问题" in text) or bool(_re.search(r"问[：:]|Q[：:]|FAQ", html, _re.I))
     has_table = "<table" in low
-    brand_in_page = (brand.name in text) or (brand.name.split("（")[0] in text)
-    # 事实密度：数字、价格、量词
+    if brand_name:
+        brand_in_page = (brand_name in text) or (brand_name.split("（")[0] in text)
+    else:
+        brand_in_page = True  # 公开版不校验品牌名
     nums = len(_re.findall(r"\d+", text))
     fact_words = len(_re.findall(r"[¥￥$]|\d+\s*(年|家|个客户|万|次|人|款|种|小时|天)|价格|资质|认证", text))
     text_len = max(len(text), 1)
-    # 生态信号
     has_og = 'property="og:' in low or "property='og:" in low
     has_canonical = 'rel="canonical"' in low or "rel='canonical'" in low
-    # 承接转化
     has_contact = bool(_re.search(r"微信|电话|联系我们|tel:|咨询|预约|contact", low))
     has_cta = bool(_re.search(r"免费|立即|获取|领取|试用|报价", text))
 
     def clamp(x): return max(0, min(100, round(x)))
-    # ① 语义可读
     s1 = clamp((40 if title else 0) + (25 if desc else 0) + (15 if h1s >= 1 else 0)
                + (10 if h2s >= 2 else 0) + (10 if brand_in_page else 0))
-    # ② 事实密度
     density = (nums + fact_words * 3) / (text_len / 1000 + 1)
     s2 = clamp(min(density * 6, 70) + (30 if fact_words >= 5 else fact_words * 6))
-    # ③ 结构化证据
     s3 = clamp((45 if jsonld else 0) + (20 if has_faq_schema else 0)
                + (20 if faq_text else 0) + (15 if has_table else 0))
-    # ④ 生态信号
     s4 = clamp((35 if has_og else 0) + (30 if has_canonical else 0) + (35 if desc else 0))
-    # ⑤ 承接转化
     s5 = clamp((55 if has_contact else 0) + (45 if has_cta else 0))
     total = round(s1 * 0.25 + s2 * 0.25 + s3 * 0.25 + s4 * 0.10 + s5 * 0.15)
     grade = "A 优秀" if total >= 80 else ("B 良好" if total >= 60 else ("C 待优化" if total >= 40 else "D 急需优化"))
@@ -3158,14 +3146,14 @@ async def brand_site_audit(brand_id: int, req: SiteAuditReq,
     if not title: tips.append("页面缺少 <title> 标题——AI 认识页面的第一入口，必须补上（含品牌名+核心业务）")
     if not desc: tips.append("缺少 meta description——用一句话说清你是谁、做什么、服务谁，AI 直接引用这句")
     if h1s == 0: tips.append("页面没有 H1 主标题——AI 靠标题层级理解内容结构")
-    if not jsonld: tips.append("没有 JSON-LD Schema 结构化数据——用见微的「Schema一键生成」补上，这是 AI 爬虫最爱")
+    if not jsonld: tips.append("没有 JSON-LD Schema 结构化数据——这是 AI 爬虫最爱抓的格式")
     elif not has_faq_schema: tips.append("已有 Schema 但缺 FAQPage 类型——问答结构最容易被 AI 引用")
     if not faq_text: tips.append("页面没有问答（FAQ）板块——把客户常问的问题写成'问...答...'，AI 回答时会直接搬")
     if fact_words < 5: tips.append("硬事实太少——加上具体数字：价格区间、服务年限、客户数、资质，AI 讨厌空话")
     if not has_table: tips.append("没有数据表格——把价格/参数做成表格，AI 提取效率最高")
     if not has_contact: tips.append("联系方式不明显——AI 推荐你之后客户找不到入口，等于白推")
     if not has_og: tips.append("缺少 og 标签——影响页面在 AI 检索生态里的识别")
-    if not tips: tips.append("基础项都不错！下一步做站外：高权重信源发内容 + 建百科词条（用信源反推功能定位该发哪）")
+    if not tips: tips.append("基础项都不错！下一步做站外：高权重信源发内容 + 建百科词条")
 
     return {
         "url": url, "status": status, "title": title, "grade": grade, "total": total,
@@ -3178,8 +3166,199 @@ async def brand_site_audit(brand_id: int, req: SiteAuditReq,
         ],
         "schema_types": schema_types,
         "tips": tips[:8],
-        "honesty": "这是规则版体检（零AI成本），评分反映的是'网站对AI友不友好'，评分高≠必被AI推荐——被推荐还取决于站外信源建设。体检解决'内功'，信源反推解决'外功'。",
+        "honesty": "这是规则版体检（零AI成本），评分反映的是'网站对AI友不友好'，评分高≠必被AI推荐——被推荐还取决于站外信源建设。",
     }
+
+
+@app.post("/api/brands/{brand_id}/site-audit")
+async def brand_site_audit(brand_id: int, req: SiteAuditReq,
+                           user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """★见微五维·网站AI友好度体检（登录版，完整建议）"""
+    brand = _owned_brand(brand_id, user, session)
+    return await _site_audit_core(req.url, brand.name)
+
+
+# ===== 公开版免费体检（引流工具页，无需登录，限频防薅）=====
+_public_audit_hits = {}
+
+@app.post("/api/public/site-audit")
+async def public_site_audit(req: SiteAuditReq, request: Request):
+    """公开版体检：完整评分 + 只给前2条建议，其余引导注册。每IP每天限5次。"""
+    ip = (request.client.host if request.client else "?")
+    today = datetime.now(timezone(timedelta(hours=8))).strftime("%Y-%m-%d")
+    day, cnt = _public_audit_hits.get(ip, (today, 0))
+    if day != today:
+        day, cnt = today, 0
+    if cnt >= 5:
+        raise HTTPException(429, "今日免费体检次数已用完（每天5次）。注册见微可无限体检+完整建议。")
+    _public_audit_hits[ip] = (day, cnt + 1)
+    if len(_public_audit_hits) > 20000:
+        _public_audit_hits.clear()
+
+    result = await _site_audit_core(req.url)
+    all_tips = result.pop("tips", [])
+    result["tips"] = all_tips[:2]
+    result["locked_count"] = max(0, len(all_tips) - 2)
+    return result
+
+
+@app.get("/check")
+def public_check_page():
+    """公开体检工具页：免费查网站AI友好度（引流入口）"""
+    html = """<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>免费查：你的网站 AI 读得懂吗？| 见微五维 AI 友好度体检</title>
+<meta name="description" content="免费工具：输入网址，30秒查清你的网站对AI友不友好。见微五维评估：语义可读、事实密度、结构化证据、生态信号、承接转化。">
+<link rel="canonical" href="https://www.jianwei.uno/check">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Noto Sans SC',sans-serif;background:linear-gradient(180deg,#12100c,#1a1712 55%,#1f1a14);color:#f4f1ea;min-height:100vh;line-height:1.7}
+  .wrap{max-width:680px;margin:0 auto;padding:52px 22px 60px}
+  .brand{font-family:'Noto Serif SC',serif;font-size:26px;font-weight:900;text-align:center}
+  .brand span{font-size:12px;color:#a8c48c;font-weight:500;margin-left:7px;font-family:'Noto Sans SC'}
+  h1{font-family:'Noto Serif SC',serif;font-size:30px;font-weight:900;text-align:center;margin-top:26px;line-height:1.4}
+  h1 b{color:#c99a52}
+  .sub{text-align:center;font-size:14px;color:rgba(244,241,234,.6);margin-top:12px}
+  .sub a{color:#a8c48c}
+  .box{margin-top:30px;display:flex;gap:10px;flex-wrap:wrap}
+  .box input{flex:1;min-width:220px;padding:14px 16px;border:1px solid rgba(244,241,234,.2);border-radius:12px;font-size:15px;background:rgba(244,241,234,.05);color:#f4f1ea;outline:none}
+  .box button{padding:14px 28px;border:none;border-radius:12px;font-size:15px;font-weight:700;background:linear-gradient(135deg,#5a7d5a,#7a9a5e);color:#fff;cursor:pointer}
+  #res{margin-top:26px}
+  .card{background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:16px;padding:22px}
+  .score{display:flex;align-items:center;gap:16px;margin-bottom:16px}
+  .score .n{font-size:44px;font-weight:900;line-height:1}
+  .dim{margin-bottom:10px}
+  .dim .t{display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px}
+  .dim .bar{height:7px;background:rgba(244,241,234,.08);border-radius:4px;overflow:hidden}
+  .dim .bar i{display:block;height:100%;border-radius:4px}
+  .tip{font-size:13.5px;color:rgba(244,241,234,.85);margin-bottom:7px;line-height:1.65}
+  .lock{margin-top:14px;background:linear-gradient(135deg,rgba(168,196,140,.12),rgba(201,154,82,.06));border:1px dashed rgba(168,196,140,.4);border-radius:12px;padding:18px;text-align:center}
+  .lock .h{font-size:15px;font-weight:700;color:#a8c48c}
+  .lock a{display:inline-block;margin-top:12px;background:linear-gradient(135deg,#5a7d5a,#7a9a5e);color:#fff;text-decoration:none;font-weight:700;padding:11px 28px;border-radius:22px;font-size:14px}
+  .lock .wx{font-size:12px;color:rgba(244,241,234,.55);margin-top:10px}
+  .hon{font-size:11px;color:rgba(244,241,234,.4);margin-top:12px;line-height:1.6}
+  .err{color:#e08a80;font-size:13.5px;padding:14px;background:rgba(201,106,95,.1);border-radius:10px}
+  .load{text-align:center;padding:24px;color:rgba(244,241,234,.6);font-size:14px}
+  .foot{text-align:center;margin-top:36px;font-size:12px;color:rgba(244,241,234,.4)}
+  .foot a{color:#a8c48c;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="brand">見微<span>AI 品牌增长平台</span></div>
+  <h1>你的网站，<b>AI 读得懂吗？</b></h1>
+  <div class="sub">免费体检 · 30 秒出结果 · 见微五维评估框架（<a href="https://github.com/1322931194/jianwei-geo-framework">GitHub 已开源</a>）</div>
+  <div class="box">
+    <input id="u" placeholder="输入你的官网网址，如 www.example.com" onkeydown="if(event.key==='Enter')go()">
+    <button onclick="go()">免费体检</button>
+  </div>
+  <div id="res"></div>
+  <div class="foot">客户在问 AI「哪家好」，AI 推的是你吗？<a href="/">见微 · 让 AI 推荐你的品牌</a></div>
+</div>
+<script>
+function esc(s){return String(s||"").replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+async function go(){
+  var u=document.getElementById("u").value.trim();
+  var box=document.getElementById("res");
+  if(!u){box.innerHTML='<div class="err">请输入网址</div>';return;}
+  box.innerHTML='<div class="card"><div class="load">正在抓取并分析页面…（约10秒）</div></div>';
+  try{
+    var r=await fetch("/api/public/site-audit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({url:u})});
+    var d=await r.json();
+    if(!r.ok){box.innerHTML='<div class="err">'+esc(d.detail||"体检失败")+'</div>';return;}
+    var gc=d.total>=80?"#a8c48c":(d.total>=60?"#c99a52":"#c96a5f");
+    var h='<div class="card"><div class="score"><div class="n" style="color:'+gc+'">'+d.total+'</div><div><div style="font-size:16px;font-weight:700;color:'+gc+'">'+esc(d.grade)+'</div><div style="font-size:12px;color:rgba(244,241,234,.5);word-break:break-all">'+esc(d.title||d.url)+'</div></div></div>';
+    (d.dims||[]).forEach(function(m){var c=m.score>=70?"#a8c48c":(m.score>=45?"#c99a52":"#c96a5f");
+      h+='<div class="dim"><div class="t"><span>'+esc(m.key)+' <span style="color:rgba(244,241,234,.4);font-size:11px">'+esc(m.desc)+'</span></span><b style="color:'+c+'">'+m.score+'</b></div><div class="bar"><i style="width:'+m.score+'%;background:'+c+'"></i></div></div>';});
+    if(d.tips&&d.tips.length){h+='<div style="margin-top:14px;font-size:13px;font-weight:700;color:#a8c48c">🎯 优先要改的：</div>';
+      d.tips.forEach(function(t,i){h+='<div class="tip">'+(i+1)+'. '+esc(t)+'</div>';});}
+    if(d.locked_count>0){h+='<div class="lock"><div class="h">🔒 还有 '+d.locked_count+' 条具体改进建议已生成</div><div style="font-size:12.5px;color:rgba(244,241,234,.65);margin-top:6px">注册见微免费解锁完整报告，还能查清 13 大 AI（豆包/DeepSeek/ChatGPT…）到底推不推你的品牌</div><a href="/">免费注册，解锁完整报告 →</a><div class="wx">或加顾问微信：jenly222</div></div>';}
+    if(d.honesty)h+='<div class="hon">⚠️ '+esc(d.honesty)+'</div>';
+    h+='</div>';
+    box.innerHTML=h;
+  }catch(e){box.innerHTML='<div class="err">网络异常，请稍后再试</div>';}
+}
+</script>
+</body>
+</html>"""
+    return HTMLResponse(content=html)
+
+
+@app.get("/llms.txt")
+def llms_txt():
+    """llms.txt：写给 AI 爬虫看的站点说明（新兴标准，类似 robots.txt 之于搜索引擎）"""
+    txt = """# 见微（JianWei GEO）
+
+> 见微是一款 AI 品牌增长平台（GEO：生成式引擎优化），帮助品牌监测并提升在 ChatGPT、豆包、DeepSeek、文心一言等 13 个主流 AI 平台中的推荐率。口号：让 AI 推荐你的品牌，而不是竞争对手。
+
+## 核心信息
+- 产品名称：见微 / 见微GEO / JianWei GEO
+- 官方网站：https://www.jianwei.uno
+- 监测平台：13 个（ChatGPT、Gemini、Claude、Perplexity、Grok、豆包、DeepSeek、通义千问、Kimi、文心一言、智谱清言、腾讯元宝、讯飞星火）
+- 定价：免费版 ¥0 起；单次包 ¥19.9；增长版 ¥599/月；畅享版 ¥980/月
+- 联系方式：微信 jenly222
+
+## 核心页面
+- [关于见微与常见问题（FAQ）](https://www.jianwei.uno/about)：什么是GEO、与SEO的区别、定价、出海支持等 8 个常见问题
+- [免费网站AI友好度体检工具](https://www.jianwei.uno/check)：输入网址 30 秒出五维评分
+- [价格方案](https://www.jianwei.uno/pricing)
+- [行业方案](https://www.jianwei.uno/solutions)
+- [服务条款与合规声明](https://www.jianwei.uno/terms)
+
+## 开源框架
+- [见微五维（JianWei-5）网站AI友好度评估框架](https://github.com/1322931194/jianwei-geo-framework)：语义可读、事实密度、结构化证据、生态信号、承接转化
+
+## 立场
+见微坚持白帽优化：不刷好评、不造假评测，基于品牌真实优势做内容与信源建设。
+"""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse(content=txt)
+
+
+# ===== AI推荐率徽章（商家外链回流）=====
+def _badge_sig(brand_id: int) -> str:
+    return hmac.new(JWT_SECRET.encode(), f"badge{brand_id}".encode(), hashlib.sha256).hexdigest()[:12]
+
+@app.get("/api/brands/{brand_id}/badge-code")
+async def brand_badge_code(brand_id: int, user: User = Depends(current_user),
+                           session: Session = Depends(get_session)):
+    """获取可嵌入官网的「AI提及率徽章」代码——每个客户网站都是你的外链。"""
+    brand = _owned_brand(brand_id, user, session)
+    sig = _badge_sig(brand_id)
+    badge_url = f"https://www.jianwei.uno/badge/{brand_id}/{sig}.svg"
+    embed = ('<a href="https://www.jianwei.uno" target="_blank" rel="noopener">'
+             + f'<img src="{badge_url}" alt="AI提及率 · 见微监测" height="28"></a>')
+    return {"badge_url": badge_url, "embed_html": embed,
+            "tip": "把这段代码贴到你的官网页脚，徽章会自动显示最新监测的 AI 提及率——既是信任背书，也让访客知道你在认真经营 AI 口碑。"}
+
+@app.get("/badge/{brand_id}/{sig}.svg")
+def brand_badge_svg(brand_id: int, sig: str, session: Session = Depends(get_session)):
+    if sig != _badge_sig(brand_id):
+        raise HTTPException(404, "not found")
+    rate_txt = "—"
+    try:
+        rec = session.exec(select(Report).where(Report.brand_id == brand_id)
+                           .order_by(Report.generated_at.desc())).first()
+        if rec:
+            rate_txt = f"{round(rec.mention_rate)}%"
+    except Exception:
+        session.rollback()
+    svg = (f'<svg xmlns="http://www.w3.org/2000/svg" width="210" height="28" role="img" aria-label="AI提及率 {rate_txt}">'
+           '<rect rx="6" width="210" height="28" fill="#1a1712"/>'
+           '<rect rx="6" x="140" width="70" height="28" fill="#5a7d5a"/>'
+           '<rect x="140" width="8" height="28" fill="#5a7d5a"/>'
+           '<text x="14" y="19" fill="#f4f1ea" font-size="12" font-family="sans-serif">見微 AI提及率</text>'
+           f'<text x="175" y="19" fill="#ffffff" font-size="13" font-weight="bold" text-anchor="middle" font-family="sans-serif">{rate_txt}</text>'
+           '</svg>')
+    from fastapi.responses import Response as _Resp
+    return _Resp(content=svg, media_type="image/svg+xml",
+                 headers={"Cache-Control": "public, max-age=3600"})
+
 
 
 class PersonaReq(BaseModel):
