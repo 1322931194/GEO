@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="baidu-site-verification" content="codeva-nRCkT3neky" />
 <meta name="baidu-site-verification" content="codeva-JtwUaqAaKY" />
+<meta name="msvalidate.01" content="8F3C166746B1B1E1266CF38D4B4C2C69" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>见微 · AI GEO 获客增长平台 | 让 AI 主动推荐你的品牌</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
@@ -855,6 +856,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
       <a href="/pricing">价格</a>
       <a href="/tutorial">运营教程</a>
       <a href="/solutions">行业方案</a>
+      <a href="/check" style="color:var(--matcha);font-weight:600">免费体检</a>
       <a href="/about">关于见微</a>
       <a href="#cases">成功案例</a>
       <a onclick="gotoAuth('login')" style="cursor:pointer">登录</a>
@@ -1191,6 +1193,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px">产品服务</div>
         <div style="display:flex;flex-direction:column;gap:9px;font-size:12.5px">
           <a href="#geo" style="color:var(--ink-soft)">什么是 GEO</a>
+          <a href="/check" style="color:var(--ink-soft)">免费网站体检</a>
           <a href="#platform" style="color:var(--ink-soft)">平台能力</a>
           <a href="/pricing" style="color:var(--ink-soft)">价格方案</a>
           <a href="/solutions" style="color:var(--ink-soft)">行业方案</a>
@@ -2733,8 +2736,30 @@ async function loadSiteAudit(){
       <button class="btn-cyan" style="padding:10px 20px;font-size:13px;white-space:nowrap" onclick="runSiteAudit()">开始体检</button>
     </div>
     <div id="siteAuditResult"></div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)">
+      <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:6px">🏅 AI 提及率徽章</div>
+      <div style="font-size:12px;color:var(--ink-soft);line-height:1.6;margin-bottom:8px">把徽章贴到你的官网页脚，自动显示最新 AI 提及率——既是信任背书，也告诉访客你在认真经营 AI 口碑。</div>
+      <button class="btn-ghost" style="padding:8px 16px;font-size:12.5px" onclick="getBadge()">获取徽章代码</button>
+      <div id="badgeBox" style="margin-top:10px"></div>
+    </div>
   </div>`;
   content.insertAdjacentHTML("beforeend", h);
+}
+async function getBadge(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid){ toast("请先选择品牌"); return; }
+  const box=document.getElementById("badgeBox");
+  try{
+    const d=await api(`/api/brands/${bid}/badge-code`);
+    box.innerHTML=`<div style="background:var(--panel-2);border-radius:10px;padding:14px">
+      <div style="margin-bottom:10px"><img src="${escHtml(d.badge_url)}" alt="AI提及率徽章" height="28"></div>
+      <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:6px">把下面这段代码贴到官网页脚：</div>
+      <textarea readonly rows="2" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:11px;background:var(--panel);color:var(--ink);font-family:monospace;resize:vertical">${escHtml(d.embed_html)}</textarea>
+      <button class="btn-ghost" style="padding:7px 14px;font-size:12px;margin-top:8px" onclick='safeCopy(${JSON.stringify(d.embed_html)},"✅ 徽章代码已复制")'>📋 复制代码</button>
+      <div style="font-size:11px;color:var(--ink-faint);margin-top:8px;line-height:1.6">${escHtml(d.tip||"")}</div>
+    </div>`;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ box.innerHTML=`<div style="font-size:12px;color:var(--bad)">${escHtml(e.message||"获取失败")}</div>`; }
 }
 async function runSiteAudit(){
   const bid=currentBrandId||lastBrandIdForDash;
