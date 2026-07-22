@@ -2042,18 +2042,46 @@ function enterApp(planInfo){
   document.getElementById("authView").classList.add("hidden");
   document.getElementById("appView").classList.remove("hidden");
   document.body.classList.add("dark-app");  // 后台深色主题
-  if(planInfo) document.getElementById("planTag").textContent=planInfo.name+"版";
-  loadUsageBar();
-  // 注入移动端底部导航（解决手机上侧边栏被隐藏、无法切换功能的致命问题）
-  injectMobileNav();
-  // 登录后自动加载历史品牌
-  loadMyBrands();
-  // 加载 GEO 进度地图（小白导航）
-  loadProgressMap();
-  // 默认打开作战地图，让用户先看懂整个流程
-  if(typeof navTo==="function") navTo('map');
-  // 首次进入显示新手引导
-  maybeShowOnboarding();
+  if(planInfo){ const pt=document.getElementById("planTag"); if(pt) pt.textContent=planInfo.name+"版"; }
+
+  // ★关键修复：每一步单独兜底，任何一步失败都不能拖垮主内容显示（避免"黑屏需刷新"）
+  // 原因：这几步原来写成一条链，中间任一步报错就会中断后续执行，
+  // 导致 navTo('map') 这个真正显示内容的调用被跳过，只剩深色空壳背景。
+  try{ loadUsageBar(); }catch(e){ console.warn("loadUsageBar failed", e); }
+  try{ injectMobileNav(); }catch(e){ console.warn("injectMobileNav failed", e); }
+  try{ loadMyBrands(); }catch(e){ console.warn("loadMyBrands failed", e); }
+  try{ loadProgressMap(); }catch(e){ console.warn("loadProgressMap failed", e); }
+
+  // 主内容显示——放在最后且独立保护，这是解决"黑屏"的核心：
+  // 不管上面哪一步失败，这一步必须执行，保证用户看到界面而不是空白
+  try{
+    if(typeof navTo==="function") navTo('map');
+  }catch(e){
+    console.warn("navTo(map) failed, retry once", e);
+    // 兜底重试一次，仍失败则至少把主流程视图强制显示出来
+    try{ navTo('map'); }
+    catch(e2){
+      const mv=document.getElementById("mapView");
+      if(mv) mv.classList.remove("hidden");
+    }
+  }
+
+  try{ maybeShowOnboarding(); }catch(e){ console.warn("maybeShowOnboarding failed", e); }
+
+  // ★终极兜底：延迟200ms检查，如果所有主视图都还是隐藏状态（即出现黑屏），
+  // 强制显示作战地图，绝不让用户看到空白/黑屏
+  setTimeout(function(){
+    const views = ["mapView","mainFlow","dashboardView","boardView","workspaceView","referralView","pricingView"];
+    const anyVisible = views.some(function(id){
+      const el = document.getElementById(id);
+      return el && !el.classList.contains("hidden");
+    });
+    if(!anyVisible){
+      console.warn("检测到黑屏（所有主视图均隐藏），强制显示作战地图");
+      const mv = document.getElementById("mapView");
+      if(mv) mv.classList.remove("hidden");
+    }
+  }, 300);
 }
 
 // ===== GEO 进度地图：小白商家的导航仪 =====
