@@ -368,35 +368,59 @@ def auth_config():
     return {"require_email_verify": is_email_verify_enabled()}
 
 
+def _normalize_account(raw: str):
+    """账号标准化：支持手机号和邮箱两种登录方式。
+    返回 (标准化后的账号, 类型)，类型为 'phone' / 'email' / 'invalid'。
+    手机号统一存为纯数字，邮箱转小写——保证注册和登录用同一套规则。"""
+    import re as _re
+    s = (raw or "").strip()
+    if not s:
+        return "", "invalid"
+    # 手机号：去掉空格、横线、+86 前缀
+    digits = _re.sub(r"[\s\-()]", "", s)
+    digits = _re.sub(r"^\+?86", "", digits)
+    if _re.match(r"^1[3-9]\d{9}$", digits):
+        return digits, "phone"
+    # 邮箱
+    low = s.lower()
+    if _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", low):
+        return low, "email"
+    return s, "invalid"
+
+
 @app.post("/api/register")
 def register(req: RegisterReq, request: Request, session: Session = Depends(get_session)):
     # 限流：同一IP每小时最多注册5个账号，防批量注册
     _rate_limit(f"register:{_client_ip(request)}", max_calls=5, window_sec=3600)
-    # 邮箱标准化：去空格、转小写，避免后续登录因大小写/空格不匹配
-    email = req.email.strip().lower()
-    # 邮箱格式校验（基本正则）
-    import re as _re
-    if not _re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
-        raise HTTPException(400, "邮箱格式不正确")
-    # 拦截一次性/临时邮箱（垃圾注册最常用），真实用户无感
-    domain = email.split("@")[-1]
-    if domain in DISPOSABLE_EMAIL_DOMAINS:
-        raise HTTPException(400, "请使用常用邮箱注册（不支持临时邮箱）")
-    # 密码强度：至少8位，且不能是纯数字或纯字母（防弱密码）
+    # ★账号支持手机号或邮箱：统一标准化
+    account, acc_type = _normalize_account(req.email)
+    if acc_type == "invalid":
+        raise HTTPException(400, "请输入正确的手机号或邮箱")
+    email = account
+    # 邮箱额外校验：拦截一次性/临时邮箱（垃圾注册最常用），真实用户无感
+    if acc_type == "email":
+        domain = email.split("@")[-1]
+        if domain in DISPOSABLE_EMAIL_DOMAINS:
+            raise HTTPException(400, "请使用常用邮箱注册（不支持临时邮箱）")
+    # 密码强度：至少6位（降低门槛，提升转化）
     pw = req.password
-    if len(pw) < 8:
-        raise HTTPException(400, "密码至少需要8位")
-    if pw.isdigit() or pw.isalpha():
-        raise HTTPException(400, "密码需包含字母和数字，更安全")
+    if len(pw) < 6:
+        raise HTTPException(400, "密码至少需要6位")
     existing = session.exec(select(User).where(User.email == email)).first()
     if existing:
-        raise HTTPException(400, "该邮箱已注册")
+        raise HTTPException(400, "该手机号/邮箱已注册，请直接登录")
 
-    # 邮箱验证码校验（仅当 REQUIRE_EMAIL_VERIFY=true 时启用，默认关闭不影响转化）
-    from services.email_verify import is_email_verify_enabled, verify_code
-    if is_email_verify_enabled():
-        if not verify_code(email, req.email_code):
-            raise HTTPException(400, "验证码错误或已过期，请重新获取")
+    # 邮箱验证码校验（仅当 REQUIRE_EMAIL_VERIFY=true 且用邮箱注册时启用）
+    if acc_type == "email":
+        try:
+            from services.email_verify import is_email_verify_enabled, verify_code
+            if is_email_verify_enabled():
+                if not verify_code(email, req.email_code):
+                    raise HTTPException(400, "验证码错误或已过期，请重新获取")
+        except HTTPException:
+            raise
+        except Exception:
+            pass  # 验证模块异常不阻断注册
 
     # 处理邀请码：找到推荐人
     referrer = None
@@ -434,13 +458,19 @@ def register(req: RegisterReq, request: Request, session: Session = Depends(get_
 def login(req: RegisterReq, request: Request, session: Session = Depends(get_session)):
     # 限流：同一IP每5分钟最多10次登录尝试，防暴力破解
     _rate_limit(f"login:{_client_ip(request)}", max_calls=10, window_sec=300)
-    # 邮箱标准化，与注册保持一致
-    email = req.email.strip().lower()
-    # 同账号失败锁定：单个邮箱5分钟内最多8次尝试，防撞库（针对特定账号的暴力破解）
+    # ★账号支持手机号或邮箱
+    email, acc_type = _normalize_account(req.email)
+    if acc_type == "invalid":
+        raise HTTPException(400, "请输入正确的手机号或邮箱")
+    # 同账号失败锁定：单个账号5分钟内最多8次尝试，防撞库
     _rate_limit(f"login_acct:{email}", max_calls=8, window_sec=300)
-    user = session.exec(select(User).where(User.email == email)).first()
+    try:
+        user = session.exec(select(User).where(User.email == email)).first()
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(500, f"账号查询失败：{type(e).__name__}。请稍后重试或联系客服。")
     if not user or not _verify_pw(req.password, user.password_hash):
-        raise HTTPException(401, "邮箱或密码错误")
+        raise HTTPException(401, "账号或密码错误")
     # 旧版SHA256密码，登录成功后自动升级为加盐版
     if "$" not in user.password_hash:
         user.password_hash = _make_pw_hash(req.password)
@@ -459,8 +489,14 @@ def login(req: RegisterReq, request: Request, session: Session = Depends(get_ses
         session.commit()
     except Exception:
         session.rollback()
+    # ★套餐兜底：老账号可能存着已下线的套餐名（如 starter/pro），
+    # plan_of 会自动回退到 trial，这里再包一层防止任何异常导致登录失败
+    try:
+        _plan_info = plan_of(user)
+    except Exception:
+        _plan_info = PLANS["trial"]
     return {"token": _make_token(user.id, getattr(user, "token_version", 0)), "plan": user.plan,
-            "plan_info": plan_of(user)}
+            "plan_info": _plan_info}
 
 
 @app.get("/api/me")
@@ -1873,8 +1909,12 @@ async def gen_content(req: GenContentReq, request: Request, user: User = Depends
     _cplan = plan_of(user)
     _climit = _cplan.get("content_limit", 0)
     _cused = getattr(user, "content_count", 0) or 0
+    if _climit <= 0:
+        raise HTTPException(403, "内容生成是付费功能。花 9.9 元查一次即赠送 1 篇 AI 优化内容，"
+                                 "季度版每月可生成 50 篇。升级后即可使用。")
     if _climit < 999 and _cused >= _climit:
-        raise HTTPException(403, "内容生成体验次数已用完。升级专业版可不限次生成符合AI口味的优质内容。")
+        raise HTTPException(403, f"本期内容生成额度已用完（{_cused}/{_climit} 篇）。"
+                                 f"升级更高套餐可获得更多额度。")
     # 融合知识库：把知识库条目拼进品牌资料，让生成内容更准、更像品牌
     kb_items = session.exec(
         select(KnowledgeItem).where(KnowledgeItem.brand_id == brand.id)
@@ -1899,11 +1939,26 @@ async def gen_content(req: GenContentReq, request: Request, user: User = Depends
     if _t:
         persona_text += f"\n【内容禁忌（绝对不能出现）】{_t}"
 
-    result = await generate_content(
-        brand.name, req.gap_question, brand.product,
-        content_type=req.content_type, brand_facts=kb_text + persona_text,
-        hard_facts=(req.hard_facts or {}),
-    )
+    try:
+        result = await generate_content(
+            brand.name, req.gap_question, brand.product,
+            content_type=req.content_type, brand_facts=kb_text + persona_text,
+            hard_facts=(req.hard_facts or {}),
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        # 把真实原因返回给前端，避免用户只看到"请求失败"
+        _msg = f"{type(e).__name__}: {str(e)[:200]}"
+        try:
+            import logging as _lg
+            _lg.getLogger("uvicorn.error").error(f"[gen_content] 生成失败 brand={brand.id}: {_msg}")
+        except Exception:
+            pass
+        raise HTTPException(500, f"内容生成失败：{_msg}。常见原因：AI 接口密钥未配置或额度不足、网络超时。请稍后重试或联系客服。")
+
+    if not result or not result.get("body"):
+        raise HTTPException(500, "AI 返回内容为空，请重试。若持续失败，可能是 AI 接口额度不足。")
     gc = GeneratedContent(
         brand_id=brand.id, gap_question=req.gap_question,
         content_type=req.content_type, title=result.get("title", ""),
