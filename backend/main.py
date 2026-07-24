@@ -2626,6 +2626,199 @@ async def brand_weekly_report(brand_id: int, user: User = Depends(current_user),
         "note": "GEO 是持续战——竞品也在优化。每周看一眼战报，知道要不要反击。",
     }
 
+@app.get("/api/brands/{brand_id}/benchmark")
+async def brand_benchmark(brand_id: int, user: User = Depends(current_user),
+                          session: Session = Depends(get_session)):
+    """★行业基准对比：你在同行里排第几。
+    这是见微独有的数据资产——监测的品牌越多，基准越准，竞品越难复制。
+    诚实：样本不足时如实说明，不编造行业均值。"""
+    brand = _owned_brand(brand_id, user, session)
+    ind = (brand.industry or "").strip()
+
+    # 我的最新提及率
+    my_rate = None
+    try:
+        rec = session.exec(select(Report).where(Report.brand_id == brand_id)
+                           .order_by(Report.generated_at.desc())).first()
+        if rec:
+            my_rate = round(rec.mention_rate, 1)
+    except Exception:
+        session.rollback()
+    if my_rate is None:
+        return {"has_data": False, "tip": "还没有监测数据，先做一次监测。"}
+
+    # 同行业其他品牌的最新提及率（脱敏，只用于计算基准）
+    peer_rates = []
+    try:
+        if ind:
+            peers = session.exec(select(Brand).where(Brand.industry == ind).limit(500)).all()
+            for p in peers:
+                if p.id == brand_id:
+                    continue
+                r = session.exec(select(Report).where(Report.brand_id == p.id)
+                                 .order_by(Report.generated_at.desc())).first()
+                if r and r.mention_rate is not None:
+                    peer_rates.append(round(r.mention_rate, 1))
+    except Exception:
+        session.rollback()
+
+    MIN_SAMPLE = 5   # 样本太少不给基准，避免误导
+    if len(peer_rates) < MIN_SAMPLE:
+        return {
+            "has_data": False,
+            "my_rate": my_rate,
+            "industry": ind or "未填写行业",
+            "sample_size": len(peer_rates),
+            "tip": f"「{ind or '你的行业'}」目前样本数 {len(peer_rates)} 个，还不足以计算可靠的行业基准"
+                   f"（至少需要 {MIN_SAMPLE} 个）。我们不会用编造的数字糊弄你——"
+                   f"随着更多同行加入，这里会显示你在行业中的真实排位。",
+            "honesty": "行业基准基于见微平台内同行业品牌的真实监测数据，样本不足时如实说明。",
+        }
+
+    all_rates = sorted(peer_rates + [my_rate], reverse=True)
+    n = len(all_rates)
+    avg = round(sum(all_rates) / n, 1)
+    my_rank = all_rates.index(my_rate) + 1
+    percentile = round(100 * (n - my_rank) / (n - 1), 0) if n > 1 else 50
+    top10 = round(sum(all_rates[:max(1, n // 10)]) / max(1, n // 10), 1)
+
+    if percentile >= 80:
+        verdict = f"🏆 你排在行业前 {100 - int(percentile)}%，领先大部分同行。守住这个位置，别让对手追上。"
+    elif percentile >= 50:
+        verdict = f"📊 你处在行业中上游（超过 {int(percentile)}% 的同行）。距离头部还有空间，持续发力能进前列。"
+    elif percentile >= 20:
+        verdict = f"⚠️ 你在行业中下游（超过 {int(percentile)}% 的同行）。同行已经在 AI 上占位了，再不动作差距会拉大。"
+    else:
+        verdict = f"🚨 你排在行业后 {int(percentile) if percentile > 0 else 20}%。客户问 AI 时，大概率看到的是同行而不是你。"
+
+    return {
+        "has_data": True,
+        "industry": ind,
+        "my_rate": my_rate,
+        "industry_avg": avg,
+        "top10_avg": top10,
+        "my_rank": my_rank,
+        "sample_size": n,
+        "percentile": int(percentile),
+        "gap_to_avg": round(my_rate - avg, 1),
+        "gap_to_top": round(top10 - my_rate, 1),
+        "verdict": verdict,
+        "honesty": f"基于见微平台内「{ind}」行业 {n} 个品牌的真实监测数据计算，不含任何估算。样本越多越准确。",
+    }
+
+
+class PublishReq(BaseModel):
+    published_url: str = ""
+    published_platform: str = ""
+
+@app.post("/api/contents/{content_id}/publish")
+async def mark_content_published(content_id: int, req: PublishReq,
+                                 user: User = Depends(current_user),
+                                 session: Session = Depends(get_session)):
+    """★执行闭环：标记内容已发布。
+    这是整个 GEO 链路最容易断的一环——内容生成了却躺在后台没发出去。"""
+    gc = session.get(GeneratedContent, content_id)
+    if not gc:
+        raise HTTPException(404, "内容不存在")
+    brand = _owned_brand(gc.brand_id, user, session)
+    gc.status = "published"
+    gc.published_at = datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    gc.published_url = (req.published_url or "")[:500]
+    gc.published_platform = (req.published_platform or "")[:50]
+    session.add(gc)
+    # 同步记一条行动打点，趋势曲线上会显示
+    try:
+        from database import ActionLog
+        session.add(ActionLog(
+            user_id=user.id, brand_id=brand.id,
+            action_date=datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None),
+            action_type="publish", platform=(req.published_platform or "")[:50],
+            description=f"发布内容：{(gc.title or '')[:40]}", content_count=1))
+    except Exception:
+        pass
+    session.commit()
+    return {"ok": True, "msg": "已标记发布！两周后再监测一次，曲线上能看到这次动作带来的变化。"}
+
+
+@app.get("/api/brands/{brand_id}/execution")
+async def brand_execution(brand_id: int, user: User = Depends(current_user),
+                          session: Session = Depends(get_session)):
+    """★执行进度看板：多少内容生成了、多少真发出去了、多久没发了。
+    诚实提醒：不执行，再准的诊断也等于零。"""
+    brand = _owned_brand(brand_id, user, session)
+    try:
+        contents = session.exec(select(GeneratedContent).where(
+            GeneratedContent.brand_id == brand_id).order_by(
+            GeneratedContent.created_at.desc()).limit(100)).all()
+    except Exception:
+        session.rollback()
+        contents = []
+
+    total = len(contents)
+    published = [c for c in contents if (getattr(c, "status", "") == "published")]
+    pending = [c for c in contents if (getattr(c, "status", "") != "published")]
+    rate = round(100 * len(published) / total, 1) if total else 0
+
+    now = datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    days_since_last = None
+    if published:
+        try:
+            last = max([c.published_at for c in published if c.published_at] or [None])
+            if last:
+                days_since_last = (now - last).days
+        except Exception:
+            pass
+
+    # 待发布清单（可直接点击去处理）
+    pending_list = [{
+        "id": c.id, "title": (c.title or "")[:50],
+        "type": c.content_type,
+        "created": str(c.created_at)[:10],
+        "days_ago": (now - c.created_at).days if c.created_at else 0,
+    } for c in pending[:10]]
+
+    # 提醒（这是这个功能的核心价值）
+    alerts = []
+    if pending:
+        oldest = max([p["days_ago"] for p in pending_list] or [0])
+        lvl = "high" if oldest >= 7 else "mid"
+        alerts.append({
+            "level": lvl,
+            "msg": f"📝 你有 {len(pending)} 篇内容生成后还没发布"
+                   + (f"，最早的一篇已经躺了 {oldest} 天。" if oldest >= 3 else "。"),
+            "action": "内容不发出去，AI 永远看不到你。挑 2 篇今天就发到高权重平台，发完回来标记一下。",
+        })
+    if days_since_last is not None and days_since_last >= 14:
+        alerts.append({
+            "level": "high",
+            "msg": f"⏰ 距离上次发布已经 {days_since_last} 天了。",
+            "action": "AI 偏好持续更新的品牌。停更太久，之前积累的优势会被竞品慢慢抢走。",
+        })
+    if not alerts and published:
+        alerts.append({
+            "level": "good",
+            "msg": f"✅ 执行得不错！已发布 {len(published)} 篇，执行率 {rate}%。",
+            "action": "保持节奏，每周至少发 2 篇。GEO 是复利游戏，做得越久越难被超越。",
+        })
+    if not total:
+        alerts.append({
+            "level": "mid",
+            "msg": "还没有生成过内容。",
+            "action": "先做一次监测找出缺口问题，然后生成针对性内容——这是抢回推荐位的第一步。",
+        })
+
+    return {
+        "total": total,
+        "published_count": len(published),
+        "pending_count": len(pending),
+        "execution_rate": rate,
+        "days_since_last": days_since_last,
+        "pending_list": pending_list,
+        "alerts": alerts,
+        "note": "执行率是 GEO 效果的第一决定因素。工具能告诉你做什么，但内容必须真的发出去，AI 才能看到你。",
+    }
+
+
 class ActionReq(BaseModel):
     action_date: str = ""       # YYYY-MM-DD，空=今天
     action_type: str = "publish"  # publish/schema/baike/other
@@ -5124,6 +5317,94 @@ def admin_operations(key: str, session: Session = Depends(get_session)):
     }
 
 
+@app.get("/api/admin/customer-success")
+def admin_customer_success(key: str, session: Session = Depends(get_session)):
+    """★客户成功仪表盘：一屏看清所有客户健康度——谁在涨、谁停滞、谁快流失。
+    这是主动干预的基础，不是等客户走了才知道。"""
+    _check_admin(key)
+    now = datetime.now(timezone(timedelta(hours=8))).replace(tzinfo=None)
+    try:
+        users = session.exec(select(User).order_by(User.id.desc()).limit(300)).all()
+    except Exception:
+        session.rollback()
+        return {"customers": [], "summary": {}, "error": "查询失败"}
+
+    rows = []
+    for u in users:
+        try:
+            brands = session.exec(select(Brand).where(Brand.user_id == u.id)).all()
+            if not brands:
+                continue
+            bid = brands[0].id
+            reports = session.exec(select(Report).where(Report.brand_id == bid)
+                                   .order_by(Report.generated_at.desc()).limit(10)).all()
+            # 提及率趋势
+            cur_rate = round(reports[0].mention_rate, 1) if reports else None
+            first_rate = round(reports[-1].mention_rate, 1) if len(reports) > 1 else cur_rate
+            delta = round(cur_rate - first_rate, 1) if (cur_rate is not None and first_rate is not None) else 0
+            # 执行情况
+            try:
+                cs = session.exec(select(GeneratedContent).where(
+                    GeneratedContent.brand_id == bid)).all()
+                pub = len([c for c in cs if getattr(c, "status", "") == "published"])
+                pend = len(cs) - pub
+            except Exception:
+                session.rollback()
+                cs, pub, pend = [], 0, 0
+            # 活跃度
+            last_login = getattr(u, "last_login_at", None)
+            days_silent = (now - last_login.replace(tzinfo=None)).days if last_login else 999
+            # 到期
+            exp = getattr(u, "plan_expires_at", None)
+            days_to_expire = (exp.replace(tzinfo=None) - now).days if exp else None
+
+            # 健康度判定（这是核心：告诉你该管谁）
+            if u.plan == "trial":
+                health, hint = "free", "免费用户 · 引导升级"
+            elif days_silent >= 14:
+                health, hint = "danger", f"🚨 {days_silent}天没登录 · 立即联系"
+            elif days_to_expire is not None and days_to_expire <= 7:
+                health, hint = "danger", f"🚨 {days_to_expire}天后到期 · 该谈续费了"
+            elif pend >= 3 and pub == 0:
+                health, hint = "warn", "⚠️ 生成了内容但一篇没发 · 需要推一把"
+            elif delta < -3:
+                health, hint = "warn", f"⚠️ 提及率跌了{abs(delta)}% · 主动关心"
+            elif delta > 5:
+                health, hint = "good", f"✅ 提及率涨{delta}% · 可要案例授权"
+            else:
+                health, hint = "normal", "正常"
+
+            rows.append({
+                "user_id": u.id, "email": u.email, "plan": u.plan,
+                "plan_name": PLANS.get(u.plan, {}).get("name", u.plan),
+                "brand": brands[0].name,
+                "current_rate": cur_rate, "delta": delta,
+                "monitor_count": len(reports),
+                "content_total": len(cs), "published": pub, "pending": pend,
+                "days_silent": days_silent if days_silent < 999 else None,
+                "days_to_expire": days_to_expire,
+                "total_spent": getattr(u, "total_spent", 0) or 0,
+                "health": health, "hint": hint,
+            })
+        except Exception:
+            session.rollback()
+            continue
+
+    order = {"danger": 0, "warn": 1, "good": 2, "normal": 3, "free": 4}
+    rows.sort(key=lambda r: (order.get(r["health"], 9), -(r["total_spent"] or 0)))
+    return {
+        "customers": rows,
+        "summary": {
+            "total": len(rows),
+            "danger": len([r for r in rows if r["health"] == "danger"]),
+            "warn": len([r for r in rows if r["health"] == "warn"]),
+            "good": len([r for r in rows if r["health"] == "good"]),
+            "paid": len([r for r in rows if r["plan"] != "trial"]),
+        },
+        "note": "按紧急程度排序：红色的今天就该联系。客户流失从来不是突然的，都有征兆。",
+    }
+
+
 @app.get("/api/admin/revenue-dashboard")
 def admin_revenue_dashboard(key: str, session: Session = Depends(get_session)):
     """收入看板 + 流失预警（营销管理核心）。今日/本月收入、各套餐占比、快到期用户、沉默付费用户。"""
@@ -5843,6 +6124,10 @@ td{padding:8px;border-bottom:1px solid rgba(244,241,234,.08);color:#f4f1ea}
 <div id="keycheck">点"立即检测"开始</div>
 </div>
 <div class="card">
+<h2>🎯 客户成功仪表盘 <span style="font-size:12px;color:#888;font-weight:400">按紧急程度排序，红色的今天就该联系</span><button onclick="loadCS()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
+<div id="csBox">点刷新加载客户健康度</div>
+</div>
+<div class="card">
 <h2>📈 运营数据（今日）<button onclick="loadOps()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
 <div id="opsBox" style="margin-bottom:20px"><p style="color:#888">点刷新加载今日运营数据</p></div>
 <h2>💰 收入看板 + 流失预警<button onclick="loadRevenue()" style="width:auto;padding:4px 12px;font-size:12px;float:right">刷新</button></h2>
@@ -6021,6 +6306,47 @@ async function loadJourney(){
     h+="</div>";
     box.innerHTML=h;
   }catch(e){ box.innerHTML="<p style='color:#e34'>查询失败："+e.message+"</p>"; }
+}
+
+async function loadCS(){
+  const box=document.getElementById("csBox");
+  box.innerHTML="加载中…";
+  try{
+    const d=await fetch("/api/admin/customer-success?key="+encodeURIComponent(KEY)).then(r=>r.json());
+    const s=d.summary||{};
+    let h=`<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="flex:1;min-width:90px;background:#2a1a1a;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#e08a80">${s.danger||0}</div><div style="font-size:11px;color:#999">🚨 紧急</div></div>
+      <div style="flex:1;min-width:90px;background:#2a251a;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#d4a860">${s.warn||0}</div><div style="font-size:11px;color:#999">⚠️ 需关注</div></div>
+      <div style="flex:1;min-width:90px;background:#1e2a1a;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#a8c48c">${s.good||0}</div><div style="font-size:11px;color:#999">✅ 表现好</div></div>
+      <div style="flex:1;min-width:90px;background:#222;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#f4f1ea">${s.paid||0}</div><div style="font-size:11px;color:#999">付费客户</div></div>
+      <div style="flex:1;min-width:90px;background:#222;border-radius:10px;padding:12px;text-align:center"><div style="font-size:22px;font-weight:800;color:#f4f1ea">${s.total||0}</div><div style="font-size:11px;color:#999">总客户</div></div>
+    </div>`;
+    if(!(d.customers||[]).length){ box.innerHTML=h+"<p style='color:#888'>暂无有品牌的客户数据</p>"; return; }
+    h+=`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:760px">
+      <tr style="border-bottom:1px solid #333;color:#999">
+        <th style="text-align:left;padding:8px">状态</th><th style="text-align:left;padding:8px">账号 / 品牌</th>
+        <th style="text-align:center;padding:8px">套餐</th><th style="text-align:center;padding:8px">提及率</th>
+        <th style="text-align:center;padding:8px">变化</th><th style="text-align:center;padding:8px">内容</th>
+        <th style="text-align:center;padding:8px">沉默</th><th style="text-align:left;padding:8px">该做什么</th>
+      </tr>`;
+    const colors={danger:"#e08a80",warn:"#d4a860",good:"#a8c48c",normal:"#888",free:"#666"};
+    (d.customers||[]).forEach(c=>{
+      const col=colors[c.health]||"#888";
+      h+=`<tr style="border-bottom:1px solid #262626">
+        <td style="padding:8px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${col}"></span></td>
+        <td style="padding:8px"><div style="color:#f4f1ea">${c.email||""}</div><div style="color:#777;font-size:11px">${c.brand||""}</div></td>
+        <td style="text-align:center;padding:8px;color:#bbb">${c.plan_name||c.plan}</td>
+        <td style="text-align:center;padding:8px;color:#f4f1ea;font-weight:700">${c.current_rate!==null&&c.current_rate!==undefined?c.current_rate+"%":"—"}</td>
+        <td style="text-align:center;padding:8px;color:${c.delta>0?'#a8c48c':(c.delta<0?'#e08a80':'#888')}">${c.delta>0?'+':''}${c.delta}%</td>
+        <td style="text-align:center;padding:8px;color:#bbb">${c.published}/${c.content_total}</td>
+        <td style="text-align:center;padding:8px;color:${c.days_silent>=14?'#e08a80':'#888'}">${c.days_silent!==null?c.days_silent+"天":"—"}</td>
+        <td style="padding:8px;color:${col}">${c.hint||""}</td>
+      </tr>`;
+    });
+    h+=`</table></div>`;
+    if(d.note) h+=`<p style="color:#777;font-size:11.5px;margin-top:10px">${d.note}</p>`;
+    box.innerHTML=h;
+  }catch(e){ box.innerHTML="<p style='color:#e08a80'>加载失败："+e.message+"</p>"; }
 }
 
 async function loadRevenue(){
