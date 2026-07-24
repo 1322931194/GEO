@@ -910,8 +910,9 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
     <div class="label">同步监测 13 大主流 AI 平台</div>
     <div class="lp-logos">
       <span class="lg">ChatGPT</span><span class="lg">Gemini</span><span class="lg">Claude</span>
-      <span class="lg">Perplexity</span><span class="lg">DeepSeek</span><span class="lg">通义千问</span>
-      <span class="lg">Kimi</span><span class="lg">豆包</span>
+      <span class="lg">Perplexity</span><span class="lg">Grok</span><span class="lg">DeepSeek</span>
+      <span class="lg">豆包</span><span class="lg">通义千问</span><span class="lg">Kimi</span>
+      <span class="lg">文心一言</span><span class="lg">智谱清言</span><span class="lg">腾讯元宝</span><span class="lg">讯飞星火</span>
     </div>
   </div>
 
@@ -1093,7 +1094,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
       <div class="geo-why-item">
         <div class="n">🔍</div>
         <h3 style="font-size:17px;font-weight:700;margin-bottom:8px">AI 搜索监测</h3>
-        <p>8 大 AI 平台一次扫描，看清 AI 推不推你、推了哪些竞品，附真实对话截图。</p>
+        <p>13 大 AI 平台一次扫描，看清 AI 推不推你、推了哪些竞品，附真实对话截图。</p>
       </div>
       <div class="geo-why-item">
         <div class="n">🎯</div>
@@ -1139,13 +1140,35 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
   <!-- 案例 -->
   <section class="lp-section" id="cases" style="padding-top:0">
     <div class="lp-section-head">
-      <div class="eyebrow" style="margin-bottom:14px">📈 真实效果</div>
-      <h2 class="sec-title">他们已经让 AI 开始推荐自己</h2>
-      <p class="sec-sub">从"AI 搜不到"到"被 AI 主动推荐"，平均提升 <b style="color:var(--lime-ink)" id="avgImprove">34</b> 个百分点</p>
+      <div class="eyebrow" style="margin-bottom:14px">🤝 我们的承诺</div>
+      <h2 class="sec-title">我们不编案例，只给你真数据</h2>
+      <p class="sec-sub">见微刚刚起步。与其挂几个看不出真假的"成功案例"，不如把话说清楚</p>
     </div>
-    <div class="case-grid" id="casesContainer"></div>
-    <div style="text-align:center;margin-top:36px">
-      <button class="btn-action" onclick="gotoAuth('reg')">我也要让 AI 推荐我 →</button>
+    <div style="max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px">
+      <div class="glass" style="border-radius:18px;padding:26px 28px">
+        <div style="font-size:26px;margin-bottom:12px">📊</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px">数据都是真查的</div>
+        <div style="font-size:13.5px;color:rgba(244,241,234,.68);line-height:1.75">每次监测都是真实调用 AI 平台，把回答原文完整存档给你。<b style="color:#a8c48c">不做估算、不做模拟</b>——所以监测要等 1-2 分钟。</div>
+      </div>
+      <div class="glass" style="border-radius:18px;padding:26px 28px">
+        <div style="font-size:26px;margin-bottom:12px">🚫</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px">不刷好评、不造假</div>
+        <div style="font-size:13.5px;color:rgba(244,241,234,.68);line-height:1.75">批量刷虚假评测违反《反不正当竞争法》，AI 也越来越能识别。我们做的是<b style="color:#a8c48c">把你的真实优势，放到 AI 能看见的地方</b>。</div>
+      </div>
+      <div class="glass" style="border-radius:18px;padding:26px 28px">
+        <div style="font-size:26px;margin-bottom:12px">⏱️</div>
+        <div style="font-size:17px;font-weight:700;margin-bottom:8px">效果需要时间，不吹速成</div>
+        <div style="font-size:13.5px;color:rgba(244,241,234,.68);line-height:1.75">AI 收录新内容通常 2-6 周，提及率明显变化一般在 30-45 天后。<b style="color:#a8c48c">谁跟你说一周见效，你要小心</b>。</div>
+      </div>
+    </div>
+    <div style="max-width:900px;margin:20px auto 0;background:rgba(201,154,82,.08);border:1px solid rgba(201,154,82,.28);border-radius:16px;padding:20px 26px;text-align:center">
+      <div style="font-size:14px;color:rgba(244,241,234,.82);line-height:1.8">
+        💡 <b style="color:#c99a52">先花 9.9 元查一次</b>，看 AI 到底推不推你的品牌。<br>
+        查出来 AI 已经在推荐你 —— 恭喜，你不需要我们。查出来名单里没有你 —— 至少你现在知道了。
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:32px">
+      <button class="btn-action" onclick="gotoAuth('reg')">先免费查一次 →</button>
     </div>
   </section>
 
@@ -1243,7 +1266,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
       <div class="av-bot">
         <div class="av-metrics">
           <div class="av-metric"><div class="n">8</div><div class="l">AI 平台监测</div></div>
-          <div class="av-metric"><div class="n">2.4亿+</div><div class="l">日查询量</div></div>
+          <div class="av-metric"><div class="n">13</div><div class="l">监测 AI 平台</div></div>
           <div class="av-metric"><div class="n">30秒</div><div class="l">出结果</div></div>
         </div>
       </div>
@@ -1401,7 +1424,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
               <div id="modeHint" style="text-align:center;color:var(--ink-soft);font-size:13px;margin-bottom:20px">👆 请先选择你的市场，系统会自动切换对应的 AI 平台</div>
               <div id="brandForm" class="hidden">
                 <div style="background:#eaf0e6;border-radius:10px;padding:12px 16px;font-size:13px;color:var(--ink);line-height:1.7;margin-bottom:16px">
-                  💡 <b>这一步在干嘛？</b> 填好你的品牌信息，我们就会模拟你的真实客户，拿着各种问题去问 8 大 AI，看 AI 推不推你。信息填得越全，模拟越准。
+                  💡 <b>这一步在干嘛？</b> 填好你的品牌信息，我们就会模拟你的真实客户，拿着各种问题去问主流 AI，看 AI 推不推你。信息填得越全，模拟越准。
                 </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
                   <div class="field"><label>品牌名 <span style="color:var(--bad)">*</span></label><input id="bName" placeholder="如 优品茶叶"></div>
@@ -1602,7 +1625,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div id="boardView" class="hidden">
           <div class="shell">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
-              <p style="font-size:14px;color:var(--ink-soft)">8 大 AI 平台收录明细 · 每条可点击到平台验证</p>
+              <p style="font-size:14px;color:var(--ink-soft)">主流 AI 平台收录明细 · 每条可点击到平台验证</p>
               <button class="btn-cyan" style="font-size:13px;padding:8px 16px" onclick="genIndexData()" id="genIdxBtn">🔄 生成/刷新收录数据</button>
             </div>
             <!-- 顶部大数字 -->
@@ -1630,96 +1653,188 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
 
             <!-- 主推4档 -->
             <div class="plans">
-              <!-- 免费 -->
-              <div class="plan">
-                <div class="plan-name">免费版</div>
-                <div class="plan-price">¥0</div>
-                <div class="plan-desc">先查清 AI 到底推不推你</div>
-                <ul class="plan-features">
-                  <li>🔍 <b>监测 3 个主流 AI 平台</b></li>
-                  <li>✅ AI 推荐率 + 真实截图</li>
-                  <li>✅ 免费监测 3 次</li>
-                  <li>✅ 竞品对比（基础）</li>
-                  <li style="color:var(--ink-faint)">✗ 生成内容 / 作战报告</li>
-                  <li style="color:var(--ink-faint)">✗ 关键词 / 长尾词</li>
-                </ul>
-                <button class="btn-ghost" style="width:100%;padding:12px" onclick="hidePricing()">免费开始</button>
-                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">看到问题，再决定要不要解决</div>
-              </div>
-
-              <!-- 19.9 单次内容包 -->
+              <!-- 9.9 体验版（引流款）-->
               <div class="plan" style="border:1px solid var(--gold)">
-                <div class="plan-badge" style="background:var(--gold);color:#fff">💡 试用装</div>
-                <div class="plan-name">单次内容包</div>
-                <div class="plan-price">¥19.9<span>/次</span></div>
-                <div class="plan-desc">解锁一次完整生成，把方案落地</div>
+                <div class="plan-badge" style="background:var(--gold);color:#fff">💡 先查清现状</div>
+                <div class="plan-name">AI 监测体验版</div>
+                <div class="plan-price">¥9.9<span>/次</span></div>
+                <div class="plan-desc">一杯奶茶钱，看清 AI 到底推不推你</div>
                 <ul class="plan-features">
-                  <li>🔍 <b>监测 6 个 AI 平台</b></li>
-                  <li>✅ 关键词 + 长尾词生成</li>
-                  <li>✅ 完整作战报告（可导出）</li>
-                  <li>✅ 多平台内容生成（5 篇）</li>
-                  <li>✅ 竞品弱点 + 行动清单</li>
+                  <li>🔍 <b>监测 6 大主流 AI</b><br><span style="font-size:11px;color:var(--ink-soft)">豆包 · DeepSeek · 文心 · 通义 · Kimi · ChatGPT</span></li>
+                  <li>✅ AI 回答原文截图存证</li>
+                  <li>✅ 完整诊断报告（可导出）</li>
+                  <li>✅ 竞品对比 + 弱点分析</li>
+                  <li>✅ 赠 1 篇 AI 优化内容</li>
+                  <li style="color:var(--gold)"><b>🎁 7天内升级季度版，直接抵扣 9.9</b></li>
                 </ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('single')">¥19.9 解锁一次</button>
-                <div style="text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5">费用主要用于 AI 算力消耗<br>一杯奶茶钱，先体验完整效果</div>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('single')">¥9.9 立即查一次</button>
+                <div style="text-align:center;font-size:11.5px;color:var(--ink-soft);margin-top:8px;line-height:1.5">费用主要用于 AI 算力消耗<br>查出来 AI 推你，你就不用再花钱</div>
               </div>
 
-              <!-- 599 增长版 -->
+              <!-- 599 季度版（主推）-->
               <div class="plan popular">
                 <div class="plan-badge">🔥 最受欢迎</div>
-                <div class="plan-name">增长版</div>
-                <div class="plan-price">¥599<span>/月</span></div>
-                <div class="plan-desc">功能全开，适合单店 / 初创自己做</div>
+                <div class="plan-name">增长版 · 季度</div>
+                <div class="plan-price">¥599<span>/3个月</span></div>
+                <div class="plan-desc">折合 ¥199/月 · 单月单买要 ¥299</div>
                 <ul class="plan-features">
-                  <li>🔍 <b>监测 9 个 AI 平台</b></li>
+                  <li>🔍 <b>监测 9 大 AI 平台</b></li>
                   <li><b>✅ 全部功能开放</b></li>
                   <li>✅ 监测 50 次 / 月</li>
-                  <li>✅ 内容生成 50 次 / 月</li>
+                  <li>✅ 内容生成 50 篇 / 月</li>
                   <li>✅ 作战报告 50 次 / 月</li>
                   <li>✅ 含 3 个 AI 获客落地页</li>
-                  <li>✅ 增长看板 + 战报</li>
+                  <li>✅ 增长看板 + 每周战报</li>
                   <li>🔬 <b>高级实验室（各 1 次/月）</b><br><span style="font-size:11px;color:var(--ink-soft)">多轮沙盒 · 批量监测 · 语义差距</span></li>
                 </ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">开始增长</button>
-                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">每天不到 20 元，够单店用一个月</div>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('monthly')">¥599 开始增长</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">GEO 见效需 30-45 天，3 个月是最短见效周期</div>
               </div>
 
-              <!-- 980 畅享版 -->
-              <div class="plan" style="border:2px solid var(--cyan)">
-                <div class="plan-badge" style="background:var(--cyan);color:#fff">⚡ 不限次</div>
-                <div class="plan-name">畅享版</div>
-                <div class="plan-price">¥980<span>/月</span></div>
-                <div class="plan-desc">不限次数，适合多店 / 代运营 / 规模化</div>
+              <!-- 999 半年版（最超值）-->
+              <div class="plan" style="border:2px solid var(--cyan);position:relative">
+                <div class="plan-badge" style="background:var(--cyan);color:#fff">⭐ 最超值</div>
+                <div class="plan-name">增长版 · 半年</div>
+                <div class="plan-price">¥999<span>/6个月</span></div>
+                <div class="plan-desc"><b style="color:var(--cyan)">折合 ¥166/月，比季度版再省 ¥199</b></div>
                 <ul class="plan-features">
-                  <li>🔍 <b>监测 13 个 AI 平台（最全）</b></li>
+                  <li>🔍 <b>监测 13 大 AI（全平台）</b></li>
+                  <li><b>✅ 季度版全部功能</b></li>
+                  <li>✅ 监测 80 次 / 月（升级）</li>
+                  <li>✅ 内容生成 80 篇 / 月（升级）</li>
+                  <li>✅ 管理 5 个品牌</li>
+                  <li>✅ 含 6 个 AI 获客落地页</li>
+                  <li>🔬 <b>高级实验室（各 2 次/月）</b></li>
+                  <li style="color:var(--cyan)"><b>🎁 赠：1 对 1 优化方案诊断</b></li>
+                </ul>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('half_year')">¥999 半年最划算</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">GEO 是复利游戏，做得越久越难被抢位</div>
+              </div>
+
+              <!-- 1799 年度版 -->
+              <div class="plan" style="border:1px solid var(--gold)">
+                <div class="plan-badge" style="background:linear-gradient(135deg,#c99a52,#e8c88a);color:#1a1712">👑 年度尊享</div>
+                <div class="plan-name">畅享版 · 年度</div>
+                <div class="plan-price">¥1799<span>/年</span></div>
+                <div class="plan-desc"><b style="color:var(--gold)">折合 ¥150/月，比季度版省 ¥797</b></div>
+                <ul class="plan-features">
+                  <li>🔍 <b>监测 13 大 AI（全平台）</b></li>
                   <li><b>✅ 全部功能 + 不限次数</b></li>
                   <li>✅ 监测 / 生成 / 报告 全不限</li>
                   <li>✅ 管理 10 个品牌</li>
                   <li>✅ 含 15 个 AI 获客落地页</li>
                   <li><b>✅ 独家：收录数据大盘</b></li>
-                  <li>🔬 <b>高级实验室（各 2 次/月）</b><br><span style="font-size:11px;color:var(--ink-soft)">多轮沙盒 · 批量监测 · 语义差距</span></li>
-                  <li>✅ 批量操作 + 优先算力</li>
+                  <li>🔬 <b>高级实验室（各 3 次/月）</b></li>
+                  <li style="color:var(--gold)"><b>🎁 赠：季度深度复盘 ×4</b></li>
                 </ul>
-                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('pro_monthly')">畅享不限次</button>
-                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">多店 / 代运营的最优选择</div>
+                <button class="btn-cyan" style="width:100%;padding:12px" onclick="startPay('pro_monthly')">¥1799 年度尊享</button>
+                <div style="text-align:center;font-size:12px;color:var(--ink-soft);margin-top:8px">多店 / 代运营 / 规模化的最优选</div>
               </div>
             </div>
 
-            <!-- 企业定制（大单，引导面谈）-->
-            <div style="margin-top:36px;background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:20px;padding:32px 36px;color:#f4f1ea">
-              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px">
-                <div style="flex:1;min-width:280px">
-                  <div style="font-size:13px;color:#c99a52;font-weight:700;margin-bottom:6px">👑 企业定制 · 代运营</div>
-                  <div style="font-size:24px;font-weight:800;margin-bottom:10px">全托管 GEO 增长，我们帮你做到底</div>
-                  <div style="font-size:13.5px;color:rgba(244,241,234,.7);line-height:1.8">
-                    专属主词 + 必中长尾词 + 海量长尾词覆盖，从内容生产到发布全代运营。<br>
-                    适合：区域性业务、全国市场品牌、高客单深度服务、对品牌口碑要求高的客户。
-                  </div>
+            <!-- 价格对比表（帮客户算账，促进一次多付）-->
+            <div style="margin-top:28px;background:var(--panel-2,rgba(244,241,234,.04));border-radius:16px;padding:22px 26px">
+              <div style="font-size:15px;font-weight:700;margin-bottom:14px">💡 帮你算笔账：买越久，越便宜</div>
+              <div style="overflow-x:auto">
+                <table style="width:100%;border-collapse:collapse;font-size:13.5px;min-width:460px">
+                  <tr style="border-bottom:1px solid var(--line)">
+                    <th style="text-align:left;padding:9px 8px;font-weight:600">套餐</th>
+                    <th style="text-align:center;padding:9px 8px;font-weight:600">总价</th>
+                    <th style="text-align:center;padding:9px 8px;font-weight:600">折合月价</th>
+                    <th style="text-align:center;padding:9px 8px;font-weight:600">相比季度版</th>
+                  </tr>
+                  <tr style="border-bottom:1px solid var(--line)">
+                    <td style="padding:9px 8px">季度版（3个月）</td>
+                    <td style="text-align:center;padding:9px 8px">¥599</td>
+                    <td style="text-align:center;padding:9px 8px">¥199</td>
+                    <td style="text-align:center;padding:9px 8px;color:var(--ink-soft)">—</td>
+                  </tr>
+                  <tr style="border-bottom:1px solid var(--line);background:rgba(90,125,90,.08)">
+                    <td style="padding:9px 8px"><b>半年版（6个月）</b></td>
+                    <td style="text-align:center;padding:9px 8px"><b>¥999</b></td>
+                    <td style="text-align:center;padding:9px 8px"><b>¥166</b></td>
+                    <td style="text-align:center;padding:9px 8px;color:var(--cyan)"><b>省 ¥199</b></td>
+                  </tr>
+                  <tr>
+                    <td style="padding:9px 8px">年度版（12个月）</td>
+                    <td style="text-align:center;padding:9px 8px">¥1799</td>
+                    <td style="text-align:center;padding:9px 8px">¥150</td>
+                    <td style="text-align:center;padding:9px 8px;color:var(--gold)"><b>省 ¥797</b></td>
+                  </tr>
+                </table>
+              </div>
+              <div style="font-size:12px;color:var(--ink-soft);margin-top:12px;line-height:1.7">
+                ⏱️ <b style="color:var(--ink)">为什么建议至少买 3 个月？</b>AI 收录你的新内容通常需要 2-6 周，提及率的明显变化一般出现在 30-45 天后。买 1 个月大概率还没看到效果就到期了。
+              </div>
+            </div>
+
+            <!-- 全托管定制（大单，内容丰富引导咨询）-->
+            <div style="margin-top:32px;background:linear-gradient(135deg,#26221c,#2f2a22);border-radius:20px;padding:34px 36px;color:#f4f1ea">
+              <div style="text-align:center;margin-bottom:26px">
+                <div style="font-size:13px;color:#c99a52;font-weight:700;letter-spacing:2px;margin-bottom:8px">👑 全托管定制 · 我们帮你做到底</div>
+                <div style="font-size:26px;font-weight:800;margin-bottom:10px">没时间自己做？把 GEO 整个交给我们</div>
+                <div style="font-size:14px;color:rgba(244,241,234,.7);line-height:1.8;max-width:620px;margin:0 auto">
+                  工具版是"给你地图和工具，你自己打"。<br>
+                  <b style="color:#a8c48c">全托管是"我们带着团队，替你打完整场仗"</b>——从策略、内容、发布到复盘，你只需要看结果。
+                </div>
+              </div>
+
+              <!-- 服务内容 -->
+              <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:24px">
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">🎯</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">专属策略团队</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">1 对 1 顾问 + 专属微信群，深度理解你的业务，定制专属主词与长尾词矩阵</div>
+                </div>
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">✍️</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">内容全代产</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">每月 20-60 篇高质量 GEO 内容，人工审校，符合各平台调性，你只需确认</div>
+                </div>
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">📮</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">信源布局协助</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">按 AI 实际引用的信源清单规划发布节奏，协助百科词条、问答布局</div>
+                </div>
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">🏗️</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">获客落地页矩阵</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">批量生成行业长尾落地页 + 交互工具，全天候承接 AI 与搜索流量</div>
+                </div>
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">📊</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">月度复盘会</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">每月一次线上复盘：提及率变化、竞品动向、下阶段策略，出具正式报告</div>
+                </div>
+                <div style="background:rgba(244,241,234,.05);border:1px solid rgba(244,241,234,.1);border-radius:14px;padding:18px 20px">
+                  <div style="font-size:22px;margin-bottom:8px">🛡️</div>
+                  <div style="font-size:15px;font-weight:700;margin-bottom:6px">口碑防御与修复</div>
+                  <div style="font-size:12.5px;color:rgba(244,241,234,.65);line-height:1.7">监测 AI 负面提及，定位源头信源，用真实优质内容持续稀释</div>
+                </div>
+              </div>
+
+              <!-- 适合谁 -->
+              <div style="background:rgba(168,196,140,.08);border:1px solid rgba(168,196,140,.25);border-radius:14px;padding:18px 22px;margin-bottom:22px">
+                <div style="font-size:13.5px;font-weight:700;color:#a8c48c;margin-bottom:10px">✅ 这些情况，建议直接选全托管</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;font-size:13px;color:rgba(244,241,234,.75);line-height:1.7">
+                  <div>· 客单价高（单客 ≥ 5000 元），一单就赚回服务费</div>
+                  <div>· 团队没有内容岗，自己写不出也没时间写</div>
+                  <div>· 区域性生意，想在本地"哪家好"里稳占前排</div>
+                  <div>· 已被竞品压制，需要系统性抢回推荐位</div>
+                  <div>· AI 上有负面提及，需要专业处理</div>
+                  <div>· 多品牌 / 多门店，需要统一管理与复制打法</div>
+                </div>
+              </div>
+
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:20px;padding-top:6px">
+                <div style="flex:1;min-width:260px;font-size:12.5px;color:rgba(244,241,234,.6);line-height:1.8">
+                  <b style="color:#f4f1ea">价格如何确定？</b>按你的行业竞争度、关键词数量、内容产出量定制报价，<br>
+                  提供季度 / 半年 / 全年方案。先免费诊断，再谈方案，不合适不推荐。
                 </div>
                 <div style="text-align:center">
-                  <div style="font-size:13px;color:rgba(244,241,234,.6);margin-bottom:8px">季度 / 半年 / 全年套餐</div>
-                  <div style="font-size:28px;font-weight:800;color:#a8c48c;margin-bottom:4px">活动价面谈</div>
-                  <button class="btn-cyan" style="padding:12px 28px;margin-top:8px" onclick="showCustomPlans()">查看定制方案 →</button>
+                  <div style="font-size:13px;color:rgba(244,241,234,.6);margin-bottom:6px">先免费出一份诊断报告</div>
+                  <button class="btn-cyan" style="padding:13px 30px;font-size:15px" onclick="showCustomPlans()">咨询定制方案 →</button>
+                  <div style="font-size:12px;color:#a8c48c;margin-top:8px">顾问微信：jenly222</div>
                 </div>
               </div>
             </div>
@@ -2240,7 +2355,7 @@ function renderBattleMap(){
   const hasBrand = !!(currentBrandId || lastBrandIdForDash);
   const steps = [
     {n:1, ic:"🔍", title:"监测现状", q:"AI 到底推不推我？",
-     desc:"填入你的品牌和核心竞品，见微去 8 大 AI 平台问一圈，看 AI 推的是你还是对手，附真实对话截图。",
+     desc:"填入你的品牌和核心竞品，见微去 13 大 AI 平台问一圈，看 AI 推的是你还是对手，附真实对话截图。",
      goal:"目的：先看清现状。不知道问题在哪，一切优化都是瞎猜。",
      btn:"去监测", act:"navTo('flow')", color:"var(--cyan)"},
     {n:2, ic:"🔬", title:"诊断溯源", q:"为什么不推我？对手赢在哪？",
@@ -2342,7 +2457,7 @@ function maybeShowOnboarding(){
 
 const ONBOARD_STEPS = [
   {icon:"👋", title:"欢迎来到见微", desc:"我帮你查清楚：AI 到底在推你，还是推你的对手。跟着做，5 分钟你就能看到 AI 眼里真实的你。"},
-  {icon:"🔍", title:"这就是你要做的第一件事", desc:"填入你的品牌 + 核心竞品，我去 8 大 AI 平台问一圈「你这行哪家好」，看 AI 报的名单里有没有你。<b>大多数商家第一次查，都会发现自己是隐形的。</b>"},
+  {icon:"🔍", title:"这就是你要做的第一件事", desc:"填入你的品牌 + 核心竞品，我去 13 大 AI 平台问一圈「你这行哪家好」，看 AI 报的名单里有没有你。<b>大多数商家第一次查，都会发现自己是隐形的。</b>"},
   {icon:"⚔️", title:"你会看到对手赢在哪", desc:"报告会扒出：AI 推竞品，是因为引用了哪些信源。你照着这些信源布局，就能从对手手里抢回推荐位。"},
   {icon:"🚀", title:"然后一键生成内容去优化", desc:"我把该发什么、发到哪都算好了，你点一下生成，复制就能发。发对地方，AI 才会重新认识你。"},
   {icon:"📈", title:"回来看效果，数据说话", desc:"过 1-2 周复测，「增长看板」会告诉你提及率涨了没。GEO 是持续经营，30-45 天见变化。"},
@@ -6611,7 +6726,7 @@ function renderDeepPackCta(rep){
       <div style="position:relative">
         <div style="display:inline-block;background:rgba(176,82,74,.2);color:#ff9b91;font-size:12px;font-weight:700;padding:5px 12px;border-radius:20px;margin-bottom:12px">⚠️ 缺口预警</div>
         <div style="font-size:18px;font-weight:700;color:#f4f1ea;margin-bottom:8px">缺口过大？自己补太慢，让专业团队帮你一次补齐</div>
-        <div style="font-size:14px;color:rgba(244,241,234,.75);line-height:1.7;margin-bottom:18px">${reason}。<br>见微提供官方 <b style="color:#a8c48c">[内容创作 + 全渠道分发]</b> 深度包——专业团队帮你批量产出 AI 偏好的优质内容，并铺到 300+ 权威信源与垂直社区，加速让 AI 重新认识你的品牌。</div>
+        <div style="font-size:14px;color:rgba(244,241,234,.75);line-height:1.7;margin-bottom:18px">${reason}。<br>见微提供官方 <b style="color:#a8c48c">[内容创作 + 全渠道分发]</b> 深度包——专业团队帮你批量产出 AI 偏好的优质内容，并规划到 AI 实际会引用的信源渠道，加速让 AI 重新认识你的品牌。</div>
         <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
           <button onclick="showDeepPackContact()" style="background:#deff9a;color:#26221c;border:none;padding:13px 26px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer">🚀 获取深度包方案 →</button>
           <span style="font-size:13px;color:rgba(244,241,234,.6)">限时·首次咨询免费评估</span>
