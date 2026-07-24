@@ -271,6 +271,10 @@ class GeneratedContent(SQLModel, table=True):
     distribute_json: str = "{}"    # {"官网":true,"知乎":true,"公众号":false,"百家号":false}
     is_indexed: bool = False       # 是否被搜索/AI收录
     is_cited: bool = False         # 是否被AI引用（最终目标）
+    # ★执行闭环：发布追踪（解决"生成了但没发"这个最大杀手）
+    published_at: Optional[datetime] = None   # 标记发布的时间
+    published_url: str = ""                   # 发布后的链接（可点击验证）
+    published_platform: str = ""              # 发布到哪个平台
     created_at: datetime = Field(default_factory=cn_now)
 
 
@@ -412,6 +416,9 @@ def _auto_migrate():
     from sqlalchemy import text
     # 需要补的字段：(表名, 字段名, 类型与默认值)
     migrations = [
+        ("generatedcontent", "published_at", "TIMESTAMP"),
+        ("generatedcontent", "published_url", "VARCHAR DEFAULT ''"),
+        ("generatedcontent", "published_platform", "VARCHAR DEFAULT ''"),
         ("aievidence", "cited_urls", "VARCHAR DEFAULT ''"),
         ("aievidence", "sentiment", "VARCHAR DEFAULT ''"),
         ("aievidence", "sentiment_reason", "VARCHAR DEFAULT ''"),
