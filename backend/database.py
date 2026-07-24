@@ -29,82 +29,71 @@ PLANS = {
     "trial": {
         "name": "免费版", "price_cny": 0, "brands": 1,
         "questions": 20, "samples": 1, "platforms": 3, "freq": "once",
-        "monitor_limit": 3,   # 免费给3次监测（让他反复查、看到AI不推他）
-        "battle_limit": 0,    # 作战包只给预览，完整要付费
-        "content_limit": 0,   # 不能生成内容 → 制造付费动力
-        "pseo_limit": 0,
-        # 高成本高级功能配额（每月）
-        "sandbox_limit": 0,   # 多轮追问沙盒
-        "bulk_limit": 0,      # 批量关键词监测
-        "semgap_limit": 0,    # 语义差距分析
-    },
-    "single": {
-        "name": "单次内容包", "price_cny": 19.9, "brands": 1,
-        "questions": 50, "samples": 1, "platforms": 6, "freq": "once",
-        "monitor_limit": 3,   # 保留监测
-        "battle_limit": 1,    # 1次完整作战报告（可导出）
-        "content_limit": 5,   # 1次解锁：关键词+长尾词+内容生成（5次够落地一轮）
+        "monitor_limit": 1,   # 免费只给1次监测（看到问题→引导9.9）
+        "battle_limit": 0,
+        "content_limit": 0,
         "pseo_limit": 0,
         "sandbox_limit": 0, "bulk_limit": 0, "semgap_limit": 0,
-        "is_onetime": True,   # 单次买断，非订阅
     },
+    # ===== 淘宝主推：9.9 体验款（引流）=====
+    "single": {
+        "name": "AI监测体验版", "price_cny": 9.9, "brands": 1,
+        "questions": 30, "samples": 1, "platforms": 6, "freq": "once",
+        "monitor_limit": 1,   # 1次完整监测（6大AI）
+        "battle_limit": 1,    # 1份完整诊断报告（可导出）
+        "content_limit": 1,   # 送1篇优化内容（尝到甜头→引导升级）
+        "pseo_limit": 0,
+        "sandbox_limit": 0, "bulk_limit": 0, "semgap_limit": 0,
+        "is_onetime": True,
+        "duration_days": 7,   # 7天有效期内可升级抵扣
+    },
+    # ===== 淘宝主推：599 季度款（主力）=====
     "monthly": {
-        "name": "增长版", "price_cny": 599, "brands": 3,
+        "name": "增长版·季度", "price_cny": 599, "brands": 3,
         "questions": 80, "samples": 1, "platforms": 9, "freq": "weekly",
-        "monitor_limit": 50,  # 每月50次监测
-        "battle_limit": 50,   # 50次作战报告
-        "content_limit": 50,  # 50次内容生成
-        "pseo_limit": 3,      # 含3个pSEO获客落地页
-        # 高成本功能：每月1次（控制成本，同时是高感知卖点）
-        "sandbox_limit": 1,   # 多轮追问沙盒 1次/月
-        "bulk_limit": 1,      # 批量关键词监测 1次/月
-        "semgap_limit": 1,    # 语义差距分析 1次/月
+        "duration_days": 90,  # 3个月
+        "monitor_limit": 50,  # 每月50次
+        "battle_limit": 50,
+        "content_limit": 50,
+        "pseo_limit": 3,
+        "sandbox_limit": 1,
+        "bulk_limit": 1,
+        "semgap_limit": 1,
     },
+    # ===== 半年款（最超值，拉高客单价）=====
+    "half_year": {
+        "name": "增长版·半年", "price_cny": 999, "brands": 5,
+        "questions": 100, "samples": 1, "platforms": 13, "freq": "weekly",
+        "duration_days": 180,  # 6个月
+        "monitor_limit": 80,
+        "battle_limit": 80,
+        "content_limit": 80,
+        "pseo_limit": 6,
+        "sandbox_limit": 2,
+        "bulk_limit": 2,
+        "semgap_limit": 2,
+    },
+    # ===== 年度款（客单价最高，送定制诊断）=====
     "pro_monthly": {
-        "name": "畅享版", "price_cny": 980, "brands": 10,
+        "name": "畅享版·年度", "price_cny": 1799, "brands": 10,
         "questions": 120, "samples": 1, "platforms": 13, "freq": "daily",
-        "monitor_limit": 999,  # 不限次监测
-        "battle_limit": 999,   # 不限作战报告
-        "content_limit": 999,  # 不限内容生成
-        "pseo_limit": 15,       # 含15个pSEO落地页
-        "index_board": True,    # 独家：收录数据大盘
-        # 高成本功能：每月2次
-        "sandbox_limit": 2,   # 多轮追问沙盒 2次/月
-        "bulk_limit": 2,      # 批量关键词监测 2次/月
-        "semgap_limit": 2,    # 语义差距分析 2次/月
+        "duration_days": 365,  # 12个月
+        "monitor_limit": 999,
+        "battle_limit": 999,
+        "content_limit": 999,
+        "pseo_limit": 15,
+        "index_board": True,
+        "sandbox_limit": 3,
+        "bulk_limit": 3,
+        "semgap_limit": 3,
     },
     "custom": {
-        "name": "企业定制", "price_cny": 0, "brands": 30,
+        "name": "全托管定制", "price_cny": 0, "brands": 30,
         "questions": 200, "samples": 3, "platforms": 13, "freq": "daily",
         "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 100,    # 定制：pSEO矩阵+代运营，价格面议
+        "pseo_limit": 100,
         "index_board": True,
         "sandbox_limit": 10, "bulk_limit": 10, "semgap_limit": 10,
-    },
-    # ===== 以下为旧套餐（仅兼容历史付费用户，价格页不再展示）=====
-    "starter": {
-        "name": "季付版(旧)", "price_cny": 1980, "brands": 5,
-        "questions": 120, "samples": 1, "platforms": 6, "freq": "weekly",
-        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 3,
-    },
-    "starter_trial": {
-        "name": "体验版(旧)", "price_cny": 39.9, "brands": 1,
-        "questions": 30, "samples": 1, "platforms": 4, "freq": "once",
-        "monitor_limit": 1, "battle_limit": 1, "content_limit": 1,
-        "pseo_limit": 0,
-    },
-    "pro": {
-        "name": "企业版(旧)", "price_cny": 3980, "brands": 5,
-        "questions": 150, "samples": 2, "platforms": 6, "freq": "daily",
-        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 10,
-    },
-    "business": {
-        "name": "旗舰版(旧)", "price_cny": 9800, "brands": 10,
-        "questions": 999, "samples": 3, "platforms": 8, "freq": "daily",
-        "monitor_limit": 999, "battle_limit": 999, "content_limit": 999,
-        "pseo_limit": 30,
     },
 }
 
