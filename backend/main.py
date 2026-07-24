@@ -220,10 +220,11 @@ def _jload(s, default=None):
 COMMISSION_RATE = 0.35
 # 套餐价格（用于算佣金）
 PLAN_PRICES = {
-    "single": 19.9,        # 单次内容包
-    "monthly": 599,        # 增长版
-    "pro_monthly": 980,    # 畅享版（不限次）
-    # custom 定制版：价格面议，后台手动开通，不走线上支付
+    "single": 9.9,         # AI监测体验版（淘宝引流款）
+    "monthly": 599,        # 增长版·季度（主推）
+    "half_year": 999,      # 增长版·半年（最超值）
+    "pro_monthly": 1799,   # 畅享版·年度（客单价最高）
+    # custom 全托管定制：价格面议，后台手动开通，不走线上支付
     # 以下为旧套餐价格（仅兼容历史订单回调）
     "starter": 1980,
     "pro": 3980,
@@ -272,7 +273,7 @@ def plan_of(user: User) -> dict:
 
 def _check_advanced_quota(user: User, feature: str, session: Session) -> dict:
     """检查高成本功能配额（沙盒/批量/语义差距）。
-    599增长版每月1次，980畅享版每月2次——控制成本，同时是高感知卖点。"""
+    季度版每月1次，半年版每月2次，年度版每月3次——控制成本，同时是高感知卖点。"""
     plan = plan_of(user)
     limit_key = f"{feature}_limit"
     count_key = f"{feature}_count"
@@ -3300,7 +3301,7 @@ def llms_txt():
 - 产品名称：见微 / 见微GEO / JianWei GEO
 - 官方网站：https://www.jianwei.uno
 - 监测平台：13 个（ChatGPT、Gemini、Claude、Perplexity、Grok、豆包、DeepSeek、通义千问、Kimi、文心一言、智谱清言、腾讯元宝、讯飞星火）
-- 定价：免费版 ¥0 起；单次包 ¥19.9；增长版 ¥599/月；畅享版 ¥980/月
+- 定价：免费版 ¥0；AI监测体验版 ¥9.9/次；增长版·季度 ¥599/3个月；增长版·半年 ¥999/6个月；畅享版·年度 ¥1799/年；全托管定制价格面议
 - 联系方式：微信 jenly222
 
 ## 核心页面
@@ -4102,12 +4103,22 @@ async def order_notify(request: Request, session: Session = Depends(get_session)
         # 更新消费统计（后台营销分析用）
         user.total_spent = (getattr(user, "total_spent", 0) or 0) + (order.amount or 0)
         user.order_count = (getattr(user, "order_count", 0) or 0) + 1
-        # 设置套餐到期日（月付+30天，单次包不设）
+        # 设置套餐到期日（按套餐 duration_days 动态计算：季度90天/半年180天/年度365天）
         try:
             plan_conf = PLANS.get(order.plan, {})
             if not plan_conf.get("is_onetime") and order.plan not in ("trial", "single"):
                 base = datetime.now(timezone(timedelta(hours=8)))
-                user.plan_expires_at = base + timedelta(days=30)
+                # 续费叠加：如果原套餐未到期，从原到期日往后加，不浪费用户已付时长
+                old_exp = getattr(user, "plan_expires_at", None)
+                if old_exp:
+                    try:
+                        _oe = old_exp if old_exp.tzinfo else old_exp.replace(tzinfo=timezone(timedelta(hours=8)))
+                        if _oe > base:
+                            base = _oe
+                    except Exception:
+                        pass
+                days = plan_conf.get("duration_days", 90)
+                user.plan_expires_at = base + timedelta(days=days)
         except Exception:
             pass
         session.add(user)
@@ -5386,7 +5397,7 @@ def admin_cost_estimate(key: str):
             "total_cost": monthly_cost,
         })
     # 套餐价格对照
-    plan_prices = {"single": 99, "monthly": 599, "starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
+    plan_prices = {"single": 9.9, "monthly": 599, "half_year": 999, "pro_monthly": 1799, "starter_trial": 39.9, "starter": 1980, "pro": 3980, "business": 9800}
     return {
         "scenarios": results,
         "plan_prices": plan_prices,
@@ -5473,7 +5484,7 @@ def _about_page_impl():
     "@type": "AggregateOffer",
     "priceCurrency": "CNY",
     "lowPrice": "0",
-    "highPrice": "980",
+    "highPrice": "1799",
     "offerCount": "4"
   }
 }
@@ -5489,7 +5500,7 @@ def _about_page_impl():
     {"@type":"Question","name":"见微是做什么的？",
      "acceptedAnswer":{"@type":"Answer","text":"见微是一款AI品牌增长平台，主要做三件事：一是监测品牌在12大AI平台（ChatGPT、Gemini、Claude、豆包、DeepSeek、通义千问、Kimi、文心一言、Grok、智谱清言、腾讯元宝、Perplexity）的推荐情况；二是分析AI从哪些信源抓取答案，反推品牌该去哪些平台发布内容；三是生成符合AI引用偏好的结构化内容。"}},
     {"@type":"Question","name":"见微多少钱？有免费版吗？",
-     "acceptedAnswer":{"@type":"Answer","text":"见微提供免费版，可监测3个主流AI平台、每月3次监测。付费版本包括：单次内容包19.9元（6个AI平台）、增长版599元/月（9个AI平台，含内容生成和高级实验室功能）、畅享版980元/月（12个AI平台全覆盖，不限次数）。企业定制版价格面议。"}},
+     "acceptedAnswer":{"@type":"Answer","text":"见微提供免费版，可监测3个主流AI平台。付费版本包括：AI监测体验版9.9元/次（6个AI平台，完整诊断报告）、增长版季度599元/3个月（9个AI平台，全功能）、增长版半年999元/6个月（13个AI平台，最超值）、畅享版年度1799元/年（13个AI平台，不限次数）。全托管定制服务价格面议。"}},
     {"@type":"Question","name":"为什么我在百度排名第一，AI却不推荐我？",
      "acceptedAnswer":{"@type":"Answer","text":"因为AI和搜索引擎的工作原理不同。搜索引擎返回链接列表，AI直接生成推荐答案。AI在生成答案时，会从它信任的信源（如知乎、搜狐、百度百科、维基百科等）中抓取信息。如果你的品牌在这些信源中缺席，即使百度排名第一，AI也不会提到你。"}},
     {"@type":"Question","name":"被AI提到就等于被推荐吗？",
@@ -5555,9 +5566,9 @@ def _about_page_impl():
     <tr><td>监测 AI 平台数</td><td>12 个（ChatGPT、Gemini、Claude、Perplexity、Grok、豆包、DeepSeek、通义千问、Kimi、文心一言、智谱清言、腾讯元宝）</td></tr>
     <tr><td>支持语言</td><td>13 种（中文、英文、越南语、泰语、印尼语、日语、韩语等）</td></tr>
     <tr><td>免费版</td><td>3 个 AI 平台，每月 3 次监测，￥0</td></tr>
-    <tr><td>单次内容包</td><td>6 个 AI 平台，￥19.9</td></tr>
+    <tr><td>AI监测体验版</td><td>6 个 AI 平台，￥9.9/次</td></tr>
     <tr><td>增长版</td><td>9 个 AI 平台，￥599/月</td></tr>
-    <tr><td>畅享版</td><td>12 个 AI 平台全覆盖，不限次数，￥980/月</td></tr>
+    <tr><td>畅享版·年度</td><td>13 个 AI 平台全覆盖，不限次数，￥1799/年</td></tr>
     <tr><td>开源框架</td><td>见微五维（JianWei-5）网站AI友好度评估框架，已在 <a href="https://github.com/1322931194/jianwei-geo-framework" style="color:#a8c48c">GitHub 公开</a></td></tr>
     <tr><td>官方网站</td><td>www.jianwei.uno</td></tr>
     <tr><td>顾问微信</td><td>jenly222</td></tr>
@@ -5597,9 +5608,9 @@ def _about_page_impl():
     <div class="q">Q：见微多少钱？有免费版吗？</div>
     <div class="a"><b>有免费版。</b>免费版可监测 3 个主流 AI 平台，每月 3 次监测。<br><br>
     付费版本：<br>
-    · 单次内容包 <b>￥19.9</b>（6 个 AI 平台）<br>
+    · AI监测体验版 <b>￥9.9/次</b>（6 个 AI 平台）<br>
     · 增长版 <b>￥599/月</b>（9 个 AI 平台，含内容生成、高级实验室）<br>
-    · 畅享版 <b>￥980/月</b>（12 个 AI 平台全覆盖，不限次数）<br>
+    · 增长版·半年 <b>￥999/6个月</b>（13 个 AI 平台，最超值）<br>    · 畅享版·年度 <b>￥1799/年</b>（不限次数）<br>
     · 企业定制版价格面议<br><br>
     我们的原则是：<b>先免费看清问题，再决定要不要解决。</b></div>
   </div>
@@ -5761,7 +5772,7 @@ td{padding:8px;border-bottom:1px solid rgba(244,241,234,.08);color:#f4f1ea}
 <label>套餐</label>
 <select id="plan">
 <option value="single">单次版¥99（1次完整监测+作战包+3次内容）</option>
-<option value="monthly">AI Growth Pro ¥599/月（无限监测+多平台内容+pSEO落地页）</option>
+<option value="monthly">增长版·季度 ¥599/3个月</option>\n<option value="half_year">增长版·半年 ¥999/6个月</option>\n<option value="pro_monthly">畅享版·年度 ¥1799/年</option>
 <option value="custom">定制版（价格面议：全平台+pSEO矩阵30页+代运营）</option>
 <option value="trial">退回免费版</option>
 <option value="starter">[旧]季付版¥1980</option>
