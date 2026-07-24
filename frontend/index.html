@@ -1387,6 +1387,7 @@ body.dark-app #appView [style*="border-radius:50%"]{text-shadow:0 1px 3px rgba(0
         <div id="dashboardView" class="hidden">
           <div class="shell">
             <p style="font-size:14px;color:var(--ink-soft);margin-bottom:20px" id="dashSubtitle">追踪你的品牌 AI 能见度变化</p>
+            <div id="executionBox"></div>
             <div id="weeklyReportBox"></div>
             <div id="dashContent"><div class="loading" style="padding:40px"><div class="spinner"></div><p>加载看板数据…</p></div></div>
           </div>
@@ -3113,6 +3114,142 @@ async function addAction(){
   }catch(e){ toast("打点失败："+(e.message||"")); }
 }
 
+// ★执行闭环看板：多少内容发出去了（GEO 效果的第一决定因素）
+async function loadExecution(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const el=document.getElementById("executionBox");
+  if(!el) return;
+  try{
+    const d=await api(`/api/brands/${bid}/execution`);
+    const rc = d.execution_rate>=70?'var(--matcha)':(d.execution_rate>=40?'var(--gold)':'var(--bad)');
+    let h=`<div class="section-card" style="margin-bottom:16px">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">🚀 执行进度</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">内容不发出去，AI 永远看不到你 —— 这是 GEO 效果的第一决定因素</div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:${rc};line-height:1">${d.execution_rate}%</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">执行率</div></div>
+        <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:var(--matcha);line-height:1">${d.published_count}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">已发布</div></div>
+        <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:${d.pending_count>0?'var(--bad)':'var(--ink-soft)'};line-height:1">${d.pending_count}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">待发布</div></div>
+        ${d.days_since_last!==null&&d.days_since_last!==undefined?`<div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:26px;font-weight:900;color:${d.days_since_last>=14?'var(--bad)':'var(--ink)'};line-height:1">${d.days_since_last}</div>
+          <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">天没发布</div></div>`:''}
+      </div>`;
+    (d.alerts||[]).forEach(a=>{
+      const c=a.level==='high'?'var(--bad)':(a.level==='good'?'var(--matcha)':'var(--gold)');
+      const bg=a.level==='high'?'rgba(201,106,95,.1)':(a.level==='good'?'rgba(168,196,140,.08)':'rgba(201,154,82,.08)');
+      h+=`<div style="background:${bg};border-left:3px solid ${c};border-radius:8px;padding:12px 14px;margin-bottom:8px">
+        <div style="font-size:13.5px;color:var(--ink);line-height:1.6;font-weight:600">${escHtml(a.msg)}</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);margin-top:5px;line-height:1.6">👉 ${escHtml(a.action)}</div>
+      </div>`;
+    });
+    if(d.pending_list&&d.pending_list.length){
+      h+=`<div style="margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)">
+        <div style="font-size:12.5px;font-weight:600;color:var(--gold);margin-bottom:8px">📝 待发布内容（发完记得回来标记）</div>`;
+      d.pending_list.forEach(p=>{
+        h+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel-2);border-radius:8px;padding:10px 13px;margin-bottom:6px;flex-wrap:wrap">
+          <div style="flex:1;min-width:150px">
+            <div style="font-size:13px;color:var(--ink);font-weight:600">${escHtml(p.title||"未命名内容")}</div>
+            <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">生成于 ${escHtml(p.created)}${p.days_ago>=3?` · 已放置 ${p.days_ago} 天`:''}</div>
+          </div>
+          <button class="btn-ghost" style="padding:6px 14px;font-size:12px;white-space:nowrap" onclick="showPublishModal(${p.id},'${escHtml(p.title||"").replace(/'/g,"")}')">✓ 标记已发布</button>
+        </div>`;
+      });
+      h+=`</div>`;
+    }
+    if(d.note) h+=`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.note)}</div>`;
+    h+=`</div>`;
+    el.innerHTML=h;
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){ el.innerHTML=""; }
+}
+
+function showPublishModal(cid, title){
+  let m=document.getElementById("publishModal"); if(m) m.remove();
+  const html=`<div id="publishModal" style="position:fixed;inset:0;background:rgba(13,11,8,.85);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px">
+    <div style="background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:24px;max-width:440px;width:100%">
+      <div style="font-weight:700;font-size:16px;color:var(--ink);margin-bottom:6px">✓ 标记为已发布</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:16px">${escHtml(title)}</div>
+      <div class="field"><label>发布到哪个平台</label>
+        <select id="pubPlatform" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--panel);color:var(--ink)">
+          <option value="知乎">知乎</option><option value="搜狐号">搜狐号</option>
+          <option value="百家号">百家号</option><option value="公众号">公众号</option>
+          <option value="官网">官网</option><option value="小红书">小红书</option>
+          <option value="百度百科">百度百科</option><option value="其他">其他</option>
+        </select></div>
+      <div class="field"><label>发布后的链接（可选，方便以后验证收录）</label>
+        <input id="pubUrl" placeholder="https://..."></div>
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn-ghost" style="flex:1;padding:11px" onclick="document.getElementById('publishModal').remove()">取消</button>
+        <button class="btn-cyan" style="flex:1.4;padding:11px" onclick="doMarkPublished(${cid})">确认已发布</button>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML("beforeend", html);
+}
+async function doMarkPublished(cid){
+  const plat=(document.getElementById("pubPlatform")||{}).value||"";
+  const url=(document.getElementById("pubUrl")||{}).value||"";
+  const m=document.getElementById("publishModal"); if(m) m.remove();
+  try{
+    const d=await api(`/api/contents/${cid}/publish`,{method:"POST",body:JSON.stringify({published_platform:plat,published_url:url})});
+    toast("✅ "+(d.msg||"已标记发布"));
+    loadExecution();
+  }catch(e){ toast("标记失败："+(e.message||"")); }
+}
+
+// ★行业基准对比：你在同行里排第几
+async function loadBenchmark(){
+  const bid=currentBrandId||lastBrandIdForDash;
+  if(!bid) return;
+  const content=document.getElementById("dashContent");
+  if(!content) return;
+  try{
+    const d=await api(`/api/brands/${bid}/benchmark`);
+    let h='';
+    if(!d.has_data){
+      if(d.my_rate===undefined) return;
+      h=`<div class="section-card" style="margin-top:20px">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏅 行业基准对比</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin-top:10px">${escHtml(d.tip||"")}</div>
+        ${d.honesty?`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.honesty)}</div>`:''}
+      </div>`;
+    } else {
+      const pc = d.percentile>=80?'var(--matcha)':(d.percentile>=50?'var(--gold)':'var(--bad)');
+      h=`<div class="section-card" style="margin-top:20px">
+        <div style="font-weight:700;font-size:16px;margin-bottom:4px">🏅 行业基准对比 · ${escHtml(d.industry)}</div>
+        <div style="font-size:12.5px;color:var(--ink-soft);line-height:1.6;margin-bottom:14px">${escHtml(d.verdict||"")}</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+          <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:${pc};line-height:1">${d.my_rate}%</div>
+            <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">你的提及率</div></div>
+          <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:var(--ink);line-height:1">${d.industry_avg}%</div>
+            <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">行业平均</div></div>
+          <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:var(--gold);line-height:1">${d.top10_avg}%</div>
+            <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">头部10%</div></div>
+          <div style="flex:1;min-width:92px;background:var(--panel-2);border-radius:12px;padding:14px;text-align:center">
+            <div style="font-size:24px;font-weight:900;color:${pc};line-height:1">${d.my_rank}<span style="font-size:13px;color:var(--ink-soft)">/${d.sample_size}</span></div>
+            <div style="font-size:11.5px;color:var(--ink-soft);margin-top:5px">行业排名</div></div>
+        </div>
+        <div style="background:var(--panel-2);border-radius:10px;padding:12px 14px;font-size:12.5px;color:var(--ink);line-height:1.7">
+          ${d.gap_to_avg>=0?`✅ 你比行业平均高 <b style="color:var(--matcha)">${d.gap_to_avg}%</b>`:`⚠️ 你比行业平均低 <b style="color:var(--bad)">${Math.abs(d.gap_to_avg)}%</b>`}
+          · 距离头部还差 <b style="color:var(--gold)">${d.gap_to_top}%</b>
+        </div>
+        ${d.honesty?`<div style="font-size:11px;color:var(--ink-faint);margin-top:10px;line-height:1.6">${escHtml(d.honesty)}</div>`:''}
+      </div>`;
+    }
+    content.insertAdjacentHTML("afterbegin", h);
+    if(typeof window._fixContrast==="function") setTimeout(window._fixContrast,100);
+  }catch(e){}
+}
+
 // ★历史趋势曲线（数据资产）
 async function loadTrend(){
   const bid=currentBrandId||lastBrandIdForDash;
@@ -4591,6 +4728,9 @@ function renderDashboard(d){
   loadTrend();
   loadRoiReport();
   loadWeeklyReport();
+  // ★执行闭环 + 行业基准（最重要的两个，放最前）
+  loadExecution();
+  loadBenchmark();
   // ★高级实验室（限次功能）
   loadAdvancedLab();
   // ★见微五维·网站AI友好度体检（对标竞品网站诊断，但建议全部可执行）
